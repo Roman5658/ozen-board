@@ -1,0 +1,208 @@
+.page {
+    padding: 12px 12px 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.h1 {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.h2 {
+    font-size: 13px;
+    opacity: 0.75;
+}
+
+.card {
+    background: var(--card-bg, #d6d7da);
+    border: 1px solid rgb(255, 255, 255);
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cardInner {
+    background: rgba(255, 255, 255, 0.17);
+    border: 1px dashed rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rowBetween {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.label {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-bottom: 6px;
+}
+
+.hint {
+    font-size: 12px;
+    opacity: 0.65;
+    margin-top: 6px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+}
+
+.input, .textarea, select {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgb(255, 255, 255);
+    background: rgba(246, 245, 245, 0.96);
+    color: inherit;
+    padding: 10px 12px;
+    outline: none;
+}
+
+.textarea {
+    resize: vertical;
+}
+
+.grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.segment {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.segBtn {
+    padding: 8px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.21);
+    background: rgba(211, 207, 207, 0.98);
+    color: inherit;
+    font-size: 12px;
+}
+
+.segActive {
+    border-color: rgba(255,255,255,0.28);
+    background: rgba(255, 255, 255, 0.96);
+}
+
+.warning {
+    background: rgba(255, 204, 0, 0.08);
+    border: 1px solid rgba(255, 204, 0, 0.16);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.warningTitle {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.warningList {
+    margin: 0;
+    padding-left: 16px;
+    opacity: 0.9;
+}
+
+.photos {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.photo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.photoBox {
+    flex: 1;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    padding: 10px 12px;
+    background: rgba(0,0,0,0.22);
+    overflow: hidden;
+}
+
+.photoText {
+    font-size: 12px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.photoRemove {
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    opacity: 0.9;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btnPrimary {
+    padding: 12px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255, 255, 255, 0.2);
+    color: inherit;
+    font-weight: 700;
+}
+
+.btn {
+    padding: 12px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    background: transparent;
+    color: inherit;
+    font-weight: 600;
+    opacity: 0.95;
+}
+
+.btnGhost {
+    padding: 10px 10px;
+    border-radius: 12px;
+    border: 1px solid rgb(255, 255, 255);
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+}
+
