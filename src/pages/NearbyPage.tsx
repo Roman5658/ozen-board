@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react'
 import AdCard from '../components/AdCard'
-import { ADS } from '../data/ads'
+import type { Ad } from "../types/ad"
+
 import { getDistanceKm } from '../utils/distance'
 import { Link } from 'react-router-dom'
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "../app/firebase"
+
+
 
 
 type Props = {
@@ -15,6 +20,10 @@ function NearbyPage({ t }: Props) {
     const [radius, setRadius] = useState(10)
     const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
     const [error, setError] = useState('')
+    const [ads, setAds] = useState<Ad[]>([])
+
+
+
 
     useEffect(() => {
         navigator.geolocation.getCurrentPosition(
@@ -29,6 +38,22 @@ function NearbyPage({ t }: Props) {
             }
         )
     }, [])
+    useEffect(() => {
+        async function loadAds() {
+            const snap = await getDocs(collection(db, "ads"))
+
+            const data: Ad[] = snap.docs.map((d) => ({
+                id: d.id,
+                ...(d.data() as Omit<Ad, "id">),
+            }))
+
+
+
+            setAds(data)
+        }
+
+        loadAds()
+    }, [])
 
     if (error) {
         return <div className="card">{error}</div>
@@ -38,7 +63,9 @@ function NearbyPage({ t }: Props) {
         return <div className="card">Визначаємо ваше місцезнаходження…</div>
     }
 
-    const nearbyAds = ADS
+    const nearbyAds = ads
+
+
         .filter(ad => ad.location) // ⬅️ ВАЖНО
         .map(ad => {
             const { lat, lng } = ad.location!
@@ -92,11 +119,13 @@ function NearbyPage({ t }: Props) {
                             style={{ textDecoration: 'none', color: 'inherit' }}
                         >
                             <AdCard
-                                title={`${ad.title} · ${ad.distance} км`}
+                                title={`${ad.title} · ${ad.distance.toFixed(1)} км`}
                                 city={ad.city}
                                 price={ad.price}
+                                image={ad.image}
                                 isPremium={ad.isPremium}
                             />
+
                         </Link>
                     ))}
 

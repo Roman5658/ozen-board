@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import type { Ad } from '../types/ad'
+
 import AdCard from '../components/AdCard'
 import CategoryFilter from '../components/CategoryFilter'
 import VoivodeshipFilter from '../components/VoivodeshipFilter'
 import CityByVoivodeshipFilter from '../components/CityByVoivodeshipFilter'
-import { ADS } from '../data/ads'
 import { Link } from 'react-router-dom'
-import { getLocalAds } from "../data/localAds";
 import { getLocalUser } from '../data/localUser'
+import { useEffect, useState } from 'react'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '../app/firebase'
+
 
 
 
@@ -38,22 +41,47 @@ type Props = {
         categories: {
             all: string
             work: string
-            buySell: string
-            services: string
+            buy: string
+            sell: string
+            service: string
+            rent: string
         }
         voivodeships: Record<Voivodeship, string>
     }
 }
 
+
 function HomePage({ t }: Props) {
-    const [category, setCategory] = useState<'all' | 'work' | 'buySell' | 'services'>('all')
+    const [category, setCategory] = useState<
+        'all' | 'work' | 'buy' | 'sell' | 'service' | 'rent'
+    >('all')
+
     const [voivodeship, setVoivodeship] = useState<Voivodeship>('all')
     const [query, setQuery] = useState('')
     const [city, setCity] = useState('')
-    const allAds = [...getLocalAds(), ...ADS];
+    const [fireAds, setFireAds] = useState<Ad[]>([])
+
+
     const [view, setView] = useState<'list' | 'grid'>('grid')
     const user = getLocalUser()
 
+    const allAds = [...fireAds]
+
+
+
+    useEffect(() => {
+        async function loadAds() {
+            const snap = await getDocs(collection(db, 'ads'))
+            const data: Ad[] = snap.docs.map(doc => ({
+                id: doc.id,
+                ...(doc.data() as Omit<Ad, 'id'>),
+            }))
+            setFireAds(data)
+
+        }
+
+        loadAds()
+    }, [])
 
 
 

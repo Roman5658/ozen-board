@@ -1,4 +1,5 @@
-type Category = 'all' | 'work' | 'buySell' | 'services'
+type Category = 'all' | 'work' | 'buy' | 'sell' | 'service' | 'rent'
+
 
 type Props = {
     value: Category
@@ -7,9 +8,12 @@ type Props = {
         categories: {
             all: string
             work: string
-            buySell: string
-            services: string
+            buy: string
+            sell: string
+            service: string
+            rent: string
         }
+
     }
 }
 

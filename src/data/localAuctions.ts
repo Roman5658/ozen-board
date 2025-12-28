@@ -1,17 +1,45 @@
-import type { Auction } from '../types/auction'
+// src/data/localAuctions.ts
+export type LocalAuction = {
+    id: string;
+    userId: string;
+    title: string;
+    description: string;
+    category: string;
+    voivodeship: string;
+    city: string;
 
-const STORAGE_KEY = 'ozen_auctions'
+    createdAt: number;
 
-export function getLocalAuctions(): Auction[] {
+    // auction-specific
+    endsAt: number;
+    startPrice: number;
+    images: string[]; // URLs
+};
+
+const KEY = "ozen_board_auctions";
+
+export function getLocalAuctions(): LocalAuction[] {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY)
-        return raw ? JSON.parse(raw) : []
+        const raw = localStorage.getItem(KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? (parsed as LocalAuction[]) : [];
     } catch {
-        return []
+        return [];
     }
 }
 
-export function addLocalAuction(auction: Auction) {
-    const current = getLocalAuctions()
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([auction, ...current]))
+export function setLocalAuctions(auctions: LocalAuction[]) {
+    localStorage.setItem(KEY, JSON.stringify(auctions));
+}
+
+export function addLocalAuction(auction: LocalAuction) {
+    const auctions = getLocalAuctions();
+    setLocalAuctions([auction, ...auctions]);
+}
+
+export function removeLocalAuction(id: string) {
+    const auctions = getLocalAuctions();
+    const next = auctions.filter((a) => String(a.id) !== String(id));
+    setLocalAuctions(next);
 }

@@ -1,7 +1,3 @@
-export type Lang = 'uk' | 'pl'
-
-export const DEFAULT_LANG: Lang = 'uk'
-
 export const translations = {
     uk: {
         title: 'Ozen Board',
@@ -15,13 +11,16 @@ export const translations = {
         addTitle: 'Додати оголошення',
         auctionTitle: 'Аукціон',
         accountTitle: 'Мій акаунт',
+
         categories: {
             all: 'Усі',
             work: 'Робота',
-            buySell: 'Купівля / Продаж',
-            services: 'Послуги',
-
+            buy: 'Купівля',
+            sell: 'Продаж',
+            service: 'Послуги',
+            rent: 'Оренда',
         },
+
         voivodeships: {
             all: 'Вся Польща',
             dolnoslaskie: 'Нижньосілезьке',
@@ -41,9 +40,8 @@ export const translations = {
             wielkopolskie: 'Великопольське',
             zachodniopomorskie: 'Західнопоморське',
         },
-
-
     },
+
     pl: {
         title: 'Ozen Board',
         subtitle: 'Lokalna tablica ogłoszeń',
@@ -56,12 +54,16 @@ export const translations = {
         addTitle: 'Dodaj ogłoszenie',
         auctionTitle: 'Aukcja',
         accountTitle: 'Moje konto',
+
         categories: {
             all: 'Wszystko',
             work: 'Praca',
-            buySell: 'Kupno / Sprzedaż',
-            services: 'Usługi',
+            buy: 'Kupno',
+            sell: 'Sprzedaż',
+            service: 'Usługi',
+            rent: 'Wynajem',
         },
+
         voivodeships: {
             all: 'Cała Polska',
             dolnoslaskie: 'Dolnośląskie',
@@ -81,7 +83,11 @@ export const translations = {
             wielkopolskie: 'Wielkopolskie',
             zachodniopomorskie: 'Zachodniopomorskie',
         },
-
-
     },
 } as const
+
+// язык берём СТРОГО из ключей translations
+export type Lang = keyof typeof translations
+
+// язык по умолчанию
+export const DEFAULT_LANG: Lang = 'uk'

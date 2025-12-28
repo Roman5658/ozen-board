@@ -130,40 +130,140 @@ a{ color:inherit; text-decoration:none; }
 
 .bottom-nav {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-
-    height: 56px;
-    background: #ffffff;
-    border-top: 1px solid #e5e7eb;
-
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
-    z-index: 100;
+    gap: 6px;
+    padding: 8px;
+    border-radius: 15px;
+    align-items: center;
+width: 80%;
+    justify-content: center;
+    /* ⬇️ ВАЖНО */
+    background: rgba(255, 255, 255, 0.03); /* было 0.08 */
+
+    backdrop-filter: blur(14px) saturate(135%) contrast(105%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%) contrast(105%);
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    box-shadow:
+            0 6px 18px rgba(0, 0, 0, 0.25);
+
+    z-index: 1000;
 }
 
+
+
 .bottom-nav button {
-    flex: 1;
-
+    appearance: none;
+    background: none;
     border: none;
-
-    display: flex;
-    flex-direction: column;
+    flex: 0 0 auto;
+    display: flex;                /* 🔥 ВАЖНО */
     align-items: center;
     justify-content: center;
 
-    font-size: 11px;
-    color: #0d0e0e;
+    padding: 6px 10px;            /* компакт */
+    height: 36px;                 /* 🔥 ФИКС ВЫСОТЫ */
+    min-height: 36px;
+    max-height: 36px;
+
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
+
+    border-radius: 12px;
     cursor: pointer;
-    background: linear-gradient(to right, #9e9ea3, white);
+
+    color: rgba(21, 21, 21, 0.85);
+
+    transition:
+            background 0.25s ease,
+            box-shadow 0.25s ease,
+            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+            color 0.25s ease;
+
+}
+.bottom-nav button {
+    position: relative;
+    overflow: hidden;
 }
 
-.bottom-nav button.active {
-    color: #111112;
-    font-weight: 600;
-    background: linear-gradient(to left, #ababaf, white);
-    font-size: 20px;
+.bottom-nav button:hover {
+    background: rgba(255, 255, 255, 0.001); /* почти 0 */
+
+    backdrop-filter: blur(28px) saturate(160%) contrast(115%);
+    -webkit-backdrop-filter: blur(28px) saturate(160%) contrast(115%);
+
+    box-shadow:
+            0 10px 24px rgba(0, 0, 0, 0.35);
+
+    transform: scale(1.07) translateY(-2px);
 }
+
+
+
+
+.bottom-nav button::after {
+    inset: -50%;
+    background: radial-gradient(
+            circle at 35% 25%,
+            rgba(255, 255, 255, 0.12),
+            transparent 70%
+    );
+}
+
+
+.bottom-nav button:hover::after {
+    opacity: 0.28;
+}
+
+
+
+
+
+
+
+
+
+
+
+.bottom-nav button.active {
+    background: rgba(255, 255, 255, 0.06);
+
+    backdrop-filter: blur(20px) saturate(170%) contrast(120%);
+    -webkit-backdrop-filter: blur(20px) saturate(170%) contrast(120%);
+
+    color: #050505;
+    font-size: 18px;
+
+    box-shadow:
+            0 6px 14px rgba(0, 0, 0, 0.3);
+}
+
+.text-wrap {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: break-word;   /* ✅ */
+    word-break: break-word;
+}
+
+.card,
+.ad-card,
+.auction-card {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+
+
+/*body {*/
+/*    padding-bottom: 90px;*/
+/*}*/
+
 
 /* Отступ для контента, чтобы не прятался под навигацией */
 
@@ -218,6 +318,9 @@ a{ color:inherit; text-decoration:none; }
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    white-space: normal;
 }
 
 .ad-footer {
@@ -268,7 +371,7 @@ a{ color:inherit; text-decoration:none; }
     padding: 12px;
     border-radius: 10px;
     border: 1px solid #d1d5db;
-    background: #fff;
+    background: linear-gradient(to right, #9494fa, #e7e7fd);
     color: #111827;
     font-weight: 500;
     cursor: pointer;
@@ -312,6 +415,7 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 12px;
+    min-width: 0;
 }
 .ad-image {
     height: 160px;
@@ -338,7 +442,75 @@ body {
     height: 100%;
 }
 
+/* Базовая защита от "бесконечных строк" */
+p,
+div,
+span,
+h1, h2, h3, h4, h5, h6 {
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+.ad-card,
+.ad-header,
+.ad-footer,
+.ad-desc {
+    min-width: 0;
+}
+.stack8{
+    background: #ececef;
+
+}
+/* =========================
+   MOBILE BUTTON FIX
+   ========================= */
+@media (max-width: 600px) {
+
+    /* Все кнопки */
+    .btn-primary,
+    .btn-secondary {
+        padding: 8px 12px;          /* компактнее */
+        font-size: 14px;            /* меньше текст */
+        line-height: 1.2;           /* не растягивать */
+        height: auto;               /* убрать растягивание */
+        min-height: unset;
+        width: auto;                /* ❗ важно */
+        white-space: nowrap;        /* текст в одну строку */
+    }
+
+    /* Контейнеры с кнопками */
+    .card button {
+        flex: 0 0 auto;             /* ❗ не тянуться */
+    }
+
+    /* Группы кнопок */
+    .card div[style*="display: flex"] {
+        align-items: center;
+    }
+
+}
 
 
+/* =========================
+   MOBILE BUTTON FIX (FORCE)
+   ========================= */
+@media (max-width: 600px) {
+
+    .btn-primary,
+    .btn-secondary {
+        width: auto !important;      /* 🔥 ВАЖНО */
+        padding: 8px 12px;
+        font-size: 14px;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+
+}
+@media (max-width: 600px) {
+    .btn-primary,
+    .btn-secondary {
+        max-width: max-content;
+    }
+}
 
 

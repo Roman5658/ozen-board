@@ -15,8 +15,9 @@ export function addLocalAd(ad: Ad) {
     const current = getLocalAds();
     localStorage.setItem(STORAGE_KEY, JSON.stringify([ad, ...current]));
 }
-export function removeLocalAd(id: number) {
+export function removeLocalAd(id: string) {
     const ads = getLocalAds().filter(ad => ad.id !== id)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(ads))
+    localStorage.setItem("ads", JSON.stringify(ads))
 }
+
 

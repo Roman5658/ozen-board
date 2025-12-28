@@ -1,5 +1,17 @@
+export type AuctionStatus = "active" | "ended"
+
+export type AuctionBid = {
+    id: string
+    auctionId: string        // важно для связей
+    userId: string
+    userName: string
+    amount: number
+    createdAt: number
+}
+
 export type Auction = {
-    id: number
+    id: string
+
     title: string
     description: string
     category: string
@@ -8,9 +20,26 @@ export type Auction = {
 
     startPrice: number
     buyNowPrice?: number
-    endsAt: number
+    currentBid: number
 
     images: string[]
-    userId: number
+
+    ownerId: string          // вместо userId (понятнее кто владелец)
+    ownerName: string
+
+    bidsCount: number         // чтобы быстро показывать в списке
+    winnerId?: string | null  // появится после завершения
+    status: AuctionStatus
+
     createdAt: number
+    endsAt: number
+
+    currentBidderId?: string | null
+    currentBidderName?: string | null
+
+}
+
+// Это тип ТОЛЬКО для страницы аукциона (когда мы подгрузили ставки отдельно)
+export type AuctionWithBids = Auction & {
+    bids: AuctionBid[]
 }

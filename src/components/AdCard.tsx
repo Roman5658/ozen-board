@@ -7,6 +7,8 @@ type Props = {
     isPremium?: boolean
     createdAt?: number
     isMine?: boolean
+    showActions?: boolean
+    onDelete?: () => void
 }
 function formatDate(ts?: number) {
     if (!ts) return '—'
@@ -28,6 +30,8 @@ function AdCard({
                     isPremium,
                     createdAt,
                     isMine,
+                    showActions,   // ✅ добавить
+                    onDelete,
 
                 }: Props) {
     return (
@@ -69,6 +73,18 @@ function AdCard({
 
                 <span>✔️ Безпечна угода</span>
             </div>
+            {isMine && showActions && onDelete && (
+                <button
+                    className="btn-danger"
+                    type="button"
+                    onClick={(e) => {
+                        e.preventDefault() // чтобы Link не срабатывал, если карточка внутри <Link>
+                        onDelete()
+                    }}
+                >
+                    Видалити
+                </button>
+            )}
 
         </div>
     )

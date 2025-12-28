@@ -11,7 +11,7 @@ function BottomNav({ activePath }: Props) {
         { path: '/', label: 'Оголошення' },
         { path: '/nearby', label: 'Поруч' },
         { path: '/add', label: 'Додати' },
-        { path: '/auction', label: 'Аукціон' },
+        { path: '/auctions', label: 'Аукціон' },
         { path: '/account', label: 'Акаунт' },
     ]
 
