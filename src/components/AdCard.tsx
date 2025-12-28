@@ -1,4 +1,9 @@
+import { Link } from "react-router-dom"
+
+
 type Props = {
+
+
     title: string
     price?: string
     city?: string
@@ -6,10 +11,15 @@ type Props = {
     image?: string
     isPremium?: boolean
     createdAt?: number
+
+    userId?: string        // 👈 ДОБАВЛЯЕМ
+    userNickname?: string // 👈 пока опционально (может быть undefined)
+
     isMine?: boolean
     showActions?: boolean
     onDelete?: () => void
 }
+
 function formatDate(ts?: number) {
     if (!ts) return '—'
     const diff = Date.now() - ts
@@ -32,7 +42,8 @@ function AdCard({
                     isMine,
                     showActions,   // ✅ добавить
                     onDelete,
-
+                    userId,          // 👈 ДОБАВИТЬ
+                    userNickname,
                 }: Props) {
     return (
         <div className={`ad-card ${isPremium ? 'premium' : ''}`}>
@@ -50,6 +61,21 @@ function AdCard({
 
             <div className="ad-header">
                 <h3 className="ad-title">{title}</h3>
+                {userId && (
+                    <div style={{ fontSize: 13, marginTop: 4 }}>
+                        <Link
+                            to={`/user/${userId}`}
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                                color: "#1976d2",
+                                textDecoration: "none",
+                                fontWeight: 500,
+                            }}
+                        >
+                            {userNickname ?? "Користувач"}
+                        </Link>
+                    </div>
+                )}
 
                 {isPremium && (
                     <span className="ad-badge">TOP</span>
