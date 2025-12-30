@@ -535,5 +535,81 @@ h1, h2, h3, h4, h5, h6 {
     border-top: 1px solid var(--border);
 }
 
+@media (max-width: 768px) {
+    .nav-label {
+        display: none;
+    }
 
+    .nav-button {
+        flex-direction: column;
+        font-size: 11px;
+    }
+
+    .nav-icon {
+        font-size: 22px;
+    }
+}
+
+/* =========================
+   BOTTOM NAV — FINAL FIX
+   ========================= */
+
+/*.bottom-nav-item {*/
+/*    appearance: none;*/
+/*    background: none;*/
+/*    border: none;*/
+
+/*    display: flex;*/
+/*    flex-direction: column;*/
+/*    align-items: center;*/
+/*    justify-content: center;*/
+
+/*    padding: 6px 10px;*/
+/*    height: 36px;*/
+
+/*    font-size: 13px;*/
+/*    font-weight: 500;*/
+/*    line-height: 1;*/
+
+/*    border-radius: 12px;*/
+/*    cursor: pointer;*/
+/*    color: rgba(21, 21, 21, 0.85);*/
+
+/*    transition:*/
+/*            background 0.25s ease,*/
+/*            box-shadow 0.25s ease,*/
+/*            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),*/
+/*            color 0.25s ease;*/
+/*}*/
+
+/*.bottom-nav-item.active {*/
+/*    background: rgba(255, 255, 255, 0.06);*/
+/*    backdrop-filter: blur(20px) saturate(170%) contrast(120%);*/
+/*    -webkit-backdrop-filter: blur(20px) saturate(170%) contrast(120%);*/
+/*    color: #050505;*/
+/*    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);*/
+/*}*/
+
+/*!* Иконка *!*/
+/*.nav-icon {*/
+/*    font-size: 18px;*/
+/*    line-height: 1;*/
+/*}*/
+
+/*!* Подпись *!*/
+/*.nav-label {*/
+/*    font-size: 11px;*/
+/*    margin-top: 2px;*/
+/*}*/
+
+/*!* 📱 MOBILE — ТОЛЬКО ИКОНКИ *!*/
+/*@media (max-width: 768px) {*/
+/*    .nav-label {*/
+/*        display: none;*/
+/*    }*/
+
+/*    .nav-icon {*/
+/*        font-size: 22px;*/
+/*    }*/
+/*}*/
 
