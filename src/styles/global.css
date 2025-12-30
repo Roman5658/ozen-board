@@ -512,5 +512,28 @@ h1, h2, h3, h4, h5, h6 {
         max-width: max-content;
     }
 }
+.ads-section-title {
+    grid-column: 1 / -1;          /* 🔥 КЛЮЧ */
+    margin: 12px 0 4px;
+    padding-top: 8px;
+
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+
+    border-top: 1px solid var(--border);
+}
+.ads-separator {
+    grid-column: 1 / -1;
+    margin: 0 0 6px;
+    padding-top: 6px;
+
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+
+    border-top: 1px solid var(--border);
+}
+
 
 

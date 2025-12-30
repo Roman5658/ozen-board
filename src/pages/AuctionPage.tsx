@@ -38,7 +38,6 @@ function AuctionPage() {
     // UI
     const [city, setCity] = useState<'all' | string>('all')
     const [sort, setSort] = useState<'time' | 'bid'>('time')
-    const [view] = useState<'list' | 'grid'>('list')
 
     // DATA
     const [auctions, setAuctions] = useState<Auction[]>([])
@@ -77,6 +76,9 @@ function AuctionPage() {
                         createdAt: raw.createdAt,
                         endsAt: raw.endsAt,
                         winnerId: raw.winnerId ?? null,
+
+                        promotionType: raw.promotionType ?? "none",
+                        promotionUntil: raw.promotionUntil ?? null,
                     }
                 })
                 setAuctions(data)
@@ -120,6 +122,10 @@ function AuctionPage() {
             createdAt: raw.createdAt,
             endsAt: raw.endsAt,
             winnerId: raw.winnerId ?? null,
+
+            promotionType: raw.promotionType ?? "none",
+            promotionUntil: raw.promotionUntil ?? null,
+
         })
     }
 
@@ -181,20 +187,75 @@ function AuctionPage() {
     // FILTERED LIST
     // =========================
     const filteredAuctions = useMemo(() => {
-        return auctions
-            .filter(a => city === 'all' || a.city === city)
-            .sort((a, b) => {
-                const aEnded = a.endsAt <= now
-                const bEnded = b.endsAt <= now
-                if (aEnded !== bEnded) return aEnded ? 1 : -1
-                if (sort === 'bid') return b.currentBid - a.currentBid
+        const active = auctions.filter(a => a.endsAt > now)
+        const ended = auctions.filter(a => a.endsAt <= now)
+
+        const isAllCities = city === "all"
+
+        const inCity = (a: Auction) => isAllCities || a.city === city
+
+        const top = active.filter(
+            a =>
+                a.promotionType === "top-auction" &&
+                a.promotionUntil &&
+                a.promotionUntil > now &&
+                inCity(a)
+        )
+
+        const featured = active.filter(
+            a =>
+                a.promotionType === "featured" &&
+                a.promotionUntil &&
+                a.promotionUntil > now &&
+                inCity(a)
+        )
+
+        const normal = active.filter(
+            a =>
+                a.promotionType !== "top-auction" &&
+                a.promotionType !== "featured" &&
+                inCity(a)
+        )
+
+        // 🔥 если вся страна — ограничиваем TOP
+        const limitedTop = isAllCities ? top.slice(0, 5) : top
+
+        return [
+            ...limitedTop,
+            ...featured,
+            ...normal.sort((a, b) => {
+                if (sort === "bid") return b.currentBid - a.currentBid
                 return a.endsAt - b.endsAt
-            })
+            }),
+            ...ended,
+        ]
     }, [auctions, city, sort, now])
+
 
     if (loading) {
         return <div className="card">Завантаження аукціонів…</div>
     }
+    const topAuctions = filteredAuctions.filter(
+        a =>
+            a.promotionType === "top-auction" &&
+            a.promotionUntil &&
+            a.promotionUntil > now
+    )
+
+    const featuredAuctions = filteredAuctions.filter(
+        a =>
+            a.promotionType === "featured" &&
+            a.promotionUntil &&
+            a.promotionUntil > now
+    )
+
+    const regularAuctions = filteredAuctions.filter(
+        a =>
+            a.promotionType === "none" ||
+            a.promotionType === "highlight-gold" ||
+            !a.promotionType
+    )
+
 
     // =========================
     // RENDER
@@ -228,7 +289,7 @@ function AuctionPage() {
                 />
             ) : (
                 <>
-                    <div style={{ marginBottom: 12 }}>
+                    <div style={{marginBottom: 12}}>
                         <select value={city} onChange={e => setCity(e.target.value)} className="input">
                             <option value="all">Всі міста</option>
                             {[...new Set(auctions.map(a => a.city))].map(c => (
@@ -247,8 +308,12 @@ function AuctionPage() {
 
                     </div>
 
-                    <div className="stack12">
-                        {filteredAuctions.map(item => (
+                    <div className="ads-grid">
+
+                        {topAuctions.length > 0 && (
+                            <div className="ads-separator">🔥 TOP аукціони</div>
+                        )}
+                        {topAuctions.map(item => (
                             <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
                                 <AuctionCard
                                     title={item.title}
@@ -256,12 +321,48 @@ function AuctionPage() {
                                     currentBid={item.currentBid}
                                     timeLeft={getTimeLeft(item.endsAt)}
                                     image={item.images[0]}
-                                    view={view}
                                     isEnded={item.endsAt <= now}
+                                    promotionType={item.promotionType}
                                 />
                             </div>
                         ))}
+
+                        {featuredAuctions.length > 0 && (
+                            <div className="ads-separator">⭐ Featured</div>
+                        )}
+                        {featuredAuctions.map(item => (
+                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
+                                <AuctionCard
+                                    title={item.title}
+                                    city={item.city}
+                                    currentBid={item.currentBid}
+                                    timeLeft={getTimeLeft(item.endsAt)}
+                                    image={item.images[0]}
+                                    isEnded={item.endsAt <= now}
+                                    promotionType={item.promotionType}
+                                />
+                            </div>
+                        ))}
+
+                        {regularAuctions.length > 0 && (
+                            <div className="ads-separator">📄 Інші аукціони</div>
+                        )}
+                        {regularAuctions.map(item => (
+                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
+                                <AuctionCard
+                                    title={item.title}
+                                    city={item.city}
+                                    currentBid={item.currentBid}
+                                    timeLeft={getTimeLeft(item.endsAt)}
+                                    image={item.images[0]}
+                                    isEnded={item.endsAt <= now}
+                                    promotionType={item.promotionType}
+                                />
+                            </div>
+                        ))}
+
                     </div>
+
                 </>
             )}
         </div>

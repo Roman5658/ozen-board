@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { placeBid } from '../data/placeBid'
 import { useNavigate } from 'react-router-dom'
+import AuthorCard from "../components/AuthorCard"
 
 
 type Bid = {
@@ -57,13 +58,19 @@ function AuctionDetails({
     const [reportSent, setReportSent] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const navigate = useNavigate()
+    const [activeIndex, setActiveIndex] = useState(0)
+    const [isImageOpen, setIsImageOpen] = useState(false)
+    const mainImage = images?.[activeIndex]
 
     const isEnded = timeLeft === 'Завершено'
     const isAuthor =
-        isAuthenticated &&
-        currentUserId &&
-        seller?.id &&
-        currentUserId === seller.id
+        !!(
+            isAuthenticated &&
+            currentUserId &&
+            seller?.id &&
+            currentUserId === seller.id
+        )
+
 
     function submitReport() {
         const text = reportText.trim()
@@ -151,24 +158,102 @@ function AuctionDetails({
 
             <h2>{title}</h2>
 
+            {/* Фото аукціону */}
             {images && images.length > 0 && (
-                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px 0' }}>
-                    {images.map((img, idx) => (
-                        <img
-                            key={idx}
-                            src={img}
-                            alt=""
+                <>
+                    {/* Головне фото */}
+                    <div
+                        style={{
+                            height: 220,
+                            background: '#e5e7eb',
+                            borderRadius: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                            margin: '12px 0',
+                        }}
+                    >
+                        {mainImage ? (
+                            <img
+                                src={mainImage}
+                                alt={title}
+                                onClick={() => setIsImageOpen(true)}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    objectFit: 'contain',
+                                    background: '#f3f4f6',
+                                    cursor: 'zoom-in',
+                                }}
+                            />
+                        ) : (
+                            'Фото відсутнє'
+                        )}
+                    </div>
+
+                    {/* Мініатюри */}
+                    {images.length > 1 && (
+                        <div
                             style={{
-                                width: 120,
-                                height: 120,
-                                objectFit: 'cover',
-                                borderRadius: 8,
-                                flexShrink: 0,
+                                display: 'flex',
+                                gap: 8,
+                                overflowX: 'auto',
+                                marginBottom: 12,
                             }}
-                        />
-                    ))}
+                        >
+                            {images.map((img, idx) => (
+                                <img
+                                    key={idx}
+                                    src={img}
+                                    alt=""
+                                    onClick={() => setActiveIndex(idx)}
+                                    style={{
+                                        width: 56,
+                                        height: 56,
+                                        objectFit: 'cover',
+                                        borderRadius: 6,
+                                        cursor: 'pointer',
+                                        border:
+                                            idx === activeIndex
+                                                ? '2px solid #1976d2'
+                                                : '2px solid transparent',
+                                        opacity: idx === activeIndex ? 1 : 0.7,
+                                        flexShrink: 0,
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </>
+            )}
+            {isImageOpen && mainImage && (
+                <div
+                    onClick={() => setIsImageOpen(false)}
+                    style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.8)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        cursor: 'zoom-out',
+                    }}
+                >
+                    <img
+                        src={mainImage}
+                        alt={title}
+                        style={{
+                            maxWidth: '90%',
+                            maxHeight: '90%',
+                            objectFit: 'contain',
+                            borderRadius: 12,
+                        }}
+                    />
                 </div>
             )}
+
 
             <div style={{ fontSize: 14, color: '#555', marginBottom: 8 }}>
                 {city}
@@ -180,70 +265,18 @@ function AuctionDetails({
                 </div>
             )}
 
-            <div
-                style={{
-                    padding: 12,
-                    borderRadius: 12,
-                    background: '#fff',
-                    border: '1px solid #eee',
-                    marginBottom: 12,
-                }}
-            >
-                <div style={{fontSize: 13, color: '#555', marginBottom: 6}}>
-                    Продавець
-                </div>
-
-                <div style={{display: 'flex', justifyContent: 'space-between', gap: 8}}>
-                    <div>
-                        <div
-                            style={{fontWeight: 600, cursor: 'pointer', color: '#1976d2'}}
-                            onClick={() => navigate(`/user/${seller?.id}`)}
-                        >
-                            {seller?.name ?? 'Користувач'}
-                        </div>
-
-                        <div style={{fontSize: 13, color: '#6b7280'}}>
-                            Карма: {seller?.karma ?? 0}
-                        </div>
-                    </div>
-
-                    <div style={{display: 'flex', gap: 8}}>
-                        <button
-                            type="button"
-                            onClick={() => navigate(`/user/${seller?.id}`)}
-                            style={{
-                                padding: '10px 12px',
-                                borderRadius: 10,
-                                border: '1px solid #1976d2',
-                                background: '#e3f2fd',
-                                color: '#0d47a1',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                            }}
-                        >
-                            Написати
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => setIsReportOpen(v => !v)}
-                            style={{
-                                padding: '10px 12px',
-                                borderRadius: 10,
-                                border: '1px solid #f59e0b',
-                                background: '#fff7ed',
-                                color: '#b45309',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                            }}
-                        >
-                            Поскаржитися
-                        </button>
-                    </div>
-                </div>
+            {seller && (
+                <AuthorCard
+                    userId={seller.id}
+                    isOwner={isAuthor}
+                    onReport={() => setIsReportOpen(true)}
+                />
+            )}
 
 
-                {reportSent && (
+
+
+            {reportSent && (
                     <div style={{marginTop: 10, fontSize: 13, color: '#2e7d32'}}>
                         Скаргу надіслано
                     </div>
@@ -283,7 +316,7 @@ function AuctionDetails({
                         </button>
                     </div>
                 )}
-            </div>
+
 
             <div style={{fontWeight: 600, marginBottom: 4}}>
                 Поточна ставка: {currentBid} zł

@@ -1,4 +1,9 @@
 export type AuctionStatus = "active" | "ended"
+export type AuctionPromotionType =
+    | "none"
+    | "top-auction"
+    | "featured"
+    | "highlight-gold"
 
 export type AuctionBid = {
     id: string
@@ -36,6 +41,9 @@ export type Auction = {
 
     currentBidderId?: string | null
     currentBidderName?: string | null
+
+    promotionType: AuctionPromotionType
+    promotionUntil?: number | null
 
 }
 

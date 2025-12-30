@@ -3,6 +3,8 @@ import { Routes, Route, useLocation } from 'react-router-dom'
 import AdminReportsPage from "../pages/AdminReportsPage"
 import AddAuctionPage from '../pages/AddAuctionPage'
 import UserPage from '../pages/UserPage'
+import ChatPage from "../pages/ChatPage"
+import PayTestPage from "../pages/PayTestPage"
 
 
 import { translations, DEFAULT_LANG } from './i18n'
@@ -52,6 +54,8 @@ function App() {
                 <Route path="/admin/reports" element={<AdminReportsPage />} />
                 <Route path="/add-auction" element={<AddAuctionPage />} />
                 <Route path="/user/:id" element={<UserPage />} />
+                <Route path="/chat/:id" element={<ChatPage />} />
+                <Route path="/pay-test" element={<PayTestPage />} />
 
                 <Route path="/add" element={<AddPage />} />
                 <Route path="/account" element={<AccountPage />} />

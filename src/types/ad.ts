@@ -6,11 +6,16 @@ export type Ad = {
     voivodeship: string
     city: string
     price: string
-    image?: string
 
+    // 🔁 legacy (ПОКА)
+    image?: string
+    isPremium?: boolean
+    isPinned?: boolean
+
+    // ✅ новая модель
+    images?: string[]
 
     createdAt: number
-    isPremium?: boolean
     userId: string
     sellerContact?: string
 
@@ -19,7 +24,13 @@ export type Ad = {
         lng: number
     }
 
+    // 🔥 ФИНАЛЬНАЯ МОДЕЛЬ ПРИОРИТЕТОВ
+    pinType?: "top3" | "top6"
+    pinnedAt?: number
+    pinnedUntil?: number
 
+    bumpAt?: number
 
-
+    highlightType?: "gold" | "blue"
+    highlightUntil?: number
 }

@@ -6,6 +6,7 @@ import { getDistanceKm } from '../utils/distance'
 import { Link } from 'react-router-dom'
 import { collection, getDocs } from "firebase/firestore"
 import { db } from "../app/firebase"
+import { getAdImages } from "../utils/getAdImages";
 
 
 
@@ -122,7 +123,8 @@ function NearbyPage({ t }: Props) {
                                 title={`${ad.title} · ${ad.distance.toFixed(1)} км`}
                                 city={ad.city}
                                 price={ad.price}
-                                image={ad.image}
+                                images={getAdImages(ad)}
+
                                 isPremium={ad.isPremium}
                             />
 

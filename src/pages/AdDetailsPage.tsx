@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { addDoc, collection } from "firebase/firestore"
 import { getLocalUser } from "../data/localUser"
-
+import AuthorCard from "../components/AuthorCard"
+import { getAdImages } from "../utils/getAdImages";
 import { db } from '../app/firebase'
 import type { Ad } from '../types/ad'
 
@@ -19,6 +20,12 @@ function AdDetailsPage() {
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [reportText, setReportText] = useState("")
     const [reportSending, setReportSending] = useState(false)
+    const [activeIndex, setActiveIndex] = useState(0)
+    const images = ad ? getAdImages(ad) : []
+    const mainImage = images[activeIndex]
+
+
+
 
 
     useEffect(() => {
@@ -33,10 +40,12 @@ function AdDetailsPage() {
                     id, // ✅ string из Firestore
                     ...(snap.data() as Omit<Ad, 'id'>),
                 })
+                setActiveIndex(0)
 
             } else {
                 setAd(null)
             }
+
 
             setLoading(false)
         }
@@ -84,78 +93,13 @@ function AdDetailsPage() {
                     </div>
                 )}
                 {/* Продавець (MVP-заглушка) */}
-                <div
-                    style={{
-                        padding: "12px",
-                        borderRadius: "12px",
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "12px",
-                    }}
-                >
-                    <div>
-                        <div style={{fontSize: "13px", color: "#6b7280"}}>
-                            Продавець
-                        </div>
+                <AuthorCard
+                    userId={ad.userId}
+                    isOwner={isOwner}
+                    onReport={() => setIsReportOpen(true)}
+                />
 
-                        <div
-                            style={{
-                                fontWeight: 700,
-                                color: "#1976d2",
-                                cursor: "pointer",
-                            }}
-                            onClick={() => navigate(`/user/${ad.userId}`)}
-                        >
-                            Перейти до профілю
-                        </div>
-                    </div>
 
-                    {ad.sellerContact && (
-                        <div style={{fontSize: "13px", marginTop: "4px"}}>
-                            📞 {ad.sellerContact}
-                        </div>
-                    )}
-
-                    <div style={{display: "flex", gap: "8px", flexWrap: "wrap"}}>
-
-                        {/* КНОПКА "ЗВʼЯЗАТИСЯ" */}
-                        <button
-                            className="btn-primary"
-                            type="button"
-                            disabled={!currentUser || isOwner}
-                            onClick={() => {
-                                if (!currentUser || isOwner) return
-                                navigate(`/user/${ad.userId}`)
-                            }}
-                        >
-
-                            {!currentUser
-                                ? "Увійдіть, щоб звʼязатися"
-                                : isOwner
-                                    ? "Це ваше оголошення"
-                                    : "Звʼязатися"}
-                        </button>
-
-                        {/* КНОПКА "ПОСКАРЖИТИСЬ" */}
-                        {!isOwner && (
-                            <button
-                                className="btn-secondary"
-                                type="button"
-                                disabled={!currentUser}
-                                onClick={() => {
-                                    if (!currentUser) return
-                                    setIsReportOpen(true)
-                                }}
-                            >
-                                {!currentUser ? "Увійдіть, щоб поскаржитись" : "Поскаржитись"}
-                            </button>
-                        )}
-                    </div>
-
-                </div>
 
                 {/* Фото */}
                 <div
@@ -171,10 +115,9 @@ function AdDetailsPage() {
                         overflow: 'hidden',
                     }}
                 >
-                    {ad.image ? (
-
+                    {mainImage ? (
                         <img
-                            src={ad.image}
+                            src={mainImage}
                             alt={ad.title}
                             onClick={() => setIsImageOpen(true)}
                             style={{
@@ -184,20 +127,47 @@ function AdDetailsPage() {
                                 background: '#f3f4f6',
                                 cursor: 'zoom-in',
                             }}
-                            />
-
-
+                        />
                     ) : (
                         'Фото відсутнє'
                     )}
                 </div>
+                {/* Мініатюри */}
+                {images.length > 1 && (
+                    <div
+                        style={{
+                            display: 'flex',
+                            gap: '8px',
+                            marginTop: '8px',
+                            overflowX: 'auto',
+                        }}
+                    >
+                        {images.map((img, i) => (
+                            <img
+                                key={img}
+                                src={img}
+                                alt={`thumb-${i}`}
+                                onClick={() => setActiveIndex(i)}
+                                style={{
+                                    width: '56px',
+                                    height: '56px',
+                                    objectFit: 'cover',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    border: i === activeIndex ? '2px solid #1976d2' : '2px solid transparent',
+                                    opacity: i === activeIndex ? 1 : 0.7,
+                                }}
+                            />
+                        ))}
+                    </div>
+                )}
 
 
                 <div style={{fontSize: '15px', lineHeight: 1.6}}>
                     {ad.description ?? 'Опис відсутній'}
                 </div>
             </div>
-            {isImageOpen && ad.image && (
+            {isImageOpen && mainImage && (
                 <div
                     onClick={() => setIsImageOpen(false)}
                     style={{
@@ -212,7 +182,7 @@ function AdDetailsPage() {
                     }}
                 >
                     <img
-                        src={ad.image}
+                        src={mainImage}
                         alt={ad.title}
                         style={{
                             maxWidth: '90%',
@@ -223,6 +193,7 @@ function AdDetailsPage() {
                     />
                 </div>
             )}
+
             {isReportOpen && ad && (
                 <div
                     style={{

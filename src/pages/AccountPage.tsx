@@ -6,13 +6,37 @@ import { getUserByEmail, createUser, isNicknameTaken } from "../data/users"
 import { collection, getDocs, query, where, deleteDoc, doc, getDoc, } from "firebase/firestore"
 
 import { Link, useNavigate } from "react-router-dom"
-import { updateDoc } from "firebase/firestore"
+
+import { getUserPublicNickname } from "../data/usersPublic"
+
+import { updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore"
 
 
 import { getLocalUser, setLocalUser, clearLocalUser } from "../data/localUser"
 import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
+import { getUserChats } from "../data/chats"
+type ChatItem = {
+    id: string
+    users: string[]
+    lastMessage: string
+    unreadFor?: string[]
+    updatedAt?: number
+}
+
+type ChatListRow = {
+    id: string
+    otherUserId: string
+    otherNickname: string
+    lastMessage: string
+    updatedAt?: number
+    isUnread: boolean
+    isNewChat: boolean
+}
+
+
+
 
 function AccountPage() {
     const navigate = useNavigate()
@@ -21,10 +45,16 @@ function AccountPage() {
 
     const [mode, setMode] = useState<AuthMode>("login")
 
+
     // ui / auth
     const [isLoading, setIsLoading] = useState(true)
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
+
+    const [chats, setChats] = useState<ChatItem[]>([])
+    const [nickCache, setNickCache] = useState<Record<string, string>>({})
+
+    const [loadingChats, setLoadingChats] = useState(true)
 
     // auth form
     const [nickname, setNickname] = useState("")
@@ -41,6 +71,42 @@ function AccountPage() {
     const [phone, setPhone] = useState("")
     const [telegram, setTelegram] = useState("")
     const [contactsSaved, setContactsSaved] = useState(false)
+
+
+
+    useEffect(() => {
+        if (!user) return
+        if (chats.length === 0) return
+
+        // собеседники = второй пользователь в массиве users
+        const otherIds = Array.from(
+            new Set(
+                chats
+                    .map(c => c.users.find(id => id !== user.id))
+                    .filter((x): x is string => !!x)
+            )
+        )
+
+        const missing = otherIds.filter(id => !nickCache[id])
+        if (missing.length === 0) return
+
+            ;(async () => {
+            const pairs = await Promise.all(
+                missing.map(async (id) => {
+                    const nick = await getUserPublicNickname(id)
+                    return [id, nick || "Користувач"] as const
+                })
+            )
+
+            setNickCache(prev => {
+                const next = { ...prev }
+                for (const [id, nick] of pairs) next[id] = nick
+                return next
+            })
+        })()
+        // важно: nickCache в deps НЕ добавляем, иначе будет лишняя “гонка”
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chats, user])
 
 // ============================
 // LOAD MY AUCTIONS (Firestore)
@@ -101,6 +167,19 @@ function AccountPage() {
     }, [])
 
 
+    useEffect(() => {
+        if (!user) return
+
+        setLoadingChats(true)
+
+        getUserChats(user.id)
+            .then((items) => {
+                setChats(items)
+            })
+            .finally(() => setLoadingChats(false))
+    }, [user])
+
+
 
     // ============================
     // LOAD MY ADS (Firestore)
@@ -128,6 +207,24 @@ function AccountPage() {
         loadMyAds()
     }, [user])
 
+    async function handleDeleteAuction(auctionId: string) {
+        if (!user) return
+
+        const ok = window.confirm("Ви впевнені, що хочете видалити цей аукціон?")
+        if (!ok) return
+
+        try {
+            await deleteDoc(doc(db, "auctions", auctionId))
+
+            // убираем из UI
+            setMyAuctions(prev => prev.filter(a => a.id !== auctionId))
+        } catch (e) {
+            console.error(e)
+            alert("Помилка при видаленні аукціону")
+        }
+    }
+
+
     async function handleDeleteAd(adId: string) {
         if (!user) return
 
@@ -145,6 +242,29 @@ function AccountPage() {
             alert("Помилка при видаленні оголошення")
         }
     }
+
+    async function handleDeleteChat(chatId: string) {
+        if (!user) return
+
+        const ok = window.confirm("Видалити цей чат?")
+        if (!ok) return
+
+        try {
+            await updateDoc(doc(db, "chats", chatId), {
+                hiddenFor: arrayUnion(user.id),
+                [`hiddenForAt.${user.id}`]: serverTimestamp(),
+            })
+
+
+            // сразу убираем из UI
+            setChats(prev => prev.filter(c => c.id !== chatId))
+        } catch (e) {
+            console.error(e)
+            alert("Помилка при видаленні чату")
+        }
+    }
+
+
     async function handleSaveContacts() {
         if (!user) return
 
@@ -330,6 +450,34 @@ function AccountPage() {
             </div>
         )
     }
+    const chatRows: ChatListRow[] = user
+        ? chats
+            .map(chat => {
+                const otherUserId = chat.users.find(id => id !== user.id) || ""
+                const isUnread = chat.unreadFor?.includes(user.id) ?? false
+                const isNewChat = chat.lastMessage === ""
+
+
+                return {
+                    id: chat.id,
+                    otherUserId,
+                    otherNickname: otherUserId
+                        ? (nickCache[otherUserId] || "…")
+                        : "Користувач",
+                    lastMessage: chat.lastMessage || "Без повідомлень",
+                    updatedAt: chat.updatedAt,
+                    isUnread,
+                    isNewChat,
+                }
+            })
+            .filter(row => !!row.otherUserId)
+            .sort((a, b) => {
+                if (a.isUnread && !b.isUnread) return -1
+                if (!a.isUnread && b.isUnread) return 1
+                return (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
+            })
+        : []
+
 
     // ============================
     // PROFILE
@@ -414,6 +562,112 @@ function AccountPage() {
                     Вийти
                 </button>
             </div>
+            <div className="card stack12">
+                <h3 className="h3">Мої чати</h3>
+
+
+                {loadingChats && <div>Завантаження…</div>}
+
+                {!loadingChats && chatRows.length === 0 && (
+                    <div style={{fontSize: 14, color: "#6b7280"}}>
+                        Чатів поки немає
+                    </div>
+                )}
+
+                {!loadingChats && chatRows.length > 0 && (
+                    <div
+                        className="stack8"
+                        style={{
+                            maxHeight: 460,          // ≈ 5 чатов
+                            overflowY: "auto",
+                            paddingRight: 4,         // чтобы скролл не прижимал контент
+                        }}
+                    >
+                        {chatRows.map(row => (
+                            <div
+                                key={row.id}
+                                onClick={() => navigate(`/chat/${row.id}`)}
+                                style={{
+                                    padding: 12,
+                                    borderRadius: 10,
+                                    border: row.isUnread
+                                        ? "2px solid #1976d2"
+                                        : "1px solid #e5e7eb",
+                                    background: row.isUnread ? "#eef6ff" : "#fff",
+                                    cursor: "pointer",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    gap: 8,
+                                }}
+
+                            >
+                                <div style={{display: "flex", flexDirection: "column", gap: 4}}>
+                                    <div style={{display: "flex", alignItems: "center", gap: 6}}>
+    <span style={{fontWeight: 700}}>
+        {row.otherNickname}
+    </span>
+
+                                        {row.isUnread && (
+                                            <span
+                                                style={{
+                                                    fontSize: 10,
+                                                    background: "#1976d2",
+                                                    color: "#fff",
+                                                    padding: "2px 6px",
+                                                    borderRadius: 999,
+                                                }}
+                                            >
+            new
+        </span>
+                                        )}
+                                    </div>
+
+
+                                    <div
+                                        style={{
+                                            fontSize: 14,
+                                            color: row.isUnread ? "#111827" : "#6b7280",
+                                            fontWeight: row.isUnread ? 600 : 400,
+                                        }}
+                                    >
+                                        {row.isNewChat ? "Новий чат" : row.lastMessage}
+
+                                    </div>
+
+
+                                    {typeof row.updatedAt === "number" && (
+                                        <div style={{fontSize: 12, color: "#9ca3af"}}>
+                                            {new Date(row.updatedAt).toLocaleString("uk-UA")}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDeleteChat(row.id)
+                                    }}
+                                    style={{
+                                        background: "#fee2e2",
+                                        color: "#991b1b",
+                                        border: "none",
+                                        padding: 8,
+                                        borderRadius: 10,
+                                        fontSize: 13,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Видалити
+                                </button>
+
+
+                            </div>
+
+                        ))}
+                    </div>
+                )}
+            </div>
+
 
             {/* MY ADS */}
             <div className="card stack12">
@@ -428,7 +682,7 @@ function AccountPage() {
                         {myAds.map(ad => (
                             <div key={ad.id} className="stack8">
                                 <Link to={`/ad/${ad.id}`} style={{textDecoration: "none", color: "inherit"}}>
-                                <AdCard
+                                    <AdCard
                                         {...ad}
                                         isMine={true}
                                         showActions={true}
@@ -448,7 +702,7 @@ function AccountPage() {
                 <h3 className="h3">Мої аукціони</h3>
 
                 {myAuctions.length === 0 ? (
-                    <div style={{ color: "#6b7280", fontSize: 14 }}>
+                    <div style={{color: "#6b7280", fontSize: 14}}>
                         Ви ще не створили жодного аукціону
                     </div>
                 ) : (
@@ -471,8 +725,19 @@ function AccountPage() {
                                         image={auction.images?.[0]}
                                         isEnded={isEnded}
                                     />
+                                    {isEnded && (
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: "#6b7280",
+                                                marginTop: 4,
+                                            }}
+                                        >
+                                            Завершений аукціон буде видалено через 5 днів
+                                        </div>
+                                    )}
 
-                                    <div style={{ display: "flex", gap: 8 }}>
+                                    <div style={{display: "flex", gap: 8}}>
                                         <button
                                             className="btn-secondary"
                                             onClick={() => navigate(`/auction/${auction.id}`)}
@@ -481,6 +746,7 @@ function AccountPage() {
                                         </button>
 
                                         <button
+                                            onClick={() => handleDeleteAuction(auction.id)}
                                             style={{
                                                 background: "#fee2e2",
                                                 color: "#991b1b",
@@ -488,11 +754,12 @@ function AccountPage() {
                                                 padding: 8,
                                                 borderRadius: 10,
                                                 fontSize: 13,
+                                                cursor: "pointer",
                                             }}
-
                                         >
                                             Видалити
                                         </button>
+
                                     </div>
                                 </div>
                             )
