@@ -5,6 +5,7 @@ import CategoryFilter from '../components/CategoryFilter'
 import VoivodeshipFilter from '../components/VoivodeshipFilter'
 import CityByVoivodeshipFilter from '../components/CityByVoivodeshipFilter'
 import { Link } from 'react-router-dom'
+import { getLocalUser } from '../data/localUser'
 
 import { useEffect, useState, useMemo } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
@@ -66,6 +67,12 @@ function HomePage({ t }: Props) {
     const [city, setCity] = useState('')
     const [fireAds, setFireAds] = useState<Ad[]>([])
     const [view, setView] = useState<'list' | 'grid'>('grid')
+    const PAGE_SIZE = 30
+    const [page, setPage] = useState(1)
+    const now = Date.now()
+    const localUser = getLocalUser()
+    const currentUserId = localUser?.id
+
 
     useEffect(() => {
         async function loadAds() {
@@ -79,6 +86,9 @@ function HomePage({ t }: Props) {
 
         loadAds()
     }, [])
+    useEffect(() => {
+        setPage(1)
+    }, [category, voivodeship, city, query])
 
     const filteredAndSortedAds = useMemo(() => {
         return fireAds
@@ -102,10 +112,82 @@ function HomePage({ t }: Props) {
             })
     }, [fireAds, category, voivodeship, city, query])
 
-    const top3Ads = filteredAndSortedAds.filter(ad => ad.pinType === 'top3')
-    const top6Ads = filteredAndSortedAds.filter(ad => ad.pinType === 'top6')
-    const bumpAds = filteredAndSortedAds.filter(ad => !ad.pinType && ad.bumpAt)
-    const regularAds = filteredAndSortedAds.filter(ad => !ad.pinType && !ad.bumpAt)
+    const activePinnedAds = filteredAndSortedAds.filter(
+        ad =>
+            ad.status === "active" &&
+            ad.pinType &&
+            ad.pinnedUntil &&
+            ad.pinnedUntil > now
+    )
+
+    const allTop3 = activePinnedAds.filter(ad => ad.pinType === "top3")
+    const allTop6 = activePinnedAds.filter(ad => ad.pinType === "top6")
+
+
+    const top3Ads =
+        city === ""
+            ? shuffle(uniqueByCity(allTop3)).slice(0, 3)
+            : allTop3.filter(ad => ad.city === city).slice(0, 3)
+
+    const top6Ads =
+        city === ""
+            ? shuffle(allTop6).slice(0, 6)
+            : allTop6.filter(ad => ad.city === city).slice(0, 6)
+    const visibleTopIds = new Set([
+        ...top3Ads.map(ad => ad.id),
+        ...top6Ads.map(ad => ad.id),
+    ])
+
+
+    const bumpAds = filteredAndSortedAds.filter(
+        ad =>
+            ad.status === "active" &&
+            !ad.pinType &&
+            ad.bumpAt
+    )
+
+    const regularAds = filteredAndSortedAds.filter(ad => {
+        if (ad.status !== 'active') return false
+        if (ad.bumpAt) return false
+
+        const isActivePin =
+            !!ad.pinType &&
+            !!ad.pinnedUntil &&
+            ad.pinnedUntil > now
+
+        // если объявление уже показано в TOP — не дублируем
+        if (isActivePin && visibleTopIds.has(ad.id)) {
+            return false
+        }
+
+        // сюда попадают:
+        // • обычные
+        // • в очереди
+        // • активные TOP вне витрины
+        return true
+    })
+
+
+
+    const totalPages = Math.ceil(regularAds.length / PAGE_SIZE)
+
+    const pagedRegularAds = regularAds.slice(
+        (page - 1) * PAGE_SIZE,
+        page * PAGE_SIZE
+    )
+    function shuffle<T>(arr: T[]): T[] {
+        return [...arr].sort(() => Math.random() - 0.5)
+    }
+
+    function uniqueByCity<T extends { city: string }>(ads: T[]): T[] {
+        const map = new Map<string, T>()
+        for (const ad of ads) {
+            if (!map.has(ad.city)) {
+                map.set(ad.city, ad)
+            }
+        }
+        return Array.from(map.values())
+    }
 
     return (
         <div>
@@ -159,7 +241,11 @@ function HomePage({ t }: Props) {
                 )}
                 {top3Ads.map(ad => (
                     <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
-                        <AdCard ad={ad}/>
+                        <AdCard
+                            ad={ad}
+                            isMine={ad.userId === currentUserId}
+                        />
+
                     </Link>
                 ))}
 
@@ -168,7 +254,11 @@ function HomePage({ t }: Props) {
                 )}
                 {top6Ads.map(ad => (
                     <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
-                        <AdCard ad={ad}/>
+                        <AdCard
+                            ad={ad}
+                            isMine={ad.userId === currentUserId}
+                        />
+
                     </Link>
                 ))}
 
@@ -177,20 +267,60 @@ function HomePage({ t }: Props) {
                 )}
                 {bumpAds.map(ad => (
                     <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
-                        <AdCard ad={ad}/>
+                        <AdCard
+                            ad={ad}
+                            isMine={ad.userId === currentUserId}
+                        />
+
                     </Link>
                 ))}
 
                 {regularAds.length > 0 && (
                     <div className="ads-separator">📄 Інші оголошення</div>
                 )}
-                {regularAds.map(ad => (
-                    <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
-                        <AdCard ad={ad}/>
-                    </Link>
-                ))}
+                {pagedRegularAds.map(ad => {
+                    const isSoftPinned =
+                        !!ad.pinType &&
+                        !!ad.pinnedUntil &&
+                        ad.pinnedUntil > now
+
+                    return (
+                        <Link key={ad.id} to={`/ad/${ad.id}`} style={{ textDecoration: 'none' }}>
+                            <AdCard
+                                ad={ad}
+                                isMine={ad.userId === currentUserId}
+                                isSoftPinned={isSoftPinned}
+                            />
+                        </Link>
+                    )
+                })}
+
 
             </div>
+            {totalPages > 1 && (
+                <div style={{ display: "flex", justifyContent: "center", gap: 8, margin: "20px 0" }}>
+                    <button
+                        className="btn-secondary"
+                        disabled={page === 1}
+                        onClick={() => setPage(p => p - 1)}
+                    >
+                        ← Назад
+                    </button>
+
+                    <div style={{ alignSelf: "center", fontSize: 14 }}>
+                        Сторінка {page} з {totalPages}
+                    </div>
+
+                    <button
+                        className="btn-secondary"
+                        disabled={page === totalPages}
+                        onClick={() => setPage(p => p + 1)}
+                    >
+                        Вперед →
+                    </button>
+
+                </div>
+            )}
 
         </div>
     )

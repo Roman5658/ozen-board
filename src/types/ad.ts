@@ -11,6 +11,11 @@ export type Ad = {
     image?: string
     isPremium?: boolean
     isPinned?: boolean
+    status?: "active" | "deleted" | "expired"
+    // оплата и продвижение
+    paidAt?: number
+    paymentId?: string
+
 
     // ✅ новая модель
     images?: string[]
@@ -28,6 +33,8 @@ export type Ad = {
     pinType?: "top3" | "top6"
     pinnedAt?: number
     pinnedUntil?: number
+    pinQueueAt?: number
+
 
     bumpAt?: number
 

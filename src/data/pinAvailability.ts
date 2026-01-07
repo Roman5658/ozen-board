@@ -8,40 +8,38 @@ import { db } from "../app/firebase"
 
 type PinAvailability = {
     canTop3: boolean
-    canTop5: boolean
+    canTop6: boolean
     top3Used: number
-    top5Used: number
+    top6Used: number
 }
 
 const TOP3_LIMIT = 3
-const TOP5_LIMIT = 5
+const TOP6_LIMIT = 6
 
 export async function checkPinAvailability(
     city: string
 ): Promise<PinAvailability> {
     const now = Date.now()
 
-    // берём только PIN-объявления по городу
     const snap = await getDocs(
         query(
             collection(db, "ads"),
             where("city", "==", city),
-            where("isPinned", "==", true)
+            where("pinType", "in", ["top3", "top6"])
         )
     )
 
-    // считаем только АКТИВНЫЕ
-    const activePins = snap.docs.filter((doc) => {
-        const data = doc.data()
-        return (data.pinnedUntil ?? 0) > now
-    })
+    const activePins = snap.docs
+        .map(d => d.data())
+        .filter(ad => (ad.pinnedUntil ?? 0) > now)
 
-    const used = activePins.length
+    const top3Used = activePins.filter(a => a.pinType === "top3").length
+    const top6Used = activePins.filter(a => a.pinType === "top6").length
 
     return {
-        canTop3: used < TOP3_LIMIT,
-        canTop5: used < TOP5_LIMIT,
-        top3Used: Math.min(used, TOP3_LIMIT),
-        top5Used: Math.min(used, TOP5_LIMIT),
+        canTop3: top3Used < TOP3_LIMIT,
+        canTop6: top6Used < TOP6_LIMIT,
+        top3Used,
+        top6Used,
     }
 }

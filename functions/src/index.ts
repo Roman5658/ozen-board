@@ -1,7 +1,10 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
 
-admin.initializeApp();
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
+
 const db = admin.firestore();
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -97,3 +100,250 @@ export const cleanupEndedAuctions = onSchedule(
 );
 export { verifyPayPalPayment } from "./paypal/verifyPayPalPayment";
 
+/* ======================================================
+   ADS — автоматическая ротация PIN (TOP3 / TOP6)
+====================================================== */
+
+const TOP3_LIMIT = 3;
+const TOP6_LIMIT = 6;
+
+const TOP3_DURATION = 3 * DAY;
+const TOP6_DURATION = 3 * DAY;
+
+export const rotatePinnedAds = onSchedule(
+    {
+        schedule: "every 5 minutes",
+        timeZone: "Europe/Warsaw",
+    },
+    async () => {
+        const now = Date.now();
+
+        const adsSnap = await db
+            .collection("ads")
+            .where("status", "==", "active")
+            .get();
+
+        // группируем по городам
+        const byCity = new Map<string, FirebaseFirestore.QueryDocumentSnapshot[]>();
+
+        adsSnap.docs.forEach(doc => {
+            const city = doc.data().city;
+            if (!city) return;
+
+            if (!byCity.has(city)) {
+                byCity.set(city, []);
+            }
+            byCity.get(city)!.push(doc);
+        });
+
+        for (const [city, ads] of byCity.entries()) {
+            // 1️⃣ Очистка истёкших PIN (не в очереди)
+            const expiredPinned = ads.filter(ad => {
+                const d = ad.data();
+                return (
+                    d.pinType &&
+                    d.pinnedUntil &&
+                    d.pinnedUntil <= now &&
+                    !d.pinQueueAt
+                );
+            });
+
+            if (expiredPinned.length > 0) {
+                const cleanupBatch = db.batch();
+
+                expiredPinned.forEach(ad => {
+                    cleanupBatch.update(ad.ref, {
+                        pinType: null,
+                        pinnedAt: null,
+                        pinnedUntil: null,
+                    });
+                });
+
+                await cleanupBatch.commit();
+                console.log(`Expired PIN cleaned for city: ${city}`);
+            }
+
+            const activeTop3 = ads.filter(ad => {
+
+                const d = ad.data();
+                return (
+                    d.pinType === "top3" &&
+                    d.pinnedUntil &&
+                    d.pinnedUntil > now
+                );
+            });
+
+            const activeTop6 = ads.filter(ad => {
+
+                const d = ad.data();
+                return (
+                    d.pinType === "top6" &&
+                    d.pinnedUntil &&
+                    d.pinnedUntil > now
+                );
+            });
+
+            const freeTop3 = TOP3_LIMIT - activeTop3.length;
+            const freeTop6 = TOP6_LIMIT - activeTop6.length;
+
+            if (freeTop3 <= 0 && freeTop6 <= 0) continue;
+
+            const queueTop3 = ads
+                .filter(ad => {
+                    const d = ad.data();
+                    return (
+                        d.pinType === "top3" &&
+                        d.pinQueueAt &&
+                        (!d.pinnedUntil || d.pinnedUntil <= now)
+                    );
+                })
+                .sort((a, b) => a.data().pinQueueAt - b.data().pinQueueAt);
+
+            const queueTop6 = ads
+                .filter(ad => {
+                    const d = ad.data();
+                    return (
+                        d.pinType === "top6" &&
+                        d.pinQueueAt &&
+                        (!d.pinnedUntil || d.pinnedUntil <= now)
+                    );
+                })
+                .sort((a, b) => a.data().pinQueueAt - b.data().pinQueueAt);
+
+            let updatesCount = 0;
+            const batch = db.batch();
+
+            queueTop3.slice(0, freeTop3).forEach(ad => {
+                batch.update(ad.ref, {
+                    pinnedAt: now,
+                    pinnedUntil: now + TOP3_DURATION,
+                    pinQueueAt: null,
+                });
+                updatesCount++;
+            });
+
+            queueTop6.slice(0, freeTop6).forEach(ad => {
+                batch.update(ad.ref, {
+                    pinnedAt: now,
+                    pinnedUntil: now + TOP6_DURATION,
+                    pinQueueAt: null,
+                });
+                updatesCount++;
+            });
+
+            if (updatesCount === 0) continue;
+
+            await batch.commit();
+            console.log(`PIN rotation executed for city: ${city}`);
+
+        }
+    }
+);
+/* ======================================================
+   AUCTIONS — автоматическая ротация TOP / FEATURED
+====================================================== */
+
+const AUCTION_TOP_LIMIT = 3;
+const AUCTION_FEATURED_LIMIT = 6;
+
+const AUCTION_TOP_DURATION = 3 * DAY;
+const AUCTION_FEATURED_DURATION = 3 * DAY;
+
+export const rotateAuctionPromotions = onSchedule(
+    {
+        schedule: "every 5 minutes",
+        timeZone: "Europe/Warsaw",
+    },
+    async () => {
+        const now = Date.now();
+
+        const snap = await db
+            .collection("auctions")
+            .where("status", "==", "active")
+            .get();
+
+        // группируем по voivodeship + city
+        const byLocation = new Map<string, FirebaseFirestore.QueryDocumentSnapshot[]>();
+
+        snap.docs.forEach(doc => {
+            const d = doc.data();
+            if (!d.city || !d.voivodeship) return;
+
+            const key = `${d.voivodeship}__${d.city}`;
+            if (!byLocation.has(key)) byLocation.set(key, []);
+            byLocation.get(key)!.push(doc);
+        });
+
+        for (const [locationKey, auctions] of byLocation.entries()) {
+
+            const activeTop = auctions.filter(a => {
+                const d = a.data();
+                return (
+                    d.promotionType === "top-auction" &&
+                    d.promotionUntil &&
+                    d.promotionUntil > now
+                );
+            });
+
+            const activeFeatured = auctions.filter(a => {
+                const d = a.data();
+                return (
+                    d.promotionType === "featured" &&
+                    d.promotionUntil &&
+                    d.promotionUntil > now
+                );
+            });
+
+            const freeTop = AUCTION_TOP_LIMIT - activeTop.length;
+            const freeFeatured = AUCTION_FEATURED_LIMIT - activeFeatured.length;
+
+            if (freeTop <= 0 && freeFeatured <= 0) continue;
+
+            const queueTop = auctions
+                .filter(a => {
+                    const d = a.data();
+                    return (
+                        d.promotionType === "top-auction" &&
+                        d.promotionQueueAt &&
+                        (!d.promotionUntil || d.promotionUntil <= now)
+                    );
+                })
+                .sort((a, b) => a.data().promotionQueueAt - b.data().promotionQueueAt);
+
+            const queueFeatured = auctions
+                .filter(a => {
+                    const d = a.data();
+                    return (
+                        d.promotionType === "featured" &&
+                        d.promotionQueueAt &&
+                        (!d.promotionUntil || d.promotionUntil <= now)
+                    );
+                })
+                .sort((a, b) => a.data().promotionQueueAt - b.data().promotionQueueAt);
+
+            let updates = 0;
+            const batch = db.batch();
+
+            queueTop.slice(0, freeTop).forEach(doc => {
+                batch.update(doc.ref, {
+                    promotionUntil: now + AUCTION_TOP_DURATION,
+                    promotionQueueAt: null,
+                });
+                updates++;
+            });
+
+            queueFeatured.slice(0, freeFeatured).forEach(doc => {
+                batch.update(doc.ref, {
+                    promotionUntil: now + AUCTION_FEATURED_DURATION,
+                    promotionQueueAt: null,
+                });
+                updates++;
+            });
+
+            if (updates === 0) continue;
+
+            await batch.commit();
+            console.log(`Auction promotion rotation executed for ${locationKey}`);
+        }
+    }
+);

@@ -4,49 +4,76 @@ import { db } from "../app/firebase"
 
 
 // Можно менять позже, но для MVP ставим так
-export const TOP_AUCTION_LIMIT_PER_CITY = 3
+export const AUCTION_LIMITS = {
+    top: 3,
+    featured: 6,
+} as const
+type AvailabilityResult =
+    | {
+    ok: true
+    activeCount: number
+    limit: number
+    queueCount: number
+}
+    | {
+    ok: false
+    reason: string
+    activeCount: number
+    limit: number
+    queueCount: number
+}
 
-export async function checkTopAuctionAvailability(params: {
+
+export async function checkAuctionPromotionAvailability(params: {
     voivodeship: string
     city: string
-}): Promise<{ ok: true } | { ok: false; reason: string; activeCount: number }> {
-    const { voivodeship, city } = params
-
+    type: "top" | "featured"
+}): Promise<AvailabilityResult> {
+    const { voivodeship, city, type } = params
     const now = Date.now()
 
-    // Берём все документы с promotionType == "top-auction" в нужном городе
-    // и считаем только те, у кого promotionUntil ещё активен
+    const limit = AUCTION_LIMITS[type]
+
     const q = query(
         collection(db, "auctions"),
         where("voivodeship", "==", voivodeship),
         where("city", "==", city),
-        where("promotionType", "==", "top-auction")
+        where("promotionType", "==", type)
     )
 
     const snap = await getDocs(q)
 
     let activeCount = 0
+    let queueCount = 0
 
     for (const doc of snap.docs) {
         const data = doc.data() as {
             promotionUntil?: number | null
-            createdAt?: number
+            promotionQueueAt?: number | null
         }
 
-        const until = data.promotionUntil ?? null
-
-        if (until && until > now) {
+        if (data.promotionUntil && data.promotionUntil > now) {
             activeCount++
+        } else if (data.promotionQueueAt) {
+            queueCount++
         }
     }
 
-    if (activeCount >= TOP_AUCTION_LIMIT_PER_CITY) {
+    if (activeCount >= limit) {
         return {
             ok: false,
-            reason: `Ліміт TOP-аукціонів у місті вже заповнений (${activeCount}/${TOP_AUCTION_LIMIT_PER_CITY}). Оберіть інше просування або зачекайте.`,
+            reason: `У місті немає вільних місць (${activeCount}/${limit}). Буде додано в чергу.`,
             activeCount,
+            limit,
+            queueCount,
         }
     }
 
-    return { ok: true }
+    return {
+        ok: true,
+        activeCount,
+        limit,
+        queueCount,
+    }
 }
+

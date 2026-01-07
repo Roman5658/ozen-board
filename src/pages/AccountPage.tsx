@@ -683,12 +683,14 @@ function AccountPage() {
                             <div key={ad.id} className="stack8">
                                 <Link to={`/ad/${ad.id}`} style={{textDecoration: "none", color: "inherit"}}>
                                     <AdCard
-                                        {...ad}
+                                        ad={ad}
                                         isMine={true}
                                         showActions={true}
                                         onDelete={() => handleDeleteAd(ad.id)}
                                     />
+
                                 </Link>
+
                             </div>
                         ))}
 

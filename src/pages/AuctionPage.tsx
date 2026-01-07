@@ -186,15 +186,22 @@ function AuctionPage() {
     // =========================
     // FILTERED LIST
     // =========================
-    const filteredAuctions = useMemo(() => {
-        const active = auctions.filter(a => a.endsAt > now)
-        const ended = auctions.filter(a => a.endsAt <= now)
+    const {
+        topAuctionsVisible,
+        featuredAuctionsVisible,
+        regularAuctions,
+    } = useMemo(() => {
+        // 1️⃣ только активные аукционы
+        const activeAuctions = auctions.filter(
+            a => a.status === "active" && a.endsAt > now
+        )
 
-        const isAllCities = city === "all"
+        // 2️⃣ фильтр по городу
+        const inCity = (a: Auction) =>
+            city === "all" || a.city === city
 
-        const inCity = (a: Auction) => isAllCities || a.city === city
-
-        const top = active.filter(
+        // 3️⃣ все активные TOP
+        const topAuctionsAll = activeAuctions.filter(
             a =>
                 a.promotionType === "top-auction" &&
                 a.promotionUntil &&
@@ -202,7 +209,8 @@ function AuctionPage() {
                 inCity(a)
         )
 
-        const featured = active.filter(
+        // 4️⃣ все активные FEATURED
+        const featuredAuctionsAll = activeAuctions.filter(
             a =>
                 a.promotionType === "featured" &&
                 a.promotionUntil &&
@@ -210,51 +218,49 @@ function AuctionPage() {
                 inCity(a)
         )
 
-        const normal = active.filter(
-            a =>
-                a.promotionType !== "top-auction" &&
-                a.promotionType !== "featured" &&
-                inCity(a)
-        )
+        // 5️⃣ витрина (лимиты)
+        const topAuctionsVisible =
+            city === "all"
+                ? shuffle(topAuctionsAll).slice(0, 3)
+                : topAuctionsAll.slice(0, 3)
 
-        // 🔥 если вся страна — ограничиваем TOP
-        const limitedTop = isAllCities ? top.slice(0, 5) : top
+        const featuredAuctionsVisible =
+            city === "all"
+                ? shuffle(featuredAuctionsAll).slice(0, 6)
+                : featuredAuctionsAll.slice(0, 6)
 
-        return [
-            ...limitedTop,
-            ...featured,
-            ...normal.sort((a, b) => {
+        // 6️⃣ ID показанных аукционов
+        const visiblePromotionIds = new Set([
+            ...topAuctionsVisible.map(a => a.id),
+            ...featuredAuctionsVisible.map(a => a.id),
+        ])
+
+        // 7️⃣ обычные — НИЧЕГО НЕ ПРОПАДАЕТ
+        const regularAuctions = activeAuctions
+            .filter(a => inCity(a))
+            .filter(a => !visiblePromotionIds.has(a.id))
+            .sort((a, b) => {
                 if (sort === "bid") return b.currentBid - a.currentBid
                 return a.endsAt - b.endsAt
-            }),
-            ...ended,
-        ]
+            })
+
+        return {
+            topAuctionsVisible,
+            featuredAuctionsVisible,
+            regularAuctions,
+        }
     }, [auctions, city, sort, now])
+
+
+    function shuffle<T>(arr: T[]): T[] {
+        return [...arr].sort(() => Math.random() - 0.5)
+    }
 
 
     if (loading) {
         return <div className="card">Завантаження аукціонів…</div>
     }
-    const topAuctions = filteredAuctions.filter(
-        a =>
-            a.promotionType === "top-auction" &&
-            a.promotionUntil &&
-            a.promotionUntil > now
-    )
 
-    const featuredAuctions = filteredAuctions.filter(
-        a =>
-            a.promotionType === "featured" &&
-            a.promotionUntil &&
-            a.promotionUntil > now
-    )
-
-    const regularAuctions = filteredAuctions.filter(
-        a =>
-            a.promotionType === "none" ||
-            a.promotionType === "highlight-gold" ||
-            !a.promotionType
-    )
 
 
     // =========================
@@ -310,10 +316,10 @@ function AuctionPage() {
 
                     <div className="ads-grid">
 
-                        {topAuctions.length > 0 && (
+                        {topAuctionsVisible.length > 0 && (
                             <div className="ads-separator">🔥 TOP аукціони</div>
                         )}
-                        {topAuctions.map(item => (
+                        {topAuctionsVisible.map(item => (
                             <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
                                 <AuctionCard
                                     title={item.title}
@@ -327,10 +333,11 @@ function AuctionPage() {
                             </div>
                         ))}
 
-                        {featuredAuctions.length > 0 && (
+
+                        {featuredAuctionsVisible.length > 0 && (
                             <div className="ads-separator">⭐ Featured</div>
                         )}
-                        {featuredAuctions.map(item => (
+                        {featuredAuctionsVisible.map(item => (
                             <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
                                 <AuctionCard
                                     title={item.title}
@@ -343,12 +350,16 @@ function AuctionPage() {
                                 />
                             </div>
                         ))}
+
 
                         {regularAuctions.length > 0 && (
                             <div className="ads-separator">📄 Інші аукціони</div>
                         )}
                         {regularAuctions.map(item => (
-                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
+                            <div
+                                key={item.id}
+                                onClick={() => navigate(`/auction/${item.id}`)}
+                            >
                                 <AuctionCard
                                     title={item.title}
                                     city={item.city}
@@ -357,9 +368,16 @@ function AuctionPage() {
                                     image={item.images[0]}
                                     isEnded={item.endsAt <= now}
                                     promotionType={item.promotionType}
+                                    isSoftPinned={
+                                        item.promotionType === "top-auction" ||
+                                        item.promotionType === "featured"
+                                    }
                                 />
                             </div>
                         ))}
+
+
+
 
                     </div>
 

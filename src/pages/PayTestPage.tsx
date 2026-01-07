@@ -1,5 +1,10 @@
 import { useState } from "react"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
+import { verifyPayPalPayment } from "../api/payments"
+
+
+
+
 
 export default function PayTestPage() {
     const [status, setStatus] = useState<"idle" | "success" | "error">("idle")
@@ -43,11 +48,31 @@ export default function PayTestPage() {
             <PayPalCheckoutButton
                 amountPLN={5}
                 description="Ozen Board — test payment"
-                onSuccess={(id) => {
-                    setStatus("success")
-                    setOrderId(id)
-                    setMessage("")
+                onSuccess={async (id) => {
+                    try {
+                        setOrderId(id)
+
+                        const result = await verifyPayPalPayment({
+                            orderId: id,
+                            targetType: "ad",
+                            targetId: "TEST_ONLY",
+                            promotionType: "test",
+                        })
+
+                        if (result.data?.ok) {
+                            setStatus("success")
+                            setMessage("verifyPayPalPayment OK")
+                        } else {
+                            setStatus("error")
+                            setMessage("verifyPayPalPayment повернув помилку")
+                        }
+                    } catch (e) {
+                        console.error(e)
+                        setStatus("error")
+                        setMessage("Помилка виклику verifyPayPalPayment")
+                    }
                 }}
+
                 onError={(msg) => {
                     setStatus("error")
                     setMessage(msg)

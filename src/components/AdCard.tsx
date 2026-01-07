@@ -16,12 +16,15 @@ type Props = {
 
     userId?: string
     userNickname?: string
+    isSoftPinned?: boolean
 
     isMine?: boolean
     showActions?: boolean
     onDelete?: () => void
     isPinned?: boolean
     highlightType?: 'gold' | 'blue'
+
+
 }
 
 function formatDate(ts?: number) {
@@ -44,9 +47,30 @@ function AdCard(props: Props) {
     const city = ad?.city ?? props.city
     const description = ad?.description ?? props.description
     const createdAt = ad?.createdAt ?? props.createdAt
-    const isPremium = ad?.isPremium ?? props.isPremium
-    const isPinned = ad?.isPinned ?? props.isPinned
-    const highlightType = ad?.highlightType ?? props.highlightType
+
+    const now = Date.now()
+
+    const isPinActive =
+        !!ad?.pinType &&
+        !!ad?.pinnedUntil &&
+        ad.pinnedUntil > now
+    const isTop3 = isPinActive && ad?.pinType === 'top3' && !props.isSoftPinned
+    const isTop6 = isPinActive && ad?.pinType === 'top6' && !props.isSoftPinned
+
+
+    const isInPinQueue =
+        !!ad?.pinQueueAt &&
+        (!ad?.pinnedUntil || ad.pinnedUntil <= now)
+
+    const isHighlightActive =
+        !!ad?.highlightUntil &&
+        ad.highlightUntil > now
+
+    const highlightType =
+        isHighlightActive
+            ? ad?.highlightType ?? props.highlightType
+            : undefined
+
     const userId = ad?.userId ?? props.userId
 
     // ⚠️ getAdImages вызываем ТОЛЬКО здесь — не в HomePage
@@ -55,14 +79,29 @@ function AdCard(props: Props) {
 
     return (
         <div
-            className={`ad-card ${isPremium ? 'premium' : ''}`}
+            className="ad-card"
+
             style={{
                 border:
-                    highlightType === 'gold'
-                        ? '2px solid #f59e0b'
-                        : highlightType === 'blue'
-                            ? '2px solid #3b82f6'
+                    isTop3
+                        ? '2px solid #ef4444'
+                        : isTop6
+                            ? '2px solid #22c55e'
+                            : props.isSoftPinned
+                                ? '1px dashed #16a34a'
+                                : highlightType === 'gold'
+                                    ? '5px solid #f59e0b'
+                                    : highlightType === 'blue'
+                                        ? '2px solid #3b82f6'
+                                        : undefined,
+
+                boxShadow:
+                    isTop3
+                        ? '0 0 12px rgba(239, 68, 68, 0.75)'
+                        : isTop6
+                            ? '0 0 12px rgba(34, 197, 94, 0.75)'
                             : undefined,
+
                 background:
                     highlightType === 'gold'
                         ? '#fffbeb'
@@ -70,6 +109,7 @@ function AdCard(props: Props) {
                             ? '#eff6ff'
                             : undefined,
             }}
+
         >
             <div className="ad-image">
                 {preview ? (
@@ -102,13 +142,34 @@ function AdCard(props: Props) {
                     </div>
                 )}
 
-                {isPremium && <span className="ad-badge">TOP</span>}
-                {props.isMine && <span className="ad-badge mine">МОЄ</span>}
-                {isPinned && (
-                    <span className="ad-badge" style={{ background: '#2563eb' }}>
-                        PIN
-                    </span>
+                {isPinActive && !props.isSoftPinned && (
+                    <span
+                        className="ad-badge"
+                        style={{ background: '#2563eb' }}
+                    >
+        {ad?.pinType === 'top3' ? 'TOP 3' : 'TOP 6'}
+    </span>
                 )}
+
+
+                {isInPinQueue && props.isMine && (
+                    <span className="ad-badge" style={{ background: '#6b7280' }}>
+    В черзі
+  </span>
+                )}
+
+
+                {isHighlightActive && (
+                    <span
+                        className="ad-badge"
+                        style={{ background: '#f59e0b', color: '#000' }}
+                    >
+        GOLD
+    </span>
+                )}
+
+                {props.isMine && <span className="ad-badge mine">МОЄ</span>}
+
             </div>
 
             {description && <p className="ad-desc">{description}</p>}

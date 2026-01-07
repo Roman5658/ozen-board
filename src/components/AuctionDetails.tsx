@@ -273,6 +273,37 @@ function AuctionDetails({
                 />
             )}
 
+            {isAuthor && !isEnded && bids.length === 0 && (
+                <div
+                    style={{
+                        marginTop: 12,
+                        padding: 12,
+                        borderRadius: 10,
+                        background: "#eef2ff",
+                    }}
+                >
+                    <div style={{ fontWeight: 700, marginBottom: 8 }}>
+                        Керування аукціоном
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => navigate(`/edit-auction/${auctionId}`)}
+                        style={{
+                            width: "100%",
+                            padding: 12,
+                            borderRadius: 10,
+                            border: "none",
+                            background: "#1976d2",
+                            color: "#fff",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        ✏️ Редагувати аукціон
+                    </button>
+                </div>
+            )}
 
 
 

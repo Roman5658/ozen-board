@@ -5,12 +5,10 @@ import type { Report } from "../types/report"
 import type { Ad } from "../types/ad"
 
 import { db } from "../app/firebase"
-import { getLocalUser } from "../data/localUser"
-import { ADMIN_USER_ID } from "../app/constants"
+
 
 function AdminReportsPage() {
-    const user = getLocalUser()
-    const isAdmin = !!user && String(user.id) === ADMIN_USER_ID
+
 
     const [reports, setReports] = useState<Report[]>([])
     const [adsMap, setAdsMap] = useState<Record<string, Ad>>({})
@@ -61,11 +59,6 @@ function AdminReportsPage() {
 
     useEffect(() => {
         async function loadReports() {
-            if (!isAdmin) {
-                setLoading(false)
-                return
-            }
-
             const snap = await getDocs(collection(db, "reports"))
 
             const data: Report[] = snap.docs.map((d) => ({
@@ -92,19 +85,13 @@ function AdminReportsPage() {
         }
 
         loadReports()
-    }, [isAdmin])
+    }, [])
+
 
     // -------------------------
     // защита
     // -------------------------
 
-    if (!isAdmin) {
-        return (
-            <div className="card">
-                <h2>Доступ заборонено</h2>
-            </div>
-        )
-    }
 
     if (loading) {
         return <div className="card">Завантаження…</div>

@@ -7,6 +7,9 @@ type Props = {
     view?: 'list' | 'grid'
     isEnded?: boolean
     promotionType?: "top-auction" | "featured" | "highlight-gold" | "none"
+    isSoftPinned?: boolean
+
+
 }
 
 
@@ -19,6 +22,7 @@ function AuctionCard({
                          image,
                          view = 'list',
                          promotionType,
+                         isSoftPinned,
                      }: Props) {
     const isGrid = view === 'grid'
 
@@ -33,23 +37,27 @@ function AuctionCard({
 
                 // ===== ВИЗУАЛЬНОЕ ВЫДЕЛЕНИЕ =====
                 border:
-                    promotionType === 'top-auction'
-                        ? '2px solid #ef4444'
-                        : promotionType === 'featured'
-                            ? '2px solid #f59e0b'
-                            : promotionType === 'highlight-gold'
-                                ? '1px solid #facc15'
-                                : '1px solid #ddd',
+                    isSoftPinned
+                        ? '1px dashed #16a34a'
+                        : promotionType === 'top-auction'
+                            ? '2px solid #ef4444'
+                            : promotionType === 'featured'
+                                ? '2px solid #f59e0b'
+                                : promotionType === 'highlight-gold'
+                                    ? '1px solid #facc15'
+                                    : '1px solid #ddd',
 
 
                 boxShadow:
-                    promotionType === 'top-auction'
-                        ? '0 6px 16px rgba(239, 68, 68, 0.25)'
-                        : promotionType === 'featured'
-                            ? '0 4px 12px rgba(245, 158, 11, 0.25)'
-                            : promotionType === 'highlight-gold'
-                                ? '0 3px 10px rgba(250, 204, 21, 0.35)'
-                                : 'none',
+                    isSoftPinned
+                        ? 'none'
+                        : promotionType === 'top-auction'
+                            ? '0 6px 16px rgba(239, 68, 68, 0.25)'
+                            : promotionType === 'featured'
+                                ? '0 4px 12px rgba(245, 158, 11, 0.25)'
+                                : promotionType === 'highlight-gold'
+                                    ? '0 3px 10px rgba(250, 204, 21, 0.35)'
+                                    : 'none',
 
 
                 background:
@@ -58,8 +66,9 @@ function AuctionCard({
                         : '#fff',
 
                 transform:
-                    promotionType === 'top-auction' ? 'translateY(-2px)' : 'none',
-
+                    !isSoftPinned && promotionType === 'top-auction'
+                        ? 'translateY(-2px)'
+                        : 'none',
             }}
         >
 
@@ -105,22 +114,24 @@ function AuctionCard({
                 }}
             >
                 <div>
-                    {promotionType === "top-auction" && (
-                        <div style={{fontSize: 12, color: "#d32f2f", fontWeight: 600}}>
+                    {promotionType === "top-auction" && !isSoftPinned && (
+                        <div style={{ fontSize: 12, color: "#d32f2f", fontWeight: 600 }}>
                             🔥 TOP
                         </div>
                     )}
 
-                    {promotionType === "featured" && (
-                        <div style={{fontSize: 12, color: "#f59e0b", fontWeight: 600}}>
+                    {promotionType === "featured" && !isSoftPinned && (
+                        <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>
                             ⭐ Featured
                         </div>
                     )}
-                    {promotionType === "highlight-gold" && (
-                        <div style={{fontSize: 12, color: "#b45309", fontWeight: 600}}>
+
+                    {promotionType === "highlight-gold" && !isSoftPinned && (
+                        <div style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
                             ✨ Gold
                         </div>
                     )}
+
 
 
                     <h3

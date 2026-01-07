@@ -1,4 +1,5 @@
 import type { AppUser } from "../types/user"
+import { ADMIN_IDS } from "../admin/adminIds"
 
 const KEY = "ozen_user"
 
@@ -13,4 +14,10 @@ export function setLocalUser(user: AppUser) {
 
 export function clearLocalUser() {
     localStorage.removeItem(KEY)
+}
+
+export function isAdmin(): boolean {
+    const user = getLocalUser()
+    if (!user) return false
+    return ADMIN_IDS.includes(user.id)
 }

@@ -2,11 +2,14 @@ import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { collection, addDoc } from "firebase/firestore"
+import { doc, updateDoc } from "firebase/firestore"
+import { PRICES } from "../config/prices"
 
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
-import { checkTopAuctionAvailability } from "../data/auctionAvailability"
+import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
+
 
 import { PayPalButtons } from "@paypal/react-paypal-js"
 import { verifyPayPalPayment } from "../api/payments"
@@ -42,23 +45,20 @@ function AddAuctionPage() {
     const [isPaying, setIsPaying] = useState(false)
     const [draftAuctionId, setDraftAuctionId] = useState<string | null>(null)
 
+    const [promotionInfo, setPromotionInfo] = useState<{
+        text: string
+        isQueue: boolean
+    } | null>(null)
 
     // ===== AUTH =====
     const isPaidPromotion = promotion !== "none"
 
 // 👇 ХУКИ ВСЕГДА СНАЧАЛА
     const pricePLN = useMemo(() => {
-        switch (promotion) {
-            case "top-auction":
-                return "19.00"
-            case "featured":
-                return "12.00"
-            case "highlight-gold":
-                return "9.00"
-            default:
-                return "0.00"
-        }
+        if (promotion === "none") return "0.00"
+        return PRICES.auction[promotion]
     }, [promotion])
+
 
 // 👇 ПОТОМ любая логика и return
     const user = getLocalUser()
@@ -108,10 +108,45 @@ function AddAuctionPage() {
     }
 
     async function checkTopLimitIfNeeded() {
-        if (promotion !== "top-auction") return
-        const res = await checkTopAuctionAvailability({ voivodeship, city })
-        if (!res.ok) throw new Error(res.reason)
+        if (promotion !== "top-auction" && promotion !== "featured") return
+
+        await checkAuctionPromotionAvailability({
+            voivodeship,
+            city,
+            type: promotion === "top-auction" ? "top" : "featured",
+        })
+
+
+        // ❗ НИЧЕГО НЕ БЛОКИРУЕМ
+        // очередь — это допустимое состояние
+        return
     }
+
+    async function loadPromotionInfo(type: "top" | "featured") {
+        if (!voivodeship || !city) {
+            setPromotionInfo(null)
+            return
+        }
+
+        const res = await checkAuctionPromotionAvailability({
+            voivodeship,
+            city,
+            type,
+        })
+
+        if (res.ok) {
+            setPromotionInfo({
+                text: `Вільно: ${res.limit - res.activeCount} з ${res.limit}`,
+                isQueue: false,
+            })
+        } else {
+            setPromotionInfo({
+                text: `Місць немає — буде додано в чергу (${res.queueCount} у черзі)`,
+                isQueue: true,
+            })
+        }
+    }
+
 // ===== CREATE DRAFT AUCTION (до оплаты) =====
 // Создаёт "черновик" и возвращает реальный auctionId
     async function createDraftAuction(): Promise<string> {
@@ -160,8 +195,18 @@ function AddAuctionPage() {
             endsAt,
 
             // пока без промо — промо включим только после verifyPayPalPayment
-            promotionType: "none",
+            promotionType: promotion === "top-auction" ? "top" :
+                promotion === "featured" ? "featured" :
+                    promotion === "highlight-gold" ? "gold" :
+                        "none",
+
             promotionUntil: null,
+
+            promotionQueueAt:
+                promotion === "top-auction" || promotion === "featured"
+                    ? Date.now()
+                    : null,
+
         })
 
         return docRef.id
@@ -296,6 +341,8 @@ function AddAuctionPage() {
                     onChange={(e) => {
                         setVoivodeship(e.target.value)
                         setCity("")
+                        setPromotionInfo(null)
+
                     }}
                 >
                     <option value="">Воєводство</option>
@@ -413,14 +460,26 @@ function AddAuctionPage() {
                             type="radio"
                             name="promotion"
                             checked={promotion === "top-auction"}
-                            onChange={() => setPromotion("top-auction")}
+                            onChange={async () => {
+                                setPromotion("top-auction")
+                                await loadPromotionInfo("top")
+                            }}
                         />
+
                         🔥 TOP аукціон
                         <div className="hint">Показується вище звичайних аукціонів (3 дні)</div>
                     </label>
 
                     <label className="promotion-option">
-                        <input type="radio" name="promotion" checked={promotion === "featured"} onChange={() => setPromotion("featured")} />
+                        <input
+                            type="radio"
+                            name="promotion"
+                            checked={promotion === "featured"}
+                            onChange={async () => {
+                                setPromotion("featured")
+                                await loadPromotionInfo("featured")
+                            }}
+                        />
                         ⭐ Featured
                         <div className="hint">Виділений аукціон (3 дні)</div>
                     </label>
@@ -435,6 +494,16 @@ function AddAuctionPage() {
                         ✨ Виділити (gold)
                         <div className="hint">Кольорове виділення (7 днів)</div>
                     </label>
+                    {promotionInfo && (
+                        <div
+                            style={{
+                                fontSize: 13,
+                                color: promotionInfo.isQueue ? "#b45309" : "#047857",
+                            }}
+                        >
+                            {promotionInfo.text}
+                        </div>
+                    )}
 
                     {/* PAYPAL (только если платное) */}
                     {isPaidPromotion && (
@@ -483,20 +552,28 @@ function AddAuctionPage() {
                                     try {
                                         // 1) capture
                                         const details = await actions.order.capture()
-                                        if (!details.id) throw new Error("PayPal order id missing")
 
-                                        // 2) server verify
+                                        if (!details.id) {
+                                            throw new Error("PayPal order id missing")
+                                        }
+
                                         await verifyPayPalPayment({
                                             orderId: details.id,
                                             targetType: "auction",
                                             targetId: draftAuctionId!,
-
                                             promotionType: promotion,
                                         })
 
-                                        // 3) create auction
-                                        setIsSubmitting(true)
-                                        await createAuction()
+
+// 3) activate draft
+                                        await updateDoc(doc(db, "auctions", draftAuctionId!), {
+                                            status: "active",
+                                            promotionQueueAt: null, // очередь обработана сервером
+                                        })
+
+
+                                        navigate("/auctions")
+
                                     } catch (err) {
                                         const msg = err instanceof Error ? err.message : "Помилка PayPal"
                                         setError(msg)

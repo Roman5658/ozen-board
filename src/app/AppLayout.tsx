@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import BottomNav from '../components/BottomNav'
+import Footer from '../components/Footer'
+
 
 type Props = {
     children: ReactNode
@@ -15,6 +17,8 @@ function AppLayout({ children, header, activePath }: Props) {
             <main className="app-main">
                 {children}
             </main>
+            <Footer />
+            <BottomNav activePath={activePath} />
 
             <BottomNav activePath={activePath} />
         </div>

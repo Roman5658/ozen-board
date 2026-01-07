@@ -8,13 +8,16 @@ import {
     query,
     where,
 } from "firebase/firestore"
+import { PRICES } from "../config/prices"
 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import type { Ad } from "../types/ad"
+import { PayPalButtons } from "@paypal/react-paypal-js"
+import { verifyPayPalPayment } from "../api/payments"
 
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
-import { addLocalAd } from "../data/localAds"
+
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
 
@@ -53,13 +56,20 @@ function AddPage() {
 
     const [pinInfo, setPinInfo] = useState<{
         canTop3: boolean
-        canTop5: boolean
+        canTop6: boolean
         top3Used: number
-        top5Used: number
+        top6Used: number
     } | null>(null)
 
-    const [pinLoading, setPinLoading] = useState(false)
 
+    const [pinLoading, setPinLoading] = useState(false)
+    const [paymentCompleted, setPaymentCompleted] = useState(false)
+    const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
+
+    useEffect(() => {
+        setPaymentCompleted(false)
+        setPaypalOrderId(null)
+    }, [promotion])
 
     useEffect(() => {
         let cancelled = false
@@ -161,6 +171,8 @@ function AddPage() {
 
 
 
+        const DAY_MS = 24 * 60 * 60 * 1000
+        const since = Date.now() - DAY_MS
 
 // лимит объявлений
         const MAX_ADS_PER_USER = 10
@@ -168,7 +180,10 @@ function AddPage() {
         const userAdsCount = await getDocs(
             query(
                 collection(db, "ads"),
-                where("userId", "==", userId)
+                where("userId", "==", userId),
+                where("createdAt", ">=", since)
+
+
             )
         )
 
@@ -177,17 +192,7 @@ function AddPage() {
             return
         }
 // если выбрали PIN — перепроверяем лимит прямо перед созданием
-        if ((promotion === 'top3' || promotion === 'top6') && city) {
-            const info = await checkPinAvailability(city)
 
-            if (
-                (promotion === 'top3' && !info.canTop3) ||
-                (promotion === 'top6' && !info.canTop5)
-            ) {
-                setError(`Закріплення у місті ${city} тимчасово недоступне`)
-                return
-            }
-        }
 
 
         try {
@@ -210,6 +215,37 @@ function AddPage() {
                 const imageUrl = await getDownloadURL(imageRef)
                 imageUrls.push(imageUrl)
             }
+            let pinFields: Partial<Ad> = {}
+
+            if ((promotion === 'top3' || promotion === 'top6') && city) {
+                const info = await checkPinAvailability(city)
+
+                if (promotion === 'top3') {
+                    pinFields = info.canTop3
+                        ? {
+                            pinType: 'top3',
+                            pinnedAt: timestamp,
+                            pinnedUntil: timestamp + 3 * 24 * 60 * 60 * 1000,
+                        }
+                        : {
+                            pinType: 'top3',
+                            pinQueueAt: timestamp,
+                        }
+                }
+
+                if (promotion === 'top6') {
+                    pinFields = info.canTop6
+                        ? {
+                            pinType: 'top6',
+                            pinnedAt: timestamp,
+                            pinnedUntil: timestamp + 3 * 24 * 60 * 60 * 1000,
+                        }
+                        : {
+                            pinType: 'top6',
+                            pinQueueAt: timestamp,
+                        }
+                }
+            }
 
 
             const adData: Omit<Ad, "id"> = {
@@ -223,6 +259,8 @@ function AddPage() {
 
                 userId,
                 createdAt: timestamp,
+                status: "active",
+
                 ...(location ? { location } : {}),
 
                 // ===== платные опции (если выбраны) =====
@@ -230,21 +268,7 @@ function AddPage() {
                     ? { bumpAt: timestamp }
                     : {}),
 
-                ...(promotion === 'top3'
-                    ? {
-                        pinType: 'top3',
-                        pinnedAt: timestamp,
-                        pinnedUntil: timestamp + 3 * 24 * 60 * 60 * 1000,
-                    }
-                    : {}),
 
-                ...(promotion === 'top6'
-                    ? {
-                        pinType: 'top6',
-                        pinnedAt: timestamp,
-                        pinnedUntil: timestamp + 3 * 24 * 60 * 60 * 1000,
-                    }
-                    : {}),
 
                 ...(promotion === 'highlight-gold'
                     ? {
@@ -252,7 +276,7 @@ function AddPage() {
                         highlightUntil: timestamp + 7 * 24 * 60 * 60 * 1000,
                     }
                     : {}),
-
+                ...pinFields,
             }
 
 
@@ -262,10 +286,30 @@ function AddPage() {
 
             const docRef = await addDoc(collection(db, "ads"), adData)
 
-            addLocalAd({
-                id: docRef.id,
-                ...adData,
-            })
+            if (promotion !== "none") {
+                if (!paypalOrderId) {
+                    setError("Оплата не підтверджена")
+                    return
+                }
+
+
+                await verifyPayPalPayment({
+                    orderId: paypalOrderId,
+                    targetType: "ad",
+                    targetId: docRef.id,
+                    promotionType:
+                        promotion === "highlight-gold" ? "gold" : promotion,
+                })
+            }
+
+
+
+
+
+            // addLocalAd({
+            //     id: docRef.id,
+            //     ...adData,
+            // })
             setSellerContact("")
 
             navigate("/")
@@ -276,6 +320,16 @@ function AddPage() {
             setIsSubmitting(false)
         }
     }
+
+    const isFormValid =
+        title.trim() &&
+        description.trim() &&
+        category &&
+        voivodeship &&
+        city &&
+        price.trim() &&
+        imageFiles.length > 0
+
 
     return (
         <div className="card stack12">
@@ -465,6 +519,57 @@ function AddPage() {
                 )}
                 <div className="card stack12">
                     <strong>Просування оголошення</strong>
+                    {promotion !== 'none' && (
+                        <div className="card stack12">
+                            <strong>Оплата просування</strong>
+
+                            {!isFormValid && (
+                                <div style={{ color: "#b91c1c", fontSize: 14 }}>
+                                    Перед оплатою заповніть усі обовʼязкові поля та додайте хоча б одне фото
+                                </div>
+                            )}
+
+                            {isFormValid && (
+                                <>
+                                    <div style={{ fontSize: 16 }}>
+                                        Сума:{" "}
+                                        <strong>
+                                            {promotion === "highlight-gold"
+                                                ? PRICES.ad.gold
+                                                : PRICES.ad[promotion]} PLN
+                                        </strong>
+                                    </div>
+
+                                    <PayPalButtons
+                                        style={{ layout: "vertical" }}
+                                        createOrder={(_, actions) => {
+                                            return actions.order.create({
+                                                intent: "CAPTURE",
+                                                purchase_units: [
+                                                    {
+                                                        amount: {
+                                                            value:
+                                                                promotion === "highlight-gold"
+                                                                    ? PRICES.ad.gold
+                                                                    : PRICES.ad[promotion],
+                                                            currency_code: "PLN",
+                                                        },
+                                                    },
+                                                ],
+                                            })
+                                        }}
+                                        onApprove={async (_, actions) => {
+                                            if (!actions.order) return
+                                            const details = await actions.order.capture()
+
+                                            setPaypalOrderId(details.id!)
+                                            setPaymentCompleted(true)
+                                        }}
+                                    />
+                                </>
+                            )}
+                        </div>
+                    )}
 
                     <label className="promotion-option">
                         <input
@@ -483,11 +588,22 @@ function AddPage() {
                             name="promotion"
                             checked={promotion === 'top3'}
                             onChange={() => setPromotion('top3')}
-                            disabled={pinLoading || (pinInfo ? !pinInfo.canTop3 : false)}
+                            disabled={pinLoading}
                         />
                         🔥 TOP 3
-                        <div className="hint">Найвище місце у місті (обмежено)</div>
+
+                        <div className="hint">
+                            Найвище місце у місті (обмежено)
+                            {pinInfo && (
+                                <div style={{fontSize: 12, marginTop: 4, opacity: 0.8}}>
+                                    {pinInfo.canTop3
+                                        ? `Вільно: ${3 - pinInfo.top3Used} з 3`
+                                        : "Усі місця зайняті — оголошення стане в чергу"}
+                                </div>
+                            )}
+                        </div>
                     </label>
+
 
                     <label className="promotion-option">
                         <input
@@ -495,11 +611,22 @@ function AddPage() {
                             name="promotion"
                             checked={promotion === 'top6'}
                             onChange={() => setPromotion('top6')}
-                            disabled={pinLoading || (pinInfo ? !pinInfo.canTop5 : false)}
+                            disabled={pinLoading}
                         />
                         ⭐ TOP 6
-                        <div className="hint">Після TOP 3</div>
+
+                        <div className="hint">
+                            Після TOP 3
+                            {pinInfo && (
+                                <div style={{fontSize: 12, marginTop: 4, opacity: 0.8}}>
+                                    {pinInfo.canTop6
+                                        ? `Вільно: ${6 - pinInfo.top6Used} з 6`
+                                        : "Усі місця зайняті — оголошення стане в чергу"}
+                                </div>
+                            )}
+                        </div>
                     </label>
+
 
                     <label className="promotion-option">
                         <input
@@ -525,7 +652,14 @@ function AddPage() {
                 </div>
 
 
-                <button className="btn-primary" disabled={isSubmitting}>
+                <button
+                    className="btn-primary"
+                    disabled={
+                        isSubmitting ||
+                        (promotion !== 'none' && !paymentCompleted)
+                    }
+                >
+
                     {isSubmitting ? "Завантаження..." : "Створити"}
                 </button>
             </form>
