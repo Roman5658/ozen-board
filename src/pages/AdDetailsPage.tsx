@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { verifyPayPalPayment } from "../api/payments"
 import { PRICES } from "../config/prices"
+import { formatPricePLN } from "../utils/formatPricePLN"
 
 import { PayPalButtons } from "@paypal/react-paypal-js"
 
@@ -191,9 +192,8 @@ function AdDetailsPage() {
                 </div>
 
                 {ad.price && (
-                    <div style={{ fontSize: '20px', fontWeight: 700 }}>
-                        {ad.price}
-                    </div>
+                    <div className="price">{formatPricePLN(ad.price)}</div>
+
                 )}
                 {/* Продавець (MVP-заглушка) */}
                 <AuthorCard

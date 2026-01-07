@@ -2,6 +2,7 @@
 import type { Ad } from '../types/ad'
 import { getAdImages } from '../utils/getAdImages'
 import { useMemo } from 'react'
+import { formatPricePLN } from "../utils/formatPricePLN"
 
 type Props = {
     // 🔹 новый путь (предпочтительный)
@@ -185,7 +186,8 @@ function AdCard(props: Props) {
 
             <div className="ad-footer">
                 <span className="ad-city">{city}</span>
-                {price && <span className="ad-price">{price}</span>}
+                {price && <span className="ad-price">{formatPricePLN(price)}</span>}
+
             </div>
 
             <div className="ad-meta">

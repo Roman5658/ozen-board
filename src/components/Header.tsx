@@ -14,6 +14,7 @@ function Header({ title, subtitle,warning, lang, onLangChange }: Props) {
                 padding: '12px 16px',
                 borderBottom: '1px solid #ddd',
                 background: '#fff',
+
             }}
         >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -5,7 +5,7 @@ function ContactPage() {
             <p>If you have any issues or questions, contact the developer:</p>
 
             <ul>
-                <li>Email: ozenenesis56@gmail.com</li>
+                <li>Email: ozenenesis@gmail.com</li>
                 <li>Telegram: @Ozen25</li>
             </ul>
         </div>
