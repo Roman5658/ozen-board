@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/purity */
 import type { Ad } from '../types/ad'
 import { getAdImages } from '../utils/getAdImages'
+import { useMemo } from 'react'
 
 type Props = {
     // 🔹 новый путь (предпочтительный)
@@ -27,9 +29,11 @@ type Props = {
 
 }
 
-function formatDate(ts?: number) {
-    if (!ts) return '—'
-    const diff = Date.now() - ts
+
+function formatDate(ts?: number, now?: number) {
+    if (!ts || !now) return '—'
+    const diff = now - ts
+
     const oneDay = 24 * 60 * 60 * 1000
 
     if (diff < oneDay) return 'Сьогодні'
@@ -48,7 +52,8 @@ function AdCard(props: Props) {
     const description = ad?.description ?? props.description
     const createdAt = ad?.createdAt ?? props.createdAt
 
-    const now = Date.now()
+    const now = useMemo(() => Date.now(), [])
+
 
     const isPinActive =
         !!ad?.pinType &&
@@ -76,6 +81,10 @@ function AdCard(props: Props) {
     // ⚠️ getAdImages вызываем ТОЛЬКО здесь — не в HomePage
     const images = ad ? getAdImages(ad) : props.images
     const preview = images?.[0]
+    const formattedDate = useMemo(
+        () => formatDate(createdAt, now),
+        [createdAt, now]
+    )
 
     return (
         <div
@@ -180,7 +189,9 @@ function AdCard(props: Props) {
             </div>
 
             <div className="ad-meta">
-                <span>🕒 {formatDate(createdAt)}</span>
+                <span>🕒 {formattedDate}</span>
+
+
                 <span>✔️ Безпечна угода</span>
             </div>
 
