@@ -631,3 +631,30 @@ h1, h2, h3, h4, h5, h6 {
         height: 24px;
     }
 }
+@keyframes btnFlash {
+    0% {
+        transform: translate(-120%, -120%);
+        opacity: 0.3;
+    }
+
+    12% {
+        opacity: 0.45;
+    }
+
+    88% {
+        opacity: 0.45;
+    }
+
+    100% {
+        transform: translate(260%, 260%);
+        opacity: 0.25;
+    }
+}
+
+
+
+
+
+
+
+

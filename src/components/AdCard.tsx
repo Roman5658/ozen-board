@@ -2,13 +2,11 @@
 import type { Ad } from '../types/ad'
 import { getAdImages } from '../utils/getAdImages'
 import { useMemo } from 'react'
-import { formatPricePLN } from "../utils/formatPricePLN"
+import { formatPricePLN } from '../utils/formatPricePLN'
 
 type Props = {
-    // 🔹 новый путь (предпочтительный)
     ad?: Ad
 
-    // 🔹 старый путь (оставляем для совместимости)
     title?: string
     price?: string
     city?: string
@@ -27,24 +25,40 @@ type Props = {
     isPinned?: boolean
     highlightType?: 'gold' | 'blue'
 
+    labels?: {
+        today: string
+        yesterday: string
+        noPhoto: string
+        user: string
 
+        top3: string
+        top6: string
+        inQueue: string
+        gold: string
+        mine: string
+
+        safeDeal: string
+        delete: string
+    }
 }
 
-
-function formatDate(ts?: number, now?: number) {
+function formatDate(
+    ts?: number,
+    now?: number,
+    labels?: { today: string; yesterday: string }
+) {
     if (!ts || !now) return '—'
-    const diff = now - ts
 
+    const diff = now - ts
     const oneDay = 24 * 60 * 60 * 1000
 
-    if (diff < oneDay) return 'Сьогодні'
-    if (diff < 2 * oneDay) return 'Вчора'
+    if (diff < oneDay) return labels?.today ?? '—'
+    if (diff < 2 * oneDay) return labels?.yesterday ?? '—'
 
     return new Date(ts).toLocaleDateString('uk-UA')
 }
 
 function AdCard(props: Props) {
-    // 🔹 если пришёл ad — берём данные из него
     const ad = props.ad
 
     const title = ad?.title ?? props.title ?? ''
@@ -55,14 +69,13 @@ function AdCard(props: Props) {
 
     const now = useMemo(() => Date.now(), [])
 
-
     const isPinActive =
         !!ad?.pinType &&
         !!ad?.pinnedUntil &&
         ad.pinnedUntil > now
+
     const isTop3 = isPinActive && ad?.pinType === 'top3' && !props.isSoftPinned
     const isTop6 = isPinActive && ad?.pinType === 'top6' && !props.isSoftPinned
-
 
     const isInPinQueue =
         !!ad?.pinQueueAt &&
@@ -79,18 +92,17 @@ function AdCard(props: Props) {
 
     const userId = ad?.userId ?? props.userId
 
-    // ⚠️ getAdImages вызываем ТОЛЬКО здесь — не в HomePage
     const images = ad ? getAdImages(ad) : props.images
     const preview = images?.[0]
+
     const formattedDate = useMemo(
-        () => formatDate(createdAt, now),
-        [createdAt, now]
+        () => formatDate(createdAt, now, props.labels),
+        [createdAt, now, props.labels]
     )
 
     return (
         <div
             className="ad-card"
-
             style={{
                 border:
                     isTop3
@@ -119,14 +131,13 @@ function AdCard(props: Props) {
                             ? '#eff6ff'
                             : undefined,
             }}
-
         >
             <div className="ad-image">
                 {preview ? (
                     <img src={preview} alt={title} />
                 ) : (
                     <div className="ad-image-placeholder">
-                        📷 Немає фото
+                        {props.labels?.noPhoto ?? '—'}
                     </div>
                 )}
             </div>
@@ -137,7 +148,7 @@ function AdCard(props: Props) {
                 {userId && (
                     <div style={{ fontSize: 13, marginTop: 4 }}>
                         <span
-                            onClick={(e) => {
+                            onClick={e => {
                                 e.stopPropagation()
                                 window.location.href = `/user/${userId}`
                             }}
@@ -147,39 +158,36 @@ function AdCard(props: Props) {
                                 cursor: 'pointer',
                             }}
                         >
-                            {props.userNickname ?? 'Користувач'}
+                            {props.userNickname ?? props.labels?.user ?? '—'}
                         </span>
                     </div>
                 )}
 
                 {isPinActive && !props.isSoftPinned && (
-                    <span
-                        className="ad-badge"
-                        style={{ background: '#2563eb' }}
-                    >
-        {ad?.pinType === 'top3' ? 'TOP 3' : 'TOP 6'}
-    </span>
+                    <span className="ad-badge" style={{ background: '#2563eb' }}>
+                        {ad?.pinType === 'top3'
+                            ? props.labels?.top3
+                            : props.labels?.top6}
+                    </span>
                 )}
-
 
                 {isInPinQueue && props.isMine && (
                     <span className="ad-badge" style={{ background: '#6b7280' }}>
-    В черзі
-  </span>
+                        {props.labels?.inQueue}
+                    </span>
                 )}
-
 
                 {isHighlightActive && (
-                    <span
-                        className="ad-badge"
-                        style={{ background: '#f59e0b', color: '#000' }}
-                    >
-        GOLD
-    </span>
+                    <span className="ad-badge" style={{ background: '#f59e0b', color: '#000' }}>
+                        {props.labels?.gold}
+                    </span>
                 )}
 
-                {props.isMine && <span className="ad-badge mine">МОЄ</span>}
-
+                {props.isMine && (
+                    <span className="ad-badge mine">
+                        {props.labels?.mine}
+                    </span>
+                )}
             </div>
 
             {description && <p className="ad-desc">{description}</p>}
@@ -187,26 +195,23 @@ function AdCard(props: Props) {
             <div className="ad-footer">
                 <span className="ad-city">{city}</span>
                 {price && <span className="ad-price">{formatPricePLN(price)}</span>}
-
             </div>
 
             <div className="ad-meta">
                 <span>🕒 {formattedDate}</span>
-
-
-                <span>✔️ Безпечна угода</span>
+                <span>{props.labels?.safeDeal}</span>
             </div>
 
             {props.isMine && props.showActions && props.onDelete && (
                 <button
                     className="btn-danger"
                     type="button"
-                    onClick={(e) => {
+                    onClick={e => {
                         e.preventDefault()
                         props.onDelete?.()
                     }}
                 >
-                    Видалити
+                    {props.labels?.delete}
                 </button>
             )}
         </div>

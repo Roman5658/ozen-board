@@ -4,6 +4,7 @@ import { doc, getDoc } from 'firebase/firestore'
 import { verifyPayPalPayment } from "../api/payments"
 import { PRICES } from "../config/prices"
 import { formatPricePLN } from "../utils/formatPricePLN"
+import type { translations } from "../app/i18n"
 
 import { PayPalButtons } from "@paypal/react-paypal-js"
 
@@ -13,8 +14,12 @@ import AuthorCard from "../components/AuthorCard"
 import { getAdImages } from "../utils/getAdImages";
 import { db } from '../app/firebase'
 import type { Ad } from '../types/ad'
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
+function AdDetailsPage({ t }: Props) {
+    const a = t.adDetails
 
-function AdDetailsPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const [isImageOpen, setIsImageOpen] = useState(false)
@@ -145,12 +150,13 @@ function AdDetailsPage() {
     }, [id])
 
     if (loading) {
-        return <div className="card">Завантаження…</div>
+        return <div className="card">{a.loading}</div>
     }
 
     if (!ad) {
-        return <div className="card">Оголошення не знайдено</div>
+        return <div className="card">{a.notFound}</div>
     }
+
     const isOwner = !!currentUser && String(currentUser.id) === String(ad.userId)
     const now = Date.now()
 
@@ -181,7 +187,8 @@ function AdDetailsPage() {
                     cursor: 'pointer',
                 }}
             >
-                ← Назад
+                ← {a.back}
+
             </button>
 
             <div className="card stack12">
@@ -203,13 +210,15 @@ function AdDetailsPage() {
                 />
                 {isOwner && (
                     <div className="ad-owner-panel card stack12">
-                        <div style={{fontWeight: 700}}>Керування оголошенням</div>
+                        <div style={{fontWeight: 700}}>{a.ownerPanel.title}</div>
+
                         <button
                             type="button"
                             className="btn-primary"
                             onClick={() => navigate(`/edit/${ad.id}`)}
                         >
-                            ✏️ Редагувати оголошення
+                            ✏️ {a.actions.edit}
+
                         </button>
 
                         {/* Статус выделения */}
@@ -239,7 +248,8 @@ function AdDetailsPage() {
                                 onClick={() => setPayAction("bump")}
 
                             >
-                                🚀 Підняти
+                                🚀 {a.actions.bump}
+
                             </button>
                             <button
                                 type="button"
@@ -277,7 +287,8 @@ function AdDetailsPage() {
                 )}
                 {payAction && (
                     <div className="card stack12">
-                        <strong>Оплата дії</strong>
+                        <strong>{a.payment.title}</strong>
+
 
                         <div style={{fontSize: 14}}>
                             {payAction === "bump" && `🚀 Підняти оголошення (${PRICES.ad.bump} PLN)`}
@@ -317,12 +328,14 @@ function AdDetailsPage() {
                                         payAction === "gold" ? "gold" : payAction,
                                 })
 
-                                alert("Оплата успішна")
+                                alert(a.payment.success)
+
                                 setPayAction(null)
                             }}
 
                             onError={() => {
-                                alert("Помилка PayPal")
+                                alert(a.payment.error)
+
                                 setPayAction(null)
                             }}
                         />
@@ -358,7 +371,8 @@ function AdDetailsPage() {
                             }}
                         />
                     ) : (
-                        'Фото відсутнє'
+                        a.noImage
+
                     )}
                 </div>
                 {/* Мініатюри */}
@@ -393,7 +407,8 @@ function AdDetailsPage() {
 
 
                 <div style={{fontSize: '15px', lineHeight: 1.6}}>
-                    {ad.description ?? 'Опис відсутній'}
+                    {ad.description ?? a.noDescription}
+
                 </div>
             </div>
             {isImageOpen && mainImage && (
@@ -439,11 +454,13 @@ function AdDetailsPage() {
                         className="card stack12"
                         style={{ maxWidth: "420px", width: "100%" }}
                     >
-                        <h3 className="h3">Поскаржитись на оголошення</h3>
+                        <h3 className="h3">{a.report.title}</h3>
+
 
                         <textarea
                             className="input"
-                            placeholder="Опишіть проблему"
+                            placeholder={a.report.placeholder}
+
                             value={reportText}
                             onChange={(e) => setReportText(e.target.value)}
                             rows={4}
@@ -458,7 +475,8 @@ function AdDetailsPage() {
                                     setReportText("")
                                 }}
                             >
-                                Скасувати
+                                {a.report.cancel}
+
                             </button>
 
                             <button
@@ -480,17 +498,20 @@ function AdDetailsPage() {
                                             status: "new",
                                         })
 
-                                        alert("Скаргу надіслано")
+                                        alert(a.report.sent)
+
                                         setIsReportOpen(false)
                                         setReportText("")} catch (e) {
                                         console.error(e)
-                                        alert("Помилка при надсиланні скарги")
+                                        alert(a.report.error)
+
                                     } finally {
                                         setReportSending(false)
                                     }
                                 }}
                             >
-                                Надіслати
+                                {a.report.submit}
+
                             </button>
                         </div>
                     </div>

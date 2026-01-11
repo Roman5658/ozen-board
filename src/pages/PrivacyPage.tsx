@@ -1,7 +1,13 @@
 import { useNavigate } from 'react-router-dom'
+import type { translations } from '../app/i18n'
 
-function PrivacyPage() {
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
+
+function PrivacyPage({ t }: Props) {
     const navigate = useNavigate()
+    const p = t.privacy
 
     return (
         <div className="card">
@@ -16,41 +22,44 @@ function PrivacyPage() {
                     fontSize: 14,
                 }}
             >
-                ← Назад
+                {p.back}
             </button>
 
-            <h1>Політика конфіденційності</h1>
+            <h1>{p.title}</h1>
 
-            <p><strong>Ozen Board</strong> — це онлайн-платформа оголошень та аукціонів, що працює на території Польщі.</p>
+            <p>
+                <strong>Ozen Board</strong> — {p.intro}
+            </p>
 
-            <h3>1. Загальні положення</h3>
-            <p>Ми поважаємо вашу конфіденційність і зобов’язуємося захищати персональні дані користувачів сервісу Ozen Board.</p>
+            <h3>{p.sections.generalTitle}</h3>
+            <p>{p.sections.generalText}</p>
 
-            <h3>2. Які дані ми збираємо</h3>
+            <h3>{p.sections.dataTitle}</h3>
             <ul>
-                <li>адресу електронної пошти;</li>
-                <li>дані оголошень та аукціонів;</li>
-                <li>технічну інформацію (cookies, мова);</li>
-                <li>інформацію про платежі (без зберігання карток).</li>
+                {p.sections.dataList.map(item => (
+                    <li key={item}>{item}</li>
+                ))}
             </ul>
 
-            <h3>3. Платежі</h3>
-            <p>Усі платежі здійснюються через PayPal. Ми не зберігаємо платіжні реквізити.</p>
+            <h3>{p.sections.paymentsTitle}</h3>
+            <p>{p.sections.paymentsText}</p>
 
-            <h3>4. Використання даних</h3>
-            <p>Дані використовуються для роботи платформи та платних послуг.</p>
+            <h3>{p.sections.usageTitle}</h3>
+            <p>{p.sections.usageText}</p>
 
-            <h3>5. Передача даних</h3>
-            <p>Передача здійснюється лише необхідним сервісам (PayPal, Firebase).</p>
+            <h3>{p.sections.transferTitle}</h3>
+            <p>{p.sections.transferText}</p>
 
-            <h3>6. Зберігання</h3>
-            <p>Дані зберігаються у Firebase (Google).</p>
+            <h3>{p.sections.storageTitle}</h3>
+            <p>{p.sections.storageText}</p>
 
-            <h3>7. Права користувача</h3>
-            <p>Користувач може видалити акаунт або оголошення.</p>
+            <h3>{p.sections.rightsTitle}</h3>
+            <p>{p.sections.rightsText}</p>
 
-            <h3>8. Контакти</h3>
-            <p>Email: ozenenesis@gmail.com<br />Telegram: @Ozen25</p>
+            <h3>{p.sections.contactsTitle}</h3>
+            <p style={{ whiteSpace: 'pre-line' }}>
+                {p.sections.contactsText}
+            </p>
         </div>
     )
 }

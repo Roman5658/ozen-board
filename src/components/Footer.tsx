@@ -1,6 +1,16 @@
 import { Link } from 'react-router-dom'
 
-function Footer() {
+type Props = {
+    t: {
+        privacy: string
+        terms: string
+        cookies: string
+        contact: string
+    }
+}
+
+function Footer({ t }: Props) {
+
     return (
         <footer style={{
             padding: '16px',
@@ -12,10 +22,11 @@ function Footer() {
             justifyContent: 'center',
 
         }}>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/terms">Terms</Link>
-            <Link to="/cookies">Cookies</Link>
-            <Link to="/contact">Contact</Link>
+            <Link to="/privacy">{t.privacy}</Link>
+            <Link to="/terms">{t.terms}</Link>
+            <Link to="/cookies">{t.cookies}</Link>
+            <Link to="/contact">{t.contact}</Link>
+
         </footer>
     )
 }

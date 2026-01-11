@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { placeBid } from '../data/placeBid'
 import { useNavigate } from 'react-router-dom'
 import AuthorCard from "../components/AuthorCard"
-
+import type { translations } from "../app/i18n"
 
 type Bid = {
     id: string
@@ -19,7 +19,11 @@ type Seller = {
     karma: number
 }
 
+
+
 type Props = {
+    t: (typeof translations)[keyof typeof translations]
+
     title: string
     city: string
     description?: string
@@ -33,10 +37,11 @@ type Props = {
     onBack: () => void
     currentUserId: string | null
     onBidSuccess: () => void
-
 }
 
+
 function AuctionDetails({
+                            t,
                             title,
                             city,
                             description,
@@ -62,7 +67,8 @@ function AuctionDetails({
     const [isImageOpen, setIsImageOpen] = useState(false)
     const mainImage = images?.[activeIndex]
 
-    const isEnded = timeLeft === 'Завершено'
+    const isEnded = timeLeft === t.auctionDetails.ended
+
     const isAuthor =
         !!(
             isAuthenticated &&
@@ -107,7 +113,8 @@ function AuctionDetails({
         const value = Number(amount)
 
         if (!value || value <= currentBid) {
-            setError('Ставка повинна бути більшою за поточну')
+            setError(t.auctionDetails.errors.bidTooLow)
+
             return
         }
 
@@ -131,7 +138,8 @@ function AuctionDetails({
             if (e instanceof Error) {
                 setError(e.message)
             } else {
-                setError('Помилка при створенні ставки')
+                setError(t.auctionDetails.errors.bidFailed)
+
             }
         }
         finally {
@@ -153,7 +161,7 @@ function AuctionDetails({
                     padding: 0,
                 }}
             >
-                ← Назад
+                ← {t.auctionDetails.back}
             </button>
 
             <h2>{title}</h2>
@@ -188,7 +196,7 @@ function AuctionDetails({
                                 }}
                             />
                         ) : (
-                            'Фото відсутнє'
+                            t.auctionDetails.noImage
                         )}
                     </div>
 
@@ -283,7 +291,7 @@ function AuctionDetails({
                     }}
                 >
                     <div style={{ fontWeight: 700, marginBottom: 8 }}>
-                        Керування аукціоном
+                        {t.auctionDetails.ownerPanel.title}
                     </div>
 
                     <button
@@ -300,7 +308,7 @@ function AuctionDetails({
                             cursor: "pointer",
                         }}
                     >
-                        ✏️ Редагувати аукціон
+                        ✏️ {t.auctionDetails.actions.edit}
                     </button>
                 </div>
             )}
@@ -309,7 +317,7 @@ function AuctionDetails({
 
             {reportSent && (
                     <div style={{marginTop: 10, fontSize: 13, color: '#2e7d32'}}>
-                        Скаргу надіслано
+                        {t.auctionDetails.report.sent}
                     </div>
                 )}
 
@@ -319,7 +327,7 @@ function AuctionDetails({
                             value={reportText}
                             onChange={e => setReportText(e.target.value)}
                             rows={4}
-                            placeholder="Опиши причину скарги…"
+                            placeholder={t.auctionDetails.report.placeholder}
                             style={{
                                 width: '100%',
                                 padding: 10,
@@ -343,25 +351,26 @@ function AuctionDetails({
                                 cursor: reportText.trim() ? 'pointer' : 'not-allowed',
                             }}
                         >
-                            Надіслати
+                            {t.auctionDetails.report.submit}
                         </button>
                     </div>
                 )}
 
 
             <div style={{fontWeight: 600, marginBottom: 4}}>
-                Поточна ставка: {currentBid} zł
+                {t.auctionDetails.currentBid}: {currentBid} zł
             </div>
 
             <div style={{color: '#d32f2f', marginBottom: 12}}>
-                До завершення: {timeLeft}
+                {t.auctionDetails.timeLeft}: {timeLeft}
             </div>
 
             {!isEnded && (
                 isAuthenticated ? (
                     isAuthor ? (
                         <div style={{padding: 12, background: '#eef2ff', borderRadius: 10}}>
-                            Ви є автором цього аукціону і не можете робити ставки
+                            {t.auctionDetails.authorCannotBid}
+
                         </div>
                     ) : (
                         <div>
@@ -369,7 +378,8 @@ function AuctionDetails({
                                 type="number"
                                 value={amount}
                                 onChange={e => setAmount(e.target.value)}
-                                placeholder="Ваша ставка (zł)"
+                                placeholder={t.auctionDetails.bid.placeholder}
+
                                 style={{
                                     width: '100%',
                                     padding: 10,
@@ -399,23 +409,27 @@ function AuctionDetails({
                                     cursor: isSubmitting ? 'not-allowed' : 'pointer',
                                 }}
                             >
-                                {isSubmitting ? 'Зачекайте…' : 'Зробити ставку'}
+                                {isSubmitting
+                                    ? t.auctionDetails.bid.loading
+                                    : t.auctionDetails.bid.submit
+                                }
+
                             </button>
 
                         </div>
                     )
                 ) : (
                     <div style={{padding: 12, background: '#fff3e0', borderRadius: 10}}>
-                        Щоб зробити ставку, необхідно увійти в акаунт
+                        {t.auctionDetails.authRequired}
                     </div>
                 )
             )}
 
-            <h3 style={{marginTop: 16}}>Історія ставок</h3>
+            <h3 style={{marginTop: 16}}>{t.auctionDetails.bids.title}</h3>
 
             {bids.length === 0 ? (
                 <div style={{fontSize: 14, color: '#777' }}>
-                    Ставок ще немає
+                    {t.auctionDetails.bids.empty}
                 </div>
             ) : (
                 bids.map(bid => (
@@ -424,7 +438,8 @@ function AuctionDetails({
                             style={{ color: '#1976d2', cursor: 'pointer', fontWeight: 600 }}
                             onClick={() => navigate(`/user/${bid.userId}`)}
                         >
-    {bid.nickname ?? 'Користувач'}
+    {bid.nickname ?? t.common.user}
+
 </span>
                         : {bid.amount} zł
 

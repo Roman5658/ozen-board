@@ -10,13 +10,16 @@ import { Link, useNavigate } from "react-router-dom"
 import { getUserPublicNickname } from "../data/usersPublic"
 
 import { updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore"
-
+import type { translations } from '../app/i18n'
 
 import { getLocalUser, setLocalUser, clearLocalUser } from "../data/localUser"
 import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
 import { getUserChats } from "../data/chats"
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
 type ChatItem = {
     id: string
     users: string[]
@@ -38,7 +41,9 @@ type ChatListRow = {
 
 
 
-function AccountPage() {
+function AccountPage({ t }: Props) {
+    const a = t.account
+
     const navigate = useNavigate()
     const [now] = useState(() => Date.now())
     type AuthMode = "login" | "register"
@@ -210,7 +215,7 @@ function AccountPage() {
     async function handleDeleteAuction(auctionId: string) {
         if (!user) return
 
-        const ok = window.confirm("Ви впевнені, що хочете видалити цей аукціон?")
+        const ok = window.confirm(a.confirms.deleteAuction)
         if (!ok) return
 
         try {
@@ -220,7 +225,7 @@ function AccountPage() {
             setMyAuctions(prev => prev.filter(a => a.id !== auctionId))
         } catch (e) {
             console.error(e)
-            alert("Помилка при видаленні аукціону")
+            alert(a.alerts.deleteAuctionError)
         }
     }
 
@@ -228,7 +233,7 @@ function AccountPage() {
     async function handleDeleteAd(adId: string) {
         if (!user) return
 
-        const confirmDelete = window.confirm("Ви впевнені, що хочете видалити оголошення?")
+        const confirmDelete = window.confirm(a.confirms.deleteAd)
         if (!confirmDelete) return
 
         try {
@@ -239,14 +244,14 @@ function AccountPage() {
             setMyAds(prev => prev.filter(ad => ad.id !== adId))
         } catch (err) {
             console.error(err)
-            alert("Помилка при видаленні оголошення")
+            alert(a.alerts.deleteAdError)
         }
     }
 
     async function handleDeleteChat(chatId: string) {
         if (!user) return
 
-        const ok = window.confirm("Видалити цей чат?")
+        const ok = window.confirm(a.confirms.deleteChat)
         if (!ok) return
 
         try {
@@ -260,7 +265,7 @@ function AccountPage() {
             setChats(prev => prev.filter(c => c.id !== chatId))
         } catch (e) {
             console.error(e)
-            alert("Помилка при видаленні чату")
+            alert(a.alerts.deleteChatError)
         }
     }
 
@@ -279,11 +284,11 @@ function AccountPage() {
                 setContactsSaved(false)
             }, 3000)
 
-            alert("Контакти збережено")
+            alert(a.alerts.contactsSaved)
 
         } catch (e) {
             console.error(e)
-            alert("Помилка при збереженні контактів")
+            alert(a.alerts.saveContactsError)
         }
     }
 
@@ -291,7 +296,8 @@ function AccountPage() {
     // LOADING
     // ============================
     if (isLoading) {
-        return <div className="card">Завантаження…</div>
+        return <div className="card">{a.loading}</div>
+
     }
 
     // ============================
@@ -300,14 +306,15 @@ function AccountPage() {
     if (!user) {
         return (
             <div className="card stack12">
-                <h2 className="h2">Акаунт</h2>
+                <h2 className="h2">{a.title}</h2>
+
                 <div style={{display: "flex", gap: 8}}>
                     <button
                         className={mode === "login" ? "btn-primary" : "btn-secondary"}
                         type="button"
                         onClick={() => setMode("login")}
                     >
-                        Вхід
+                        {a.auth.loginTab}
                     </button>
 
                     <button
@@ -315,14 +322,14 @@ function AccountPage() {
                         type="button"
                         onClick={() => setMode("register")}
                     >
-                        Реєстрація
+                        {a.auth.registerTab}
                     </button>
                 </div>
 
                 {mode === "register" && (
                     <input
                         className="input"
-                        placeholder="Нікнейм"
+                        placeholder={a.auth.nicknamePlaceholder}
                         value={nickname}
                         onChange={e => setNickname(e.target.value)}
                     />
@@ -332,7 +339,7 @@ function AccountPage() {
                 <input
                     className="input"
                     type="email"
-                    placeholder="Email"
+                    placeholder={a.auth.emailPlaceholder}
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                 />
@@ -340,7 +347,7 @@ function AccountPage() {
                 <input
                     className="input"
                     type="password"
-                    placeholder="Пароль"
+                    placeholder={a.auth.passwordPlaceholder}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                 />
@@ -370,12 +377,12 @@ function AccountPage() {
                                 const existing = await getUserByEmail(cleanEmail)
 
                                 if (!existing) {
-                                    setAuthError("Користувача не знайдено")
+                                    setAuthError(a.auth.errors.userNotFound)
                                     return
                                 }
 
                                 if (existing.password !== password) {
-                                    setAuthError("Невірний пароль")
+                                    setAuthError(a.auth.errors.wrongPassword)
                                     return
                                 }
 
@@ -391,7 +398,7 @@ function AccountPage() {
                             const existing = await getUserByEmail(cleanEmail)
 
                             if (existing) {
-                                setAuthError("Такий email вже зареєстрований")
+                                setAuthError(a.auth.errors.emailTaken)
                                 return
                             }
 
@@ -416,7 +423,7 @@ function AccountPage() {
                             const nicknameTaken = await isNicknameTaken(nickname)
 
                             if (nicknameTaken) {
-                                setAuthError("Такий нікнейм вже зайнятий")
+                                setAuthError(a.auth.errors.nicknameTaken)
                                 return
                             }
 
@@ -437,15 +444,16 @@ function AccountPage() {
                 >
 
                     {authLoading
-                        ? "Завантаження..."
+                        ? a.auth.loadingBtn
                         : mode === "login"
-                            ? "Увійти"
-                            : "Створити акаунт"}
+                            ? a.auth.loginBtn
+                            : a.auth.registerBtn}
+
                 </button>
 
 
                 <div style={{fontSize: 12, color: "#6b7280"}}>
-                    Контакти додаються безпосередньо в оголошенні
+                    {a.auth.contactsHint}
                 </div>
             </div>
         )
@@ -464,7 +472,8 @@ function AccountPage() {
                     otherNickname: otherUserId
                         ? (nickCache[otherUserId] || "…")
                         : "Користувач",
-                    lastMessage: chat.lastMessage || "Без повідомлень",
+                    lastMessage: chat.lastMessage || a.chats.noMessages,
+
                     updatedAt: chat.updatedAt,
                     isUnread,
                     isNewChat,
@@ -487,18 +496,19 @@ function AccountPage() {
             <div className="card stack8">
                 <h2 className="h2">{user.nickname}</h2>
                 <div style={{fontSize: 14, color: "#6b7280"}}>{user.email}</div>
-                <div>Карма: {user.karma}</div>
+                <div>{a.profile.karma}: {user.karma}</div>
                 <div className="card stack12">
-                    <h3 className="h3">Контакти</h3>
+                    <h3 className="h3">{a.profile.contactsTitle}</h3>
 
                     <div style={{fontSize: 13, color: "#b45309"}}>
-                        ⚠️ Ці контакти будуть видимі іншим користувачам
+                        ⚠️ {a.profile.contactsWarn}
                     </div>
 
                     <input
                         className="input"
                         type="tel"
-                        placeholder="Телефон (необовʼязково)"
+                        placeholder={a.profile.phonePlaceholder}
+
                         value={phone}
                         onChange={e => setPhone(e.target.value)}
                     />
@@ -506,7 +516,7 @@ function AccountPage() {
                     <input
                         className="input"
                         type="text"
-                        placeholder="Telegram (username)"
+                        placeholder={a.profile.telegramPlaceholder}
                         value={telegram}
                         onChange={e => setTelegram(e.target.value)}
                     />
@@ -515,8 +525,9 @@ function AccountPage() {
                     className="btn-primary"
                     onClick={handleSaveContacts}
                 >
-                    Зберегти контакти
+                    {a.profile.saveContacts}
                 </button>
+
                 {contactsSaved && (
                     <div style={{fontSize: 13, color: "#15803d"}}>
                         Контакти збережено
@@ -528,7 +539,7 @@ function AccountPage() {
                         if (!user) return
 
                         const confirmDelete = window.confirm(
-                            "Ви впевнені, що хочете видалити всі контакти?"
+                            a.confirms.deleteContacts
                         )
                         if (!confirmDelete) return
 
@@ -540,14 +551,14 @@ function AccountPage() {
 
                             setPhone("")
                             setTelegram("")
-                            alert("Контакти видалено")
+                            alert(a.alerts.contactsDeleted)
                         } catch (e) {
                             console.error(e)
-                            alert("Помилка при видаленні контактів")
+                            alert(a.confirms.deleteContacts)
                         }
                     }}
                 >
-                    Видалити контакти
+                    {a.profile.deleteContacts}
                 </button>
 
                 <button
@@ -559,18 +570,18 @@ function AccountPage() {
                         setMyAuctions([])
                     }}
                 >
-                    Вийти
+                    {a.profile.logout}
                 </button>
             </div>
             <div className="card stack12">
-                <h3 className="h3">Мої чати</h3>
+                <h3 className="h3">{a.chats.title}</h3>
 
 
-                {loadingChats && <div>Завантаження…</div>}
+                {loadingChats && <div>{a.loading}</div>}
 
                 {!loadingChats && chatRows.length === 0 && (
                     <div style={{fontSize: 14, color: "#6b7280"}}>
-                        Чатів поки немає
+                        {a.chats.none}
                     </div>
                 )}
 
@@ -630,14 +641,15 @@ function AccountPage() {
                                             fontWeight: row.isUnread ? 600 : 400,
                                         }}
                                     >
-                                        {row.isNewChat ? "Новий чат" : row.lastMessage}
+                                        {row.isNewChat ? a.chats.newChat : row.lastMessage}
+
 
                                     </div>
 
 
                                     {typeof row.updatedAt === "number" && (
                                         <div style={{fontSize: 12, color: "#9ca3af"}}>
-                                            {new Date(row.updatedAt).toLocaleString("uk-UA")}
+                                            {new Date(row.updatedAt).toLocaleString(a.chats.timeLocale)}
                                         </div>
                                     )}
                                 </div>
@@ -657,7 +669,7 @@ function AccountPage() {
                                         cursor: "pointer",
                                     }}
                                 >
-                                    Видалити
+                                    {a.chats.deleteBtn}
                                 </button>
 
 
@@ -671,23 +683,27 @@ function AccountPage() {
 
             {/* MY ADS */}
             <div className="card stack12">
-                <h3 className="h3">Мої оголошення</h3>
+                <h3 className="h3">{a.myAds.title}</h3>
 
                 {myAds.length === 0 ? (
                     <div style={{color: "#6b7280", fontSize: 14}}>
-                        Ви ще не додали жодного оголошення
+                        {a.myAds.empty}
                     </div>
+
                 ) : (
                     <div className="ads-grid">
-                        {myAds.map(ad => (
+                    {myAds.map(ad => (
                             <div key={ad.id} className="stack8">
-                                <Link to={`/ad/${ad.id}`} style={{textDecoration: "none", color: "inherit"}}>
+                                <Link to={`/ad/${ad.id}`} style={{textDecoration: "none", color: "inherit", display: "block",}}>
                                     <AdCard
                                         ad={ad}
                                         isMine={true}
+
+                                        labels={t.adCard}
                                         showActions={true}
                                         onDelete={() => handleDeleteAd(ad.id)}
                                     />
+
 
                                 </Link>
 
@@ -701,29 +717,33 @@ function AccountPage() {
 
             {/* MY AUCTIONS */}
             <div className="card stack12">
-                <h3 className="h3">Мої аукціони</h3>
+                <h3 className="h3">{a.myAuctions.title}</h3>
 
                 {myAuctions.length === 0 ? (
                     <div style={{color: "#6b7280", fontSize: 14}}>
-                        Ви ще не створили жодного аукціону
+                        {a.myAds.empty}
                     </div>
+
                 ) : (
                     <div className="stack12">
-                        {myAuctions.map((auction: Auction) => {
+                    {myAuctions.map((auction: Auction) => {
 
                             const isEnded = auction.endsAt <= now
 
                             return (
                                 <div key={auction.id} className="stack8">
                                     <AuctionCard
+                                        t={t}
+
                                         title={auction.title}
                                         city={auction.city}
                                         currentBid={auction.startPrice}
                                         timeLeft={
                                             isEnded
-                                                ? "Завершено"
-                                                : `${Math.ceil((auction.endsAt - now) / 60000)} хв`
+                                                ? a.myAuctions.ended
+                                                : `${Math.ceil((auction.endsAt - now) / 60000)} ${a.myAuctions.minutesShort}`
                                         }
+
                                         image={auction.images?.[0]}
                                         isEnded={isEnded}
                                     />
@@ -735,7 +755,7 @@ function AccountPage() {
                                                 marginTop: 4,
                                             }}
                                         >
-                                            Завершений аукціон буде видалено через 5 днів
+                                            {a.myAuctions.endedInfo}
                                         </div>
                                     )}
 
@@ -744,7 +764,7 @@ function AccountPage() {
                                             className="btn-secondary"
                                             onClick={() => navigate(`/auction/${auction.id}`)}
                                         >
-                                            Перейти
+                                            {a.myAuctions.goTo}
                                         </button>
 
                                         <button
@@ -759,7 +779,8 @@ function AccountPage() {
                                                 cursor: "pointer",
                                             }}
                                         >
-                                            Видалити
+                                            {a.myAuctions.deleteBtn}
+
                                         </button>
 
                                     </div>

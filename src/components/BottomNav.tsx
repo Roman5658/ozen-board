@@ -3,18 +3,27 @@ import auctionIcon from "../img/3366116.png"
 
 type Props = {
     activePath: string
+    t: {
+        home: string
+        nearby: string
+        add: string
+        auctions: string
+        account: string
+    }
 }
 
-function BottomNav({ activePath }: Props) {
+
+function BottomNav({ activePath, t }: Props) {
     const navigate = useNavigate()
 
     const items = [
-        { path: "/", label: "Оголошення", icon: "📋", type: "emoji" },
-        { path: "/nearby", label: "Поруч", icon: "📍", type: "emoji" },
-        { path: "/add", label: "Додати", icon: "➕", type: "emoji" },
-        { path: "/auctions", label: "Аукціон", icon: auctionIcon, type: "image" },
-        { path: "/account", label: "Акаунт", icon: "👤", type: "emoji" },
+        { path: "/", label: t.home, icon: "📋", type: "emoji" },
+        { path: "/nearby", label: t.nearby, icon: "📍", type: "emoji" },
+        { path: "/add", label: t.add, icon: "➕", type: "emoji" },
+        { path: "/auctions", label: t.auctions, icon: auctionIcon, type: "image" },
+        { path: "/account", label: t.account, icon: "👤", type: "emoji" },
     ]
+
 
 
 

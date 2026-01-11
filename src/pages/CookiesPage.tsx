@@ -1,41 +1,55 @@
-function CookiesPage() {
+import { useNavigate } from 'react-router-dom'
+import type { translations } from '../app/i18n'
+
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
+
+function CookiesPage({ t }: Props) {
+    const navigate = useNavigate()
+    const c = t.cookies
+
     return (
         <div className="static-page">
-            <h1>Cookies</h1>
+            <button
+                onClick={() => navigate(-1)}
+                style={{
+                    marginBottom: 12,
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                }}
+            >
+                ← {t.home.prev.replace('← ', '')}
+            </button>
 
-            <p>
-                Сайт Ozen Board використовує файли cookie для забезпечення коректної роботи сервісу
-                та покращення користувацького досвіду.
-            </p>
+            <h1>{c.title}</h1>
 
-            <h2>Що таке cookie?</h2>
-            <p>
-                Cookie — це невеликі текстові файли, які зберігаються у вашому браузері під час відвідування сайту.
-            </p>
+            <p>{c.intro}</p>
 
-            <h2>Які cookie ми використовуємо</h2>
+            <h2>{c.sections.whatTitle}</h2>
+            <p>{c.sections.whatText}</p>
+
+            <h2>{c.sections.typesTitle}</h2>
             <ul>
-                <li>технічні cookie — необхідні для роботи сайту;</li>
-                <li>cookie сесії — для збереження входу користувача;</li>
-                <li>налаштування інтерфейсу (мова, тема тощо).</li>
+                {c.sections.typesList.map(item => (
+                    <li key={item}>{item}</li>
+                ))}
             </ul>
 
-            <h2>Чого ми не робимо</h2>
+            <h2>{c.sections.notTitle}</h2>
             <ul>
-                <li>не використовуємо cookie для прихованого відстеження;</li>
-                <li>не продаємо дані третім особам;</li>
-                <li>не зберігаємо платіжні дані у cookie.</li>
+                {c.sections.notList.map(item => (
+                    <li key={item}>{item}</li>
+                ))}
             </ul>
 
-            <h2>Керування cookie</h2>
-            <p>
-                Ви можете змінити налаштування cookie у своєму браузері або повністю їх вимкнути.
-                Зверніть увагу, що в такому разі деякі функції сайту можуть працювати некоректно.
-            </p>
+            <h2>{c.sections.controlTitle}</h2>
+            <p>{c.sections.controlText}</p>
 
-            <p>
-                Продовжуючи користуватися сайтом, ви погоджуєтесь з використанням cookie відповідно до цієї політики.
-            </p>
+            <p>{c.sections.consentText}</p>
         </div>
     )
 }

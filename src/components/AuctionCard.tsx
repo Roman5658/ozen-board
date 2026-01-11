@@ -1,4 +1,8 @@
+import type { translations } from "../app/i18n"
+
 type Props = {
+    t: (typeof translations)[keyof typeof translations]
+
     title: string
     city: string
     currentBid: number
@@ -8,12 +12,12 @@ type Props = {
     isEnded?: boolean
     promotionType?: "top-auction" | "featured" | "highlight-gold" | "none"
     isSoftPinned?: boolean
-
-
 }
 
 
+
 function AuctionCard({
+                         t,
                          title,
                          city,
                          currentBid,
@@ -99,7 +103,7 @@ function AuctionCard({
                         }}
                     />
                 ) : (
-                    'Немає фото'
+                    t.auctionCard.noImage
                 )}
             </div>
 
@@ -116,19 +120,19 @@ function AuctionCard({
                 <div>
                     {promotionType === "top-auction" && !isSoftPinned && (
                         <div style={{ fontSize: 12, color: "#d32f2f", fontWeight: 600 }}>
-                            🔥 TOP
+                            🔥 {t.auctionCard.labels.top}
                         </div>
                     )}
 
                     {promotionType === "featured" && !isSoftPinned && (
                         <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: 600 }}>
-                            ⭐ Featured
+                            ⭐ {t.auctionCard.labels.featured}
                         </div>
                     )}
 
                     {promotionType === "highlight-gold" && !isSoftPinned && (
                         <div style={{ fontSize: 12, color: "#b45309", fontWeight: 600 }}>
-                            ✨ Gold
+                            ✨ {t.auctionCard.labels.gold}
                         </div>
                     )}
 
@@ -155,7 +159,8 @@ function AuctionCard({
 
                 <div>
                     <div style={{marginTop: '8px', fontWeight: 600}}>
-                        Поточна ставка: {currentBid} zł
+                        {t.auctionCard.currentBid}: {currentBid} zł
+
                     </div>
 
                     <div
@@ -165,7 +170,10 @@ function AuctionCard({
                             color: isEnded ? '#888' : '#d32f2f',
                         }}
                     >
-                        {isEnded ? 'Аукціон завершено' : `До завершення: ${timeLeft}`}
+                        {isEnded
+                            ? t.auctionCard.ended
+                            : `${t.auctionCard.timeLeft}: ${timeLeft}`
+                        }
                     </div>
                     {isEnded && (
                         <div
@@ -175,7 +183,8 @@ function AuctionCard({
                                 color: '#888',
                             }}
                         >
-                            Завершений аукціон буде видалено через 5 днів
+                            {t.auctionCard.endedInfo}
+
                         </div>
                     )}
 

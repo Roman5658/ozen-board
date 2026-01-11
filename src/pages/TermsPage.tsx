@@ -1,53 +1,58 @@
 import { useNavigate } from 'react-router-dom'
+import type { translations } from '../app/i18n'
 
-function TermsPage() {
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
+
+function TermsPage({ t }: Props) {
     const navigate = useNavigate()
+    const p = t.terms
 
     return (
         <div className="card">
-                <button
-                    onClick={() => navigate(-1)}
-                    style={{
-                            marginBottom: 12,
-                            background: 'none',
-                            border: 'none',
-                            color: '#2563eb',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                    }}
-                >
-                        ← Назад
-                </button>
+            <button
+                onClick={() => navigate(-1)}
+                style={{
+                    marginBottom: 12,
+                    background: 'none',
+                    border: 'none',
+                    color: '#2563eb',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                }}
+            >
+                {p.back}
+            </button>
 
-                <h1>Умови користування</h1>
+            <h1>{p.title}</h1>
 
-                <p><strong>Ozen Board</strong> — це онлайн-платформа оголошень та аукціонів, що працює на території
-                        Польщі.</p>
+            <p>
+                <strong>Ozen Board</strong> — {p.intro}
+            </p>
 
-                <h3>1. Загальні положення</h3>
-                <p>Користуючись платформою, ви погоджуєтеся з цими умовами.</p>
+            <h3>{p.sections.generalTitle}</h3>
+            <p>{p.sections.generalText}</p>
 
-                <h3>2. Відповідальність платформи</h3>
-                <p>Ozen Board не є стороною угод між користувачами.</p>
+            <h3>{p.sections.platformTitle}</h3>
+            <p>{p.sections.platformText}</p>
 
-                <h3>3. Відповідальність користувачів</h3>
-                <p>Користувачі самі відповідають за свої дії та оголошення.</p>
+            <h3>{p.sections.usersTitle}</h3>
+            <p>{p.sections.usersText}</p>
 
-                <h3>4. Платні послуги</h3>
-                <p>Після активації платних послуг кошти не повертаються.</p>
+            <h3>{p.sections.paidTitle}</h3>
+            <p>{p.sections.paidText}</p>
 
-                <h3>5. Видалення контенту</h3>
-                <p>Адміністрація може видаляти контент, що порушує правила.</p>
+            <h3>{p.sections.removalTitle}</h3>
+            <p>{p.sections.removalText}</p>
 
-                <h3>6. Зміни умов</h3>
-                <p>
-                        Умови користування можуть оновлюватися у разі змін у роботі сервісу.
-                        Актуальна версія завжди доступна на цій сторінці.
-                </p>
+            <h3>{p.sections.changesTitle}</h3>
+            <p>{p.sections.changesText}</p>
 
-
-                <h3>7. Контакти</h3>
-                <p>Email: ozenenesis@gmail.com<br/>Telegram: @Ozen25</p>
+            <h3>{p.sections.contactsTitle}</h3>
+            <p style={{ whiteSpace: 'pre-line' }}>
+                {p.sections.contactsText}
+            </p>
         </div>
     )
 }

@@ -14,7 +14,9 @@ import AdminAdsPage from "../pages/AdminAdsPage"
 import AdminAdsListPage from "../pages/AdminAdsListPage"
 import AdminAdDetailsPage from "../pages/AdminAdDetailsPage"
 
-import { translations, DEFAULT_LANG } from './i18n'
+import { translations, detectInitialLang } from './i18n'
+
+
 import type { Lang } from './i18n'
 import MyAdsPage from '../pages/MyAdsPage'
 import EditAdPage from '../pages/EditAdPage'
@@ -31,11 +33,10 @@ import AppLayout from './AppLayout'
 import EditAuctionPage from '../pages/EditAuctionPage'
 import AdminPaymentsPage from "../pages/AdminPaymentsPage"
 import AdminAuctionsPage from "../pages/AdminAuctionsPage"
+
 function App() {
-    const [lang, setLang] = useState<Lang>(() => {
-        const saved = localStorage.getItem('lang')
-        return (saved as Lang) || DEFAULT_LANG
-    })
+    const [lang, setLang] = useState<Lang>(() => detectInitialLang())
+
 
     const t = translations[lang]
     const location = useLocation()
@@ -54,37 +55,40 @@ function App() {
                     subtitle={t.subtitle}
                     warning={t.warning}
                     lang={lang}
+                    languages={t.languages}
                     onLangChange={changeLang}
+
                 />
+
             }
+            t={t}
         >
             <Routes>
                 <Route path="/" element={<HomePage t={t} />} />
                 <Route path="/nearby" element={<NearbyPage t={t} />} />
 
-                <Route path="/add-auction" element={<AddAuctionPage />} />
+                <Route path="/add-auction" element={<AddAuctionPage t={t} />} />
                 <Route path="/user/:id" element={<UserPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />
                 <Route path="/pay-test" element={<PayTestPage />} />
-                <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/cookies" element={<CookiesPage />} />
-                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/terms" element={<TermsPage t={t} />} />
+                <Route path="/cookies" element={<CookiesPage t={t} />} />
+                <Route path="/contact" element={<ContactPage t={t} />} />
                 <Route path="/edit/:id" element={<EditAdPage />} />
                 <Route path="/edit-auction/:id" element={<EditAuctionPage />} />
+                <Route path="/privacy" element={<PrivacyPage t={t} />} />
 
-
-                <Route path="/add" element={<AddPage />} />
-                <Route path="/account" element={<AccountPage />} />
+                <Route path="/add" element={<AddPage t={t} />} />
+                <Route path="/account" element={<AccountPage t={t} />} />
                 <Route path="/my-ads" element={<MyAdsPage />} />
 
                 {/* Аукционы */}
-                <Route path="/auctions" element={<AuctionPage />} />
+                <Route path="/auctions" element={<AuctionPage  />} />
                 <Route path="/auction/:id" element={<AuctionPage />} />
 
 
                 {/* Обычные объявления */}
-                <Route path="/ad/:id" element={<AdDetailsPage />} />
+                <Route path="/ad/:id" element={<AdDetailsPage t={t} />} />
 
                 <Route path="/admin/*" element={<AdminLayout />}>
                     <Route path="ads/:adId" element={<AdminAdDetailsPage />} />

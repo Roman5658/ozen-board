@@ -9,6 +9,7 @@ import {
     where,
 } from "firebase/firestore"
 import { PRICES } from "../config/prices"
+import type { translations } from "../app/i18n"
 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import type { Ad } from "../types/ad"
@@ -20,12 +21,18 @@ import { getLocalUser } from "../data/localUser"
 
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
+
+
 
 
 type Category = "work" | "sell" | "buy" | "service" | "rent"
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP
 
-function AddPage() {
+function AddPage({ t }: Props) {
+    const a = t.add
     const navigate = useNavigate()
     const user = getLocalUser()
     const AD_COOLDOWN_MS = 60_000 // 60 секунд
@@ -106,7 +113,8 @@ function AddPage() {
     if (!user) {
         return (
             <div className="card">
-                <h2>Спочатку увійдіть в акаунт</h2>
+                <h2>{a.authRequired}</h2>
+
             </div>
         )
     }
@@ -145,12 +153,14 @@ function AddPage() {
             !city ||
             !price.trim()
         ) {
-            setError("Заповніть всі обовʼязкові поля")
+            setError(a.errors.required)
+
             return
         }
 
         if (imageFiles.length === 0) {
-            setError("Додайте фото")
+            setError(a.errors.noImages)
+
             return
         }
 
@@ -161,10 +171,12 @@ function AddPage() {
 
             if (diff < AD_COOLDOWN_MS) {
                 setError(
-                    `Зачекайте ${Math.ceil(
-                        (AD_COOLDOWN_MS - diff) / 1000
-                    )} сек перед створенням нового оголошення`
+                    a.cooldown.text.replace(
+                        "{{seconds}}",
+                        String(Math.ceil((AD_COOLDOWN_MS - diff) / 1000))
+                    )
                 )
+
                 return
             }
         }
@@ -188,7 +200,8 @@ function AddPage() {
         )
 
         if (userAdsCount.size >= MAX_ADS_PER_USER) {
-            setError("Досягнуто ліміт оголошень (10)")
+            setError(a.errors.limitReached)
+
             return
         }
 // если выбрали PIN — перепроверяем лимит прямо перед созданием
@@ -288,7 +301,8 @@ function AddPage() {
 
             if (promotion !== "none") {
                 if (!paypalOrderId) {
-                    setError("Оплата не підтверджена")
+                    setError(a.errors.paymentNotConfirmed)
+
                     return
                 }
 
@@ -315,7 +329,8 @@ function AddPage() {
             navigate("/")
         } catch (err) {
             console.error(err)
-            setError("Помилка при створенні оголошення")
+            setError(a.errors.createFailed)
+
         } finally {
             setIsSubmitting(false)
         }
@@ -333,7 +348,8 @@ function AddPage() {
 
     return (
         <div className="card stack12">
-            <h2 className="h2">Додати оголошення</h2>
+            <h2 className="h2">{a.title}</h2>
+
 
             {/* 🔹 Переключатель режимов */}
             <div style={{display: "flex", gap: 8}}>
@@ -342,7 +358,7 @@ function AddPage() {
                     className="btn-primary"
                     disabled
                 >
-                    Оголошення
+                    {a.modes.ad}
                 </button>
 
                 <button
@@ -350,7 +366,7 @@ function AddPage() {
                     className="btn-secondary"
                     onClick={() => navigate("/add-auction")}
                 >
-                    Аукціон
+                    {a.modes.auction}
                 </button>
             </div>
 
@@ -358,14 +374,15 @@ function AddPage() {
             <form className="stack12" onSubmit={handleSubmit}>
                 <input
                     className="input"
-                    placeholder="Заголовок"
+                    placeholder={a.fields.title}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                 />
 
+
                 <textarea
                     className="input"
-                    placeholder="Опис"
+                    placeholder={a.fields.description}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                 />
@@ -375,12 +392,13 @@ function AddPage() {
                     value={category}
                     onChange={(e) => setCategory(e.target.value as Category)}
                 >
-                    <option value="">Категорія</option>
-                    <option value="work">Робота</option>
-                    <option value="sell">Продам</option>
-                    <option value="buy">Куплю</option>
-                    <option value="service">Послуги</option>
-                    <option value="rent">Оренда</option>
+                    <option value="">{a.categories.label}</option>
+                    <option value="work">{a.categories.work}</option>
+                    <option value="sell">{a.categories.sell}</option>
+                    <option value="buy">{a.categories.buy}</option>
+                    <option value="service">{a.categories.service}</option>
+                    <option value="rent">{a.categories.rent}</option>
+
                 </select>
 
                 <select
@@ -391,7 +409,7 @@ function AddPage() {
                         setCity("")
                     }}
                 >
-                    <option value="">Воєводство</option>
+                    <option value="">{a.location.voivodeship}</option>
                     {Object.keys(CITIES_BY_VOIVODESHIP).map((v) => (
                         <option key={v} value={v}>
                             {v}
@@ -405,7 +423,7 @@ function AddPage() {
                         value={city}
                         onChange={(e) => setCity(e.target.value)}
                     >
-                        <option value="">Місто</option>
+                        <option value="">{a.location.city}</option>
                         {(CITIES_BY_VOIVODESHIP[voivodeship as VoivodeshipKey] ??
                             []).map((c) => (
                             <option key={c} value={c}>
@@ -417,13 +435,14 @@ function AddPage() {
 
                 <input
                     className="input"
-                    placeholder="Ціна"
+                    placeholder={a.fields.price}
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                 />
                 <input
                     className="input"
-                    placeholder="Контакт (телефон / Telegram) — необовʼязково"
+                    placeholder={a.fields.contact}
+
                     value={sellerContact}
                     onChange={(e) => setSellerContact(e.target.value)}
                 />
@@ -436,7 +455,8 @@ function AddPage() {
                         const newFiles = Array.from(e.target.files ?? [])
 
                         if (imageFiles.length + newFiles.length > 5) {
-                            setError("Максимум 5 фото")
+                            setError(a.errors.maxImages)
+
                             return
                         }
 
@@ -518,21 +538,20 @@ function AddPage() {
                     </div>
                 )}
                 <div className="card stack12">
-                    <strong>Просування оголошення</strong>
+                    <strong>{a.promotion.title}</strong>
+
                     {promotion !== 'none' && (
                         <div className="card stack12">
-                            <strong>Оплата просування</strong>
+                            <strong>{a.payment.title}</strong>
 
                             {!isFormValid && (
-                                <div style={{ color: "#b91c1c", fontSize: 14 }}>
-                                    Перед оплатою заповніть усі обовʼязкові поля та додайте хоча б одне фото
-                                </div>
+                                <div>{a.payment.fillBeforePay}</div>
                             )}
 
                             {isFormValid && (
                                 <>
-                                    <div style={{ fontSize: 16 }}>
-                                        Сума:{" "}
+                                    <div style={{fontSize: 16}}>
+                                        {a.payment.amount}:{" "}
                                         <strong>
                                             {promotion === "highlight-gold"
                                                 ? PRICES.ad.gold
@@ -541,7 +560,7 @@ function AddPage() {
                                     </div>
 
                                     <PayPalButtons
-                                        style={{ layout: "vertical" }}
+                                        style={{layout: "vertical"}}
                                         createOrder={(_, actions) => {
                                             return actions.order.create({
                                                 intent: "CAPTURE",
@@ -579,7 +598,8 @@ function AddPage() {
                             onChange={() => setPromotion('none')}
                         />
                         🆓 Без просування
-                        <div className="hint">Звичайне розміщення</div>
+                        <div className="hint">{a.promotion.noneHint}
+                        </div>
                     </label>
 
                     <label className="promotion-option">
@@ -593,12 +613,16 @@ function AddPage() {
                         🔥 TOP 3
 
                         <div className="hint">
-                            Найвище місце у місті (обмежено)
+                            {a.promotion.top3Hint}
+
                             {pinInfo && (
                                 <div style={{fontSize: 12, marginTop: 4, opacity: 0.8}}>
                                     {pinInfo.canTop3
-                                        ? `Вільно: ${3 - pinInfo.top3Used} з 3`
-                                        : "Усі місця зайняті — оголошення стане в чергу"}
+                                        ? a.promotion.freeSlots
+                                            .replace("{{count}}", String(3 - pinInfo.top3Used))
+                                            .replace("{{max}}", "3")
+                                        : a.promotion.queue}
+
                                 </div>
                             )}
                         </div>
@@ -616,12 +640,16 @@ function AddPage() {
                         ⭐ TOP 6
 
                         <div className="hint">
-                            Після TOP 3
+                            {a.promotion.top6Hint}
                             {pinInfo && (
                                 <div style={{fontSize: 12, marginTop: 4, opacity: 0.8}}>
                                     {pinInfo.canTop6
-                                        ? `Вільно: ${6 - pinInfo.top6Used} з 6`
-                                        : "Усі місця зайняті — оголошення стане в чергу"}
+                                        ? a.promotion.freeSlots
+                                            .replace("{{count}}", String(6 - pinInfo.top6Used))
+                                            .replace("{{max}}", "6")
+                                        : a.promotion.queue}
+
+
                                 </div>
                             )}
                         </div>
@@ -635,8 +663,9 @@ function AddPage() {
                             checked={promotion === 'bump'}
                             onChange={() => setPromotion('bump')}
                         />
-                        🚀 Підняти
-                        <div className="hint">Разове підняття вгору</div>
+                        🚀 {a.promotion.bump}
+                        <div className="hint">{a.promotion.bumpHint}</div>
+
                     </label>
 
                     <label className="promotion-option">
@@ -646,8 +675,9 @@ function AddPage() {
                             checked={promotion === 'highlight-gold'}
                             onChange={() => setPromotion('highlight-gold')}
                         />
-                        ✨ Виділити (gold)
-                        <div className="hint">Виділення кольором</div>
+                        ✨ {a.promotion.gold}
+                        <div className="hint">{a.promotion.goldHint}</div>
+
                     </label>
                 </div>
 
@@ -660,7 +690,8 @@ function AddPage() {
                     }
                 >
 
-                    {isSubmitting ? "Завантаження..." : "Створити"}
+                    {isSubmitting ? a.actions.loading : a.actions.submit}
+
                 </button>
             </form>
         </div>

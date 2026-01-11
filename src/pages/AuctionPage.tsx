@@ -251,6 +251,12 @@ function AuctionPage() {
         }
     }, [auctions, city, sort, now])
 
+    const visibleAuctionIds = useMemo(() => {
+        return new Set([
+            ...topAuctionsVisible.map(a => a.id),
+            ...featuredAuctionsVisible.map(a => a.id),
+        ])
+    }, [topAuctionsVisible, featuredAuctionsVisible])
 
     function shuffle<T>(arr: T[]): T[] {
         return [...arr].sort(() => Math.random() - 0.5)
@@ -258,8 +264,9 @@ function AuctionPage() {
 
 
     if (loading) {
-        return <div className="card">Завантаження аукціонів…</div>
+        return <div className="card">{t.auctions.loading}</div>
     }
+
 
 
 
@@ -272,6 +279,7 @@ function AuctionPage() {
 
             {activeAuction ? (
                 <AuctionDetails
+                    t={t}
                     auctionId={activeAuction.id}
                     title={activeAuction.title}
                     city={activeAuction.city}
@@ -293,11 +301,13 @@ function AuctionPage() {
                         loadBids(activeAuction.id)
                     }}
                 />
+
             ) : (
                 <>
                     <div style={{marginBottom: 12}}>
                         <select value={city} onChange={e => setCity(e.target.value)} className="input">
-                            <option value="all">Всі міста</option>
+                            <option value="all">{t.auctions.allCities}</option>
+
                             {[...new Set(auctions.map(a => a.city))].map(c => (
                                 <option key={c} value={c}>{c}</option>
                             ))}
@@ -308,8 +318,9 @@ function AuctionPage() {
                             onChange={e => setSort(e.target.value as 'time' | 'bid')}
                             className="input"
                         >
-                            <option value="time">За часом</option>
-                            <option value="bid">За ставкою</option>
+                            <option value="time">{t.auctions.sortTime}</option>
+                            <option value="bid">{t.auctions.sortBid}</option>
+
                         </select>
 
                     </div>
@@ -317,50 +328,12 @@ function AuctionPage() {
                     <div className="ads-grid">
 
                         {topAuctionsVisible.length > 0 && (
-                            <div className="ads-separator">🔥 TOP аукціони</div>
+                            <div className="ads-separator">🔥 {t.auctions.top}</div>
                         )}
                         {topAuctionsVisible.map(item => (
                             <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
                                 <AuctionCard
-                                    title={item.title}
-                                    city={item.city}
-                                    currentBid={item.currentBid}
-                                    timeLeft={getTimeLeft(item.endsAt)}
-                                    image={item.images[0]}
-                                    isEnded={item.endsAt <= now}
-                                    promotionType={item.promotionType}
-                                />
-                            </div>
-                        ))}
-
-
-                        {featuredAuctionsVisible.length > 0 && (
-                            <div className="ads-separator">⭐ Featured</div>
-                        )}
-                        {featuredAuctionsVisible.map(item => (
-                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
-                                <AuctionCard
-                                    title={item.title}
-                                    city={item.city}
-                                    currentBid={item.currentBid}
-                                    timeLeft={getTimeLeft(item.endsAt)}
-                                    image={item.images[0]}
-                                    isEnded={item.endsAt <= now}
-                                    promotionType={item.promotionType}
-                                />
-                            </div>
-                        ))}
-
-
-                        {regularAuctions.length > 0 && (
-                            <div className="ads-separator">📄 Інші аукціони</div>
-                        )}
-                        {regularAuctions.map(item => (
-                            <div
-                                key={item.id}
-                                onClick={() => navigate(`/auction/${item.id}`)}
-                            >
-                                <AuctionCard
+                                    t={t}
                                     title={item.title}
                                     city={item.city}
                                     currentBid={item.currentBid}
@@ -369,12 +342,66 @@ function AuctionPage() {
                                     isEnded={item.endsAt <= now}
                                     promotionType={item.promotionType}
                                     isSoftPinned={
-                                        item.promotionType === "top-auction" ||
-                                        item.promotionType === "featured"
+                                        (item.promotionType === "top-auction" ||
+                                            item.promotionType === "featured") &&
+                                        !visibleAuctionIds.has(item.id)
+                                    }
+                                />
+
+                            </div>
+                        ))}
+
+
+                        {featuredAuctionsVisible.length > 0 && (
+                            <div className="ads-separator">⭐ {t.auctions.featured}</div>
+                        )}
+                        {featuredAuctionsVisible.map(item => (
+                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
+                                <AuctionCard
+                                    t={t}
+                                    title={item.title}
+                                    city={item.city}
+                                    currentBid={item.currentBid}
+                                    timeLeft={getTimeLeft(item.endsAt)}
+                                    image={item.images[0]}
+                                    isEnded={item.endsAt <= now}
+                                    promotionType={item.promotionType}
+                                    isSoftPinned={
+                                        (item.promotionType === "top-auction" ||
+                                            item.promotionType === "featured") &&
+                                        !visibleAuctionIds.has(item.id)
                                     }
                                 />
                             </div>
                         ))}
+
+
+                        {regularAuctions.length > 0 && (
+                            <div className="ads-separator">📄 {t.auctions.regular}</div>
+                        )}
+                        {regularAuctions.map(item => (
+                            <div
+                                key={item.id}
+                                onClick={() => navigate(`/auction/${item.id}`)}
+                            >
+                                <AuctionCard
+                                    t={t}
+                                    title={item.title}
+                                    city={item.city}
+                                    currentBid={item.currentBid}
+                                    timeLeft={getTimeLeft(item.endsAt)}
+                                    image={item.images[0]}
+                                    isEnded={item.endsAt <= now}
+                                    promotionType={item.promotionType}
+                                    isSoftPinned={
+                                        (item.promotionType === "top-auction" ||
+                                            item.promotionType === "featured") &&
+                                        !visibleAuctionIds.has(item.id)
+                                    }
+                                />
+                            </div>
+                        ))}
+
 
 
 

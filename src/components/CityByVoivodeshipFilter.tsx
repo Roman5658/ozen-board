@@ -6,9 +6,12 @@ type Props = {
     voivodeship: Voivodeship
     value: string
     onChange: (city: string) => void
+    t: {
+        allCities: string
+    }
 }
 
-function CityByVoivodeshipFilter({ voivodeship, value, onChange }: Props) {
+function CityByVoivodeshipFilter({ voivodeship, value, onChange, t }: Props) {
     if (voivodeship === 'all') return null
 
     const cities = CITIES_BY_VOIVODESHIP[voivodeship]
@@ -26,7 +29,7 @@ function CityByVoivodeshipFilter({ voivodeship, value, onChange }: Props) {
                 fontSize: '14px',
             }}
         >
-            <option value="">Всі міста</option>
+            <option value="">{t.allCities}</option>
             {cities.map((city) => (
                 <option key={city} value={city}>
                     {city}

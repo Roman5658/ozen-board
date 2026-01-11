@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/purity */
+
 import type { Ad } from '../types/ad'
 
 import AdCard from '../components/AdCard'
@@ -33,6 +35,21 @@ type Voivodeship =
 type Props = {
     t: {
         homeTitle: string
+        home: {
+            searchPlaceholder: string
+            viewList: string
+            viewGrid: string
+            allCities: string
+            top3: string
+            top6: string
+            bumped: string
+            regular: string
+
+            page: string
+            of: string
+            prev: string
+            next: string
+        }
         categories: {
             all: string
             work: string
@@ -42,8 +59,25 @@ type Props = {
             rent: string
         }
         voivodeships: Record<Voivodeship, string>
+        adCard: {
+            today: string
+            yesterday: string
+            noPhoto: string
+            user: string
+
+            top3: string
+            top6: string
+            inQueue: string
+            gold: string
+            mine: string
+
+            safeDeal: string
+            delete: string
+        }
+
     }
 }
+
 
 // временная поддержка старого isPinned
 function normalizeAd(ad: Ad): Ad {
@@ -196,7 +230,8 @@ function HomePage({ t }: Props) {
             <div className="card stack8" style={{marginBottom: 14}}>
                 <input
                     className="input"
-                    placeholder="Пошук оголошень"
+                    placeholder={t.home.searchPlaceholder}
+
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                 />
@@ -206,14 +241,15 @@ function HomePage({ t }: Props) {
                         className={view === 'list' ? 'btn-primary' : 'btn-secondary'}
                         onClick={() => setView('list')}
                     >
-                        📄 Список
+                        {t.home.viewList}
                     </button>
                     <button
                         className={view === 'grid' ? 'btn-primary' : 'btn-secondary'}
                         onClick={() => setView('grid')}
                     >
-                        🔲 Сітка
+                        {t.home.viewGrid}
                     </button>
+
                 </div>
 
                 <VoivodeshipFilter
@@ -229,7 +265,9 @@ function HomePage({ t }: Props) {
                     voivodeship={voivodeship}
                     value={city}
                     onChange={setCity}
+                    t={{ allCities: t.home.allCities }}
                 />
+
 
                 <CategoryFilter value={category} onChange={setCategory} t={t}/>
             </div>
@@ -237,46 +275,58 @@ function HomePage({ t }: Props) {
             <div className="ads-grid">
 
                 {top3Ads.length > 0 && (
-                    <div className="ads-separator">🔥 TOP 3</div>
+                    <div className="ads-separator">{t.home.top3}</div>
+
                 )}
                 {top3Ads.map(ad => (
                     <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
                         <AdCard
                             ad={ad}
                             isMine={ad.userId === currentUserId}
+                            labels={t.adCard}
                         />
+
 
                     </Link>
                 ))}
 
                 {top6Ads.length > 0 && (
-                    <div className="ads-separator">⭐ TOP 6</div>
+                    <div className="ads-separator">{t.home.top6}</div>
+
                 )}
                 {top6Ads.map(ad => (
                     <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
                         <AdCard
                             ad={ad}
                             isMine={ad.userId === currentUserId}
+
+                            labels={t.adCard}
                         />
+
 
                     </Link>
                 ))}
 
                 {bumpAds.length > 0 && (
-                    <div className="ads-separator">🚀 Підняті</div>
+                    <div className="ads-separator">{t.home.bumped}</div>
+
                 )}
                 {bumpAds.map(ad => (
                     <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
                         <AdCard
                             ad={ad}
                             isMine={ad.userId === currentUserId}
+
+                            labels={t.adCard}
                         />
+
 
                     </Link>
                 ))}
 
                 {regularAds.length > 0 && (
-                    <div className="ads-separator">📄 Інші оголошення</div>
+                    <div className="ads-separator">{t.home.regular}</div>
+
                 )}
                 {pagedRegularAds.map(ad => {
                     const isSoftPinned =
@@ -290,7 +340,9 @@ function HomePage({ t }: Props) {
                                 ad={ad}
                                 isMine={ad.userId === currentUserId}
                                 isSoftPinned={isSoftPinned}
+                                labels={t.adCard}
                             />
+
                         </Link>
                     )
                 })}
@@ -304,11 +356,13 @@ function HomePage({ t }: Props) {
                         disabled={page === 1}
                         onClick={() => setPage(p => p - 1)}
                     >
-                        ← Назад
+                        {t.home.prev}
+
                     </button>
 
                     <div style={{ alignSelf: "center", fontSize: 14 }}>
-                        Сторінка {page} з {totalPages}
+                        {t.home.page} {page} {t.home.of} {totalPages}
+
                     </div>
 
                     <button
@@ -316,7 +370,8 @@ function HomePage({ t }: Props) {
                         disabled={page === totalPages}
                         onClick={() => setPage(p => p + 1)}
                     >
-                        Вперед →
+                        {t.home.next}
+
                     </button>
 
                 </div>

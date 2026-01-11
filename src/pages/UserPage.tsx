@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom'
 import type { Auction } from '../types/auction'
 import AuctionCard from '../components/AuctionCard'
 import { getLocalUser } from '../data/localUser'
+import { translations, DEFAULT_LANG } from '../app/i18n'
+import type { Lang } from '../app/i18n'
 
 
 
@@ -33,6 +35,8 @@ function UserPage() {
     const currentUser = getLocalUser()
     const isLoggedIn = !!currentUser
     const isOwnProfile = currentUser?.id === id
+    const lang = (localStorage.getItem('lang') as Lang) || DEFAULT_LANG
+    const t = translations[lang]
 
 
 
@@ -129,19 +133,25 @@ function UserPage() {
     }, [id])
 
     if (loading) {
-        return <div className="card">Завантаження профілю…</div>
+        return <div className="card">{t.userPage.loading}</div>
+
+
     }
 
     if (!user) {
-        return <div className="card">Користувача не знайдено</div>
+        return <div className="card">{t.userPage.notFound}</div>
     }
+
 
     return (
         <div>
-            <h2>Профіль користувача</h2>
+            <h2>{t.userPage.title}</h2>
+
             <div style={{marginTop: 12}}>
-                <div><b>Нікнейм:</b> {user.nickname}</div>
-                <div style={{marginTop: 6}}><b>Карма:</b> {user.karma}</div>
+                <div><b>{t.userPage.nickname}:</b>
+                    {user.nickname}</div>
+                <div style={{marginTop: 6}}><b>{t.userPage.karma}:</b>
+                    {user.karma}</div>
                 {isLoggedIn && !isOwnProfile && (
                     <button
                         className="btn-primary"
@@ -150,24 +160,27 @@ function UserPage() {
                             alert('Чати будуть доступні незабаром')
                         }}
                     >
-                        Написати користувачу
+                        {t.userPage.write}
+
                     </button>
                 )}
 
                 {user.createdAt && (
                     <div style={{fontSize: 13, color: '#666', marginTop: 6}}>
-                        На сайті з: {new Date(user.createdAt).toLocaleString()}
+                        {t.userPage.joined}: {new Date(user.createdAt).toLocaleString()}
+
                     </div>
                 )}
 
                 {(user.phone || user.telegram) ? (
                     <div style={{marginTop: 12}}>
-                        <div style={{fontWeight: 600, marginBottom: 6}}>Контакти</div>
+                        <div style={{fontWeight: 600, marginBottom: 6}}>{t.userPage.contacts}</div>
 
                         {user.phone && (
                             <div>
-                                Телефон: <a href={`tel:${user.phone}`}>{user.phone}</a>
+                                {t.userPage.phone}: <a href={`tel:${user.phone}`}>{user.phone}</a>
                             </div>
+
                         )}
 
                         {user.telegram && (
@@ -185,21 +198,25 @@ function UserPage() {
                     </div>
                 ) : (
                     <div style={{marginTop: 12, fontSize: 13, color: '#666'}}>
-                        Контакти не вказані
+                        {t.userPage.noContacts}
+
                     </div>
                 )}
             </div>
             <hr style={{ margin: '20px 0' }} />
 
-            <h3>Оголошення користувача</h3>
+            <h3>{t.userPage.adsTitle}</h3>
+
 
             {adsLoading ? (
                 <div style={{ fontSize: 14, color: '#666' }}>
-                    Завантаження оголошень…
+                    {t.userPage.adsLoading}
+
                 </div>
             ) : ads.length === 0 ? (
                 <div style={{ fontSize: 14, color: '#666' }}>
-                    У користувача поки немає оголошень
+                    {t.userPage.noAds}
+
                 </div>
             ) : (
                 <div className="ads-grid">
@@ -217,15 +234,16 @@ function UserPage() {
 
             <hr style={{ margin: '20px 0' }} />
 
-            <h3>Аукціони користувача</h3>
+            <h3>{t.userPage.auctionsTitle}</h3>
+
 
             {auctionsLoading ? (
                 <div style={{ fontSize: 14, color: '#666' }}>
-                    Завантаження аукціонів…
+                    {t.userPage.auctionsLoading}
                 </div>
             ) : auctions.length === 0 ? (
                 <div style={{ fontSize: 14, color: '#666' }}>
-                    У користувача поки немає аукціонів
+                    {t.userPage.noAuctions}
                 </div>
             ) : (
                 <div className="stack12">
@@ -239,13 +257,15 @@ function UserPage() {
                                 style={{ textDecoration: 'none', color: 'inherit' }}
                             >
                                 <AuctionCard
+                                    t={t}
                                     title={auction.title}
                                     city={auction.city}
                                     currentBid={auction.currentBid}
                                     timeLeft={
                                         isEnded
-                                            ? 'Завершено'
-                                            : `${Math.ceil((auction.endsAt - Date.now()) / 60000)} хв`
+                                            ? t.userPage.auctionEnded
+                                            : `${Math.ceil((auction.endsAt - Date.now()) / 60000)} ${t.userPage.minutesShort}`
+
                                     }
                                     image={auction.images?.[0]}
                                     isEnded={isEnded}

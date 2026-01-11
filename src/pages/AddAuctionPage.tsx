@@ -4,7 +4,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { collection, addDoc } from "firebase/firestore"
 import { doc, updateDoc } from "firebase/firestore"
 import { PRICES } from "../config/prices"
-
+import type { translations } from "../app/i18n"
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
@@ -16,7 +16,9 @@ import { verifyPayPalPayment } from "../api/payments"
 
 type Category = "sell" | "buy" | "service" | "rent"
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP
-
+type Props = {
+    t: (typeof translations)[keyof typeof translations]
+}
 type AuctionPromotion =
     | "none"
     | "top-auction"
@@ -25,7 +27,7 @@ type AuctionPromotion =
 
 const DAY = 24 * 60 * 60 * 1000
 
-function AddAuctionPage() {
+function AddAuctionPage({ t }: Props) {
     const navigate = useNavigate()
 
     // ===== STATE =====
@@ -65,7 +67,8 @@ function AddAuctionPage() {
     if (!user) {
         return (
             <div className="card">
-                <h2>Спочатку увійдіть в акаунт</h2>
+                <h2>{t.addAuction.authRequired}</h2>
+
             </div>
         )
     }
@@ -85,7 +88,8 @@ function AddAuctionPage() {
             imageFiles.length === 0 ||
             !endsAtDate
         ) {
-            return { ok: false, reason: "Заповніть всі обовʼязкові поля" }
+            return { ok: false, reason: t.addAuction.errors.required }
+
         }
 
         const createdAt = Date.now()
@@ -93,15 +97,18 @@ function AddAuctionPage() {
         const maxEndsAt = createdAt + 10 * DAY
 
         if (Number.isNaN(endsAt)) {
-            return { ok: false, reason: "Некоректна дата завершення" }
+            return { ok: false, reason: t.addAuction.errors.invalidDate }
+
         }
 
         if (endsAt <= createdAt) {
-            return { ok: false, reason: "Дата завершення має бути пізніше сьогодні" }
+            return { ok: false, reason: t.addAuction.errors.pastDate }
+
         }
 
         if (endsAt > maxEndsAt) {
-            return { ok: false, reason: "Аукціон може тривати максимум 10 днів" }
+            return { ok: false, reason: t.addAuction.errors.tooLong }
+
         }
 
         return { ok: true, endsAt }
@@ -136,15 +143,18 @@ function AddAuctionPage() {
 
         if (res.ok) {
             setPromotionInfo({
-                text: `Вільно: ${res.limit - res.activeCount} з ${res.limit}`,
+                text: t.addAuction.promotion.freeSlots
+                    .replace("{{count}}", String(res.limit - res.activeCount))
+                    .replace("{{max}}", String(res.limit)),
                 isQueue: false,
             })
         } else {
             setPromotionInfo({
-                text: `Місць немає — буде додано в чергу (${res.queueCount} у черзі)`,
+                text: `${t.addAuction.promotion.queue} (${res.queueCount})`,
                 isQueue: true,
             })
         }
+
     }
 
 // ===== CREATE DRAFT AUCTION (до оплаты) =====
@@ -281,7 +291,8 @@ function AddAuctionPage() {
         if (isPaidPromotion) {
             const v = validateForm()
             if (!v.ok) setError(v.reason)
-            else setError("Спочатку виконайте оплату PayPal нижче.")
+            else setError(t.addAuction.errors.paypalFirst)
+
             return
         }
 
@@ -299,40 +310,43 @@ function AddAuctionPage() {
     // ===== UI =====
     return (
         <div className="card stack12">
-            <h2 className="h2">Створити аукціон</h2>
+            <h2 className="h2">{t.addAuction.title}</h2>
+
 
             {/* Перемикач */}
             <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" className="btn-secondary" onClick={() => navigate("/add")}>
-                    Оголошення
+                    {t.addAuction.modes.ad}
                 </button>
 
                 <button type="button" className="btn-primary" disabled>
-                    Аукціон
+                    {t.addAuction.modes.auction}
                 </button>
             </div>
 
             <form className="stack12" onSubmit={handleSubmit}>
                 <input
                     className="input"
-                    placeholder="Заголовок"
+                    placeholder={t.addAuction.fields.title}
+
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                 />
 
                 <textarea
                     className="input"
-                    placeholder="Опис"
+                    placeholder={t.addAuction.fields.description}
+
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                 />
 
                 <select className="input" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
-                    <option value="">Категорія</option>
-                    <option value="sell">Продам</option>
-                    <option value="buy">Куплю</option>
-                    <option value="service">Послуги</option>
-                    <option value="rent">Оренда</option>
+                    <option value="">{t.addAuction.fields.category}</option>
+                    <option value="sell">{t.addAuction.categories.sell}</option>
+                    <option value="buy">{t.addAuction.categories.buy}</option>
+                    <option value="service">{t.addAuction.categories.service}</option>
+                    <option value="rent">{t.addAuction.categories.rent}</option>
                 </select>
 
                 <select
@@ -345,7 +359,7 @@ function AddAuctionPage() {
 
                     }}
                 >
-                    <option value="">Воєводство</option>
+                    <option value="">{t.addAuction.fields.voivodeship}</option>
                     {Object.keys(CITIES_BY_VOIVODESHIP).map((v) => (
                         <option key={v} value={v}>
                             {v}
@@ -355,7 +369,7 @@ function AddAuctionPage() {
 
                 {voivodeship && (
                     <select className="input" value={city} onChange={(e) => setCity(e.target.value)}>
-                        <option value="">Місто</option>
+                        <option value="">{t.addAuction.fields.city}</option>
                         {(CITIES_BY_VOIVODESHIP[voivodeship as VoivodeshipKey] ?? []).map((c) => (
                             <option key={c} value={c}>
                                 {c}
@@ -367,7 +381,8 @@ function AddAuctionPage() {
                 <input
                     className="input"
                     type="number"
-                    placeholder="Стартова ціна"
+                    placeholder={t.addAuction.fields.startPrice}
+
                     value={startPrice}
                     onChange={(e) => setStartPrice(e.target.value)}
                 />
@@ -375,14 +390,17 @@ function AddAuctionPage() {
                 <input
                     className="input"
                     type="number"
-                    placeholder="Купити зараз (необовʼязково)"
+                    placeholder={t.addAuction.fields.buyNowPrice}
+
                     value={buyNowPrice}
                     onChange={(e) => setBuyNowPrice(e.target.value)}
                 />
 
-                <input className="input" type="date" value={endsAtDate} onChange={(e) => setEndsAtDate(e.target.value)} />
+                <input className="input" type="date" value={endsAtDate}
+                       onChange={(e) => setEndsAtDate(e.target.value)}/>
 
-                <div style={{ fontSize: 13, color: "#6b7280" }}>Максимум 10 днів від сьогодні</div>
+                <div style={{fontSize: 13, color: "#6b7280"}}>{t.addAuction.fields.maxDaysHint}
+                </div>
 
                 <input
                     type="file"
@@ -391,7 +409,8 @@ function AddAuctionPage() {
                     onChange={(e) => {
                         const newFiles = Array.from(e.target.files ?? [])
                         if (imageFiles.length + newFiles.length > 5) {
-                            setError("Максимум 5 фото")
+                            setError(t.addAuction.errors.maxImages)
+
                             return
                         }
                         setImageFiles((prev) => [...prev, ...newFiles])
@@ -401,7 +420,7 @@ function AddAuctionPage() {
 
                 {/* Превʼю */}
                 {imageFiles.length > 0 && (
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                    <div style={{display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8}}>
                         {imageFiles.map((file, index) => {
                             const url = URL.createObjectURL(file)
                             return (
@@ -416,7 +435,8 @@ function AddAuctionPage() {
                                         border: "1px solid #e5e7eb",
                                     }}
                                 >
-                                    <img src={url} alt={`preview-${index}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    <img src={url} alt={`preview-${index}`}
+                                         style={{width: "100%", height: "100%", objectFit: "cover"}}/>
                                     <button
                                         type="button"
                                         onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))}
@@ -447,12 +467,15 @@ function AddAuctionPage() {
 
                 {/* PROMOTION */}
                 <div className="card stack12">
-                    <strong>Просування аукціону</strong>
+                    <strong>{t.addAuction.promotion.title}</strong>
+
 
                     <label className="promotion-option">
-                        <input type="radio" name="promotion" checked={promotion === "none"} onChange={() => setPromotion("none")} />
-                        🆓 Без просування
-                        <div className="hint">Звичайний аукціон</div>
+                        <input type="radio" name="promotion" checked={promotion === "none"}
+                               onChange={() => setPromotion("none")}/>
+                        🆓 {t.addAuction.promotion.none}
+                        <div className="hint">{t.addAuction.promotion.noneHint}</div>
+
                     </label>
 
                     <label className="promotion-option">
@@ -466,8 +489,9 @@ function AddAuctionPage() {
                             }}
                         />
 
-                        🔥 TOP аукціон
-                        <div className="hint">Показується вище звичайних аукціонів (3 дні)</div>
+                        🔥 {t.addAuction.promotion.top}
+                        <div className="hint">{t.addAuction.promotion.topHint}</div>
+
                     </label>
 
                     <label className="promotion-option">
@@ -480,8 +504,9 @@ function AddAuctionPage() {
                                 await loadPromotionInfo("featured")
                             }}
                         />
-                        ⭐ Featured
-                        <div className="hint">Виділений аукціон (3 дні)</div>
+                        ⭐ {t.addAuction.promotion.featured}
+                        <div className="hint">{t.addAuction.promotion.featuredHint}</div>
+
                     </label>
 
                     <label className="promotion-option">
@@ -491,8 +516,9 @@ function AddAuctionPage() {
                             checked={promotion === "highlight-gold"}
                             onChange={() => setPromotion("highlight-gold")}
                         />
-                        ✨ Виділити (gold)
-                        <div className="hint">Кольорове виділення (7 днів)</div>
+                        ✨ {t.addAuction.promotion.gold}
+                        <div className="hint">{t.addAuction.promotion.goldHint}</div>
+
                     </label>
                     {promotionInfo && (
                         <div
@@ -508,16 +534,20 @@ function AddAuctionPage() {
                     {/* PAYPAL (только если платное) */}
                     {isPaidPromotion && (
                         <div className="card stack12">
-                            <strong>Оплата просування</strong>
+                            <strong>{t.addAuction.payment.title}</strong>
 
-                            <div style={{ fontSize: 13, color: "#6b7280" }}>
-                                Після успішної оплати аукціон створиться автоматично.
+
+                            <div style={{fontSize: 13, color: "#6b7280"}}>
+                                {t.addAuction.payment.info}
+
                             </div>
 
-                            <div style={{ fontWeight: 700 }}>Сума: {pricePLN} PLN</div>
+                            <div style={{fontWeight: 700}}>{t.addAuction.payment.amount}:
+                                {pricePLN} PLN
+                            </div>
 
                             <PayPalButtons
-                                style={{ layout: "vertical" }}
+                                style={{layout: "vertical"}}
                                 disabled={isPaying}
                                 createOrder={async (_, actions) => {
                                     const v = validateForm()
@@ -575,7 +605,8 @@ function AddAuctionPage() {
                                         navigate("/auctions")
 
                                     } catch (err) {
-                                        const msg = err instanceof Error ? err.message : "Помилка PayPal"
+                                        const msg = err instanceof Error ? err.message : t.addAuction.errors.paypalError
+
                                         setError(msg)
                                     } finally {
                                         setIsPaying(false)
@@ -584,19 +615,25 @@ function AddAuctionPage() {
                                 }}
                                 onError={(err) => {
                                     console.error(err)
-                                    setError("Помилка PayPal")
+                                    setError(t.addAuction.errors.paypalError)
+
                                 }}
                             />
                         </div>
                     )}
                 </div>
 
-                {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
+                {error && <div style={{color: "#b91c1c"}}>{error}</div>}
 
                 {/* Кнопка нужна ТОЛЬКО для бесплатного */}
                 <button className="btn-primary" disabled={isSubmitting || isPaying || isPaidPromotion}>
-                    {isPaidPromotion ? "Оплатіть PayPal нижче" : isSubmitting ? "Завантаження..." : "Створити аукціон"}
+                    {isPaidPromotion
+                        ? t.addAuction.actions.payBelow
+                        : isSubmitting
+                            ? t.addAuction.actions.loading
+                            : t.addAuction.actions.create}
                 </button>
+
             </form>
         </div>
     )
