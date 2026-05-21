@@ -4,7 +4,7 @@ import type { Ad } from "../types/ad"
 import type { AppUser } from "../types/user"
 import { getUserByEmail, createUser, isNicknameTaken } from "../data/users"
 import { collection, getDocs, query, where, deleteDoc, doc, getDoc, } from "firebase/firestore"
-import { sendPasswordResetEmail } from "firebase/auth"
+import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth"
 import { Link, useNavigate } from "react-router-dom"
 
 import { getUserPublicNickname } from "../data/usersPublic"
@@ -415,63 +415,67 @@ function AccountPage({ t }: Props) {
                     onClick={async () => {
                         setAuthError(null)
                         setAuthLoading(true)
-
+                        const mapAuthError = (code?: string) => {
+                            if (code === "auth/email-already-in-use") return "Этот email уже используется."
+                            if (code === "auth/invalid-email") return "Неверный формат email."
+                            if (code === "auth/user-not-found") return "Пользователь с таким email не найден."
+                            if (code === "auth/wrong-password") return "Неверный пароль."
+                            if (code === "auth/invalid-credential") return "Неверный email или пароль."
+                            if (code === "auth/weak-password") return "Слишком слабый пароль."
+                            if (code === "auth/too-many-requests") return "Слишком много попыток. Попробуйте позже."
+                            return "Ошибка авторизации. Попробуйте ещё раз."
+                        }
                         try {
                             const cleanEmail = email.trim().toLowerCase()
                             // ===== LOGIN =====
                             if (mode === "login") {
-                                const existing = await getUserByEmail(cleanEmail)
+                                const authRes = await signInWithEmailAndPassword(auth, cleanEmail, password)
+                                const profile = await getUserByEmail(cleanEmail)
 
-                                if (!existing) {
-                                    setAuthError(a.auth.errors.userNotFound)
+                                if (!profile) {
+                                    setAuthError("Профиль пользователя не найден в Firestore.")
                                     return
                                 }
 
-                                if (existing.password !== password) {
-                                    setAuthError(a.auth.errors.wrongPassword)
-                                    return
+                                const mergedUser: AppUser = {
+                                    ...profile,
+                                    uid: authRes.user.uid,
+                                    id: cleanEmail,
+                                    email: cleanEmail,
                                 }
 
                                 // сохраняем сессию
-                                setLocalUser(existing)
-                                setUser(existing)
+                                setLocalUser(mergedUser)
+                                setUser(mergedUser)
                                 return
                             }
 
 
                             // ===== REGISTER =====
                             // ===== REGISTER =====
-                            const existing = await getUserByEmail(cleanEmail)
-
-                            if (existing) {
+                            const existingByEmail = await getUserByEmail(cleanEmail)
+                            if (existingByEmail) {
                                 setAuthError(a.auth.errors.emailTaken)
                                 return
                             }
 
+                            const nicknameTaken = await isNicknameTaken(nickname)
+                            if (nicknameTaken) {
+                                setAuthError(a.auth.errors.nicknameTaken)
+                                return
+                            }
 
+                            const authRes = await createUserWithEmailAndPassword(auth, cleanEmail, password)
                             const newUser: AppUser = {
                                 id: cleanEmail,
+                                uid: authRes.user.uid,
                                 nickname: nickname.trim(),
                                 email: cleanEmail,
-                                password: password,
                                 karma: 0,
                                 createdAt: Date.now(),
                             }
 
 // ===== REGISTER =====
-                            const existingByEmail = await getUserByEmail(cleanEmail)
-
-                            if (existingByEmail) {
-                                setAuthError("Такий email вже зареєстрований")
-                                return
-                            }
-
-                            const nicknameTaken = await isNicknameTaken(nickname)
-
-                            if (nicknameTaken) {
-                                setAuthError(a.auth.errors.nicknameTaken)
-                                return
-                            }
 
                             // Firestore
                             await createUser(newUser)
@@ -483,6 +487,8 @@ function AccountPage({ t }: Props) {
                             setNickname("")
                             setEmail("")
                             setPassword("")
+                        } catch (error: any) {
+                            setAuthError(mapAuthError(error?.code))
                         } finally {
                             setAuthLoading(false)
                         }

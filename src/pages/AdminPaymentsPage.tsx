@@ -28,7 +28,7 @@ export default function AdminPaymentsPage() {
     useEffect(() => {
         const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
 
-        if (!isAdminMode || !user || !ADMIN_IDS.includes(user.id)) {
+        if (!isAdminMode || !user || (!ADMIN_IDS.includes(user.id) && !ADMIN_IDS.includes(user.email))) {
             setLoading(false)
             return
         }
@@ -55,7 +55,7 @@ export default function AdminPaymentsPage() {
 
     const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
 
-    if (!isAdminMode || !user || !ADMIN_IDS.includes(user.id)) {
+    if (!isAdminMode || !user || (!ADMIN_IDS.includes(user.id) && !ADMIN_IDS.includes(user.email))) {
         return <div className="card">Немає доступу</div>
     }
 

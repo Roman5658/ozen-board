@@ -19,5 +19,5 @@ export function clearLocalUser() {
 export function isAdmin(): boolean {
     const user = getLocalUser()
     if (!user) return false
-    return ADMIN_IDS.includes(user.id)
+    return ADMIN_IDS.includes(user.id) || ADMIN_IDS.includes(user.email)
 }

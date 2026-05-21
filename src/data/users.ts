@@ -1,16 +1,11 @@
-import { doc, getDoc, setDoc } from "firebase/firestore"
+
 import { db } from "../app/firebase"
 import type { AppUser } from "../types/user"
-import { collection, getDocs, query, where } from "firebase/firestore"
-
-
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore"
 
 export async function isNicknameTaken(nickname: string): Promise<boolean> {
-    const q = query(
-        collection(db, "users"),
-        where("nickname", "==", nickname.trim())
-    )
 
+    const q = query(collection(db, "users"), where("nickname", "==", nickname.trim()))
     const snap = await getDocs(q)
     return !snap.empty
 }
@@ -30,5 +25,16 @@ export async function getUserByEmail(email: string): Promise<AppUser | null> {
  * Создать пользователя (регистрация)
  */
 export async function createUser(user: AppUser): Promise<void> {
-    await setDoc(doc(db, "users", user.id), user)
+    const safeUser: AppUser = {
+        id: user.id,
+        uid: user.uid,
+        email: user.email,
+        nickname: user.nickname,
+        karma: user.karma,
+        createdAt: user.createdAt,
+        phone: user.phone ?? null,
+        telegram: user.telegram ?? null,
+    }
+
+    await setDoc(doc(db, "users", safeUser.id), safeUser)
 }

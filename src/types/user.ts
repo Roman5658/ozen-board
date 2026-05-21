@@ -1,8 +1,11 @@
 export type AppUser = {
-    id: string          // authId (в будущем uid от Firebase Auth)
+    id: string          // email (для совместимости c текущими ownerId/userId и ADMIN_IDS)
+    uid: string         // Firebase Auth UID
     email: string
     nickname: string
-    password?: string   // ⚠️ временно, потом уберём
+
     karma: number
     createdAt: number
+    phone?: string | null
+    telegram?: string | null
 }
