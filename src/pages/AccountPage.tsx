@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react"
-import { db } from "../app/firebase"
+import { auth, db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import type { AppUser } from "../types/user"
 import { getUserByEmail, createUser, isNicknameTaken } from "../data/users"
 import { collection, getDocs, query, where, deleteDoc, doc, getDoc, } from "firebase/firestore"
-
+import { sendPasswordResetEmail } from "firebase/auth"
 import { Link, useNavigate } from "react-router-dom"
 
 import { getUserPublicNickname } from "../data/usersPublic"
@@ -65,6 +65,8 @@ function AccountPage({ t }: Props) {
     const [nickname, setNickname] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
+    const [resetLoading, setResetLoading] = useState(false)
+    const [resetMessage, setResetMessage] = useState<string | null>(null)
 
     // data
     const [user, setUser] = useState<AppUser | null>(null)
@@ -351,6 +353,50 @@ function AccountPage({ t }: Props) {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                 />
+                {mode === "login" && (
+                    <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={resetLoading}
+                        onClick={async () => {
+                            setAuthError(null)
+                            setResetMessage(null)
+
+                            const cleanEmail = email.trim().toLowerCase()
+                            if (!cleanEmail) {
+                                setAuthError("Введите email.")
+                                return
+                            }
+
+                            try {
+                                setResetLoading(true)
+                                await sendPasswordResetEmail(auth, cleanEmail)
+                                setResetMessage("Письмо для восстановления пароля отправлено на email.")
+                            } catch (error: any) {
+                                const code = error?.code as string | undefined
+                                if (code === "auth/invalid-email") {
+                                    setAuthError("Неверный формат email.")
+                                } else if (code === "auth/user-not-found") {
+                                    setAuthError("Пользователь с таким email не найден.")
+                                } else if (code === "auth/too-many-requests") {
+                                    setAuthError("Слишком много попыток. Попробуйте позже.")
+                                } else {
+                                    setAuthError("Не удалось отправить письмо для восстановления. Попробуйте ещё раз.")
+                                }
+                            } finally {
+                                setResetLoading(false)
+                            }
+                        }}
+                    >
+                        {a.auth.forgotPassword}
+                    </button>
+                )}
+
+                {resetMessage && (
+                    <div style={{color: "#166534", fontSize: 13}}>
+                        {resetMessage}
+                    </div>
+                )}
 
                 {authError && (
                     <div style={{color: "#b91c1c", fontSize: 13}}>
