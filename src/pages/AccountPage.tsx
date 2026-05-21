@@ -372,6 +372,7 @@ function AccountPage({ t }: Props) {
                                 setResetLoading(true)
                                 await sendPasswordResetEmail(auth, cleanEmail)
                                 setResetMessage("Письмо для восстановления пароля отправлено на email.")
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             } catch (error: any) {
                                 const code = error?.code as string | undefined
                                 if (code === "auth/invalid-email") {
@@ -432,16 +433,22 @@ function AccountPage({ t }: Props) {
                                 const authRes = await signInWithEmailAndPassword(auth, cleanEmail, password)
                                 const profile = await getUserByEmail(cleanEmail)
 
-                                if (!profile) {
-                                    setAuthError("Профиль пользователя не найден в Firestore.")
-                                    return
-                                }
+
 
                                 const mergedUser: AppUser = {
-                                    ...profile,
-                                    uid: authRes.user.uid,
+
                                     id: cleanEmail,
+                                    uid: authRes.user.uid,
                                     email: cleanEmail,
+                                    nickname: profile?.nickname || cleanEmail.split("@")[0],
+                                    karma: typeof profile?.karma === "number" ? profile.karma : 0,
+                                    createdAt: typeof profile?.createdAt === "number" ? profile.createdAt : Date.now(),
+                                    phone: profile?.phone ?? null,
+                                    telegram: profile?.telegram ?? null,
+                                }
+
+                                if (!profile || profile.uid !== authRes.user.uid) {
+                                    await createUser(mergedUser)
                                 }
 
                                 // сохраняем сессию
@@ -487,6 +494,7 @@ function AccountPage({ t }: Props) {
                             setNickname("")
                             setEmail("")
                             setPassword("")
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } catch (error: any) {
                             setAuthError(mapAuthError(error?.code))
                         } finally {
