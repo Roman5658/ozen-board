@@ -106,7 +106,7 @@ export const translations = {
                 rightsText: 'Користувач може видалити акаунт або оголошення.',
 
                 contactsTitle: '8. Контакти',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @Ozen25',
+                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
         terms: {
@@ -134,7 +134,7 @@ export const translations = {
                     'Умови користування можуть оновлюватися у разі змін у роботі сервісу. Актуальна версія завжди доступна на цій сторінці.',
 
                 contactsTitle: '7. Контакти',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @Ozen25',
+                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
         cookies: {
@@ -663,7 +663,7 @@ export const translations = {
                 rightsText: 'Użytkownik może usunąć konto lub ogłoszenia.',
 
                 contactsTitle: '8. Kontakt',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @Ozen25',
+                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
         terms: {
@@ -691,7 +691,7 @@ export const translations = {
                     'Warunki korzystania mogą ulec zmianie w przypadku zmian w działaniu serwisu. Aktualna wersja jest zawsze dostępna na tej stronie.',
 
                 contactsTitle: '7. Kontakt',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @Ozen25',
+                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
         cookies: {

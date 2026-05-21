@@ -4,7 +4,7 @@ import AdminReportsPage from "../pages/AdminReportsPage"
 import AddAuctionPage from '../pages/AddAuctionPage'
 import UserPage from '../pages/UserPage'
 import ChatPage from "../pages/ChatPage"
-import PayTestPage from "../pages/PayTestPage"
+// import PayTestPage from "../pages/PayTestPage"
 import PrivacyPage from '../pages/PrivacyPage'
 import TermsPage from '../pages/TermsPage'
 import CookiesPage from '../pages/CookiesPage'
@@ -70,7 +70,7 @@ function App() {
                 <Route path="/add-auction" element={<AddAuctionPage t={t} />} />
                 <Route path="/user/:id" element={<UserPage />} />
                 <Route path="/chat/:id" element={<ChatPage />} />
-                <Route path="/pay-test" element={<PayTestPage />} />
+                {/*<Route path="/pay-test" element={<PayTestPage />} />*/}
                 <Route path="/terms" element={<TermsPage t={t} />} />
                 <Route path="/cookies" element={<CookiesPage t={t} />} />
                 <Route path="/contact" element={<ContactPage t={t} />} />

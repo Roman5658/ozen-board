@@ -34,7 +34,7 @@ function ContactPage({ t }: Props) {
                     <strong>{c.emailLabel}:</strong> ozenenesis@gmail.com
                 </li>
                 <li>
-                    <strong>{c.telegramLabel}:</strong> @Ozen25
+                    <strong>{c.telegramLabel}:</strong> @we3bl
                 </li>
             </ul>
         </div>
