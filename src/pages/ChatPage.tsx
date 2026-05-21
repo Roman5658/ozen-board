@@ -8,7 +8,7 @@ import {
     getChatUsers,
 } from "../data/chats"
 import { getUserPublicNickname } from "../data/usersPublic"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 type ChatMessage = {
     id: string
@@ -34,12 +34,13 @@ function ChatPage() {
 
 
     const currentIds = currentUser
-        ? [currentUser.id, currentUser.uid, currentUser.email]
+        ? [currentUser.id, currentUser.uid, currentUser.email].filter(Boolean)
         : []
 
-    function isCurrentUserId(value: string) {
-        return currentIds.includes(value)
-    }
+    const isCurrentUserId = useCallback((value: string) => {
+        if (!currentUser) return false
+        return [currentUser.id, currentUser.uid, currentUser.email].filter(Boolean).includes(value)
+    }, [currentUser])
 
 
     // ===== подписка на сообщения =====
@@ -80,7 +81,7 @@ function ChatPage() {
                 console.error("[chat] failed to resolve other user", e)
             }
         })()
-    }, [chatId, currentIds.join("|")])
+    }, [chatId, currentUser, isCurrentUserId])
 
     // ===== guards =====
     if (!currentUser) {
