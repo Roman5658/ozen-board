@@ -32,6 +32,7 @@ function AuctionCard({
 
     return (
         <div
+            className="auction-card"
             style={{
                 borderRadius: '12px',
                 padding: '12px',
