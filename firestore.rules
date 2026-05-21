@@ -17,11 +17,12 @@ service cloud.firestore {
       return signedIn() && (idValue == authUid() || idValue == authEmail());
     }
 
-    function isAdmin() {
-      return signedIn() && authEmail() in [
-        'ozenenesis56@gmail.com'
-      ];
-    }
+function isAdmin() {
+return signedIn() && authEmail() in [
+  'ozenenesis56@gmail.com',
+  'u8075026427@gmail.com'
+];
+}
 
     function isProtectedAdFieldChanged() {
       return request.resource.data.pinType != resource.data.pinType ||
@@ -44,7 +45,10 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, create, update, delete: if isSelf(userId);
+       // Нужен публичный read для проверки занятых никнеймов при регистрации
+            // и отображения никнеймов в чатах/карточках.
+            allow read: if true;
+            allow create, update, delete: if isSelf(userId);
     }
 
     match /ads/{adId} {
@@ -97,6 +101,7 @@ service cloud.firestore {
       allow read: if signedIn() && (
         isSelf(resource.data.userId) ||
         isSelf(resource.data.userEmail) ||
+         isSelf(resource.data.payerEmail) ||
         isAdmin()
       );
       allow create, update, delete: if isAdmin();
