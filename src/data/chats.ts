@@ -8,6 +8,7 @@ import {
     orderBy,
     query,
     serverTimestamp,
+    getDoc,
     where,
     doc,
     updateDoc,
@@ -142,16 +143,26 @@ export function subscribeToChatMessages(
 /**
  * Получить список чатов пользователя
  */
-export async function getUserChats(userId: string): Promise<ChatItem[]> {
-    const q = query(
-        collection(db, "chats"),
-        where("users", "array-contains", userId),
-        orderBy("updatedAt", "desc")
+export async function getUserChats(userId: string, userUid?: string): Promise<ChatItem[]> {
+    const ids = Array.from(new Set([userId, userUid].filter(Boolean))) as string[]
+    const snaps = await Promise.all(
+        ids.map(id =>
+            getDocs(
+                query(
+                    collection(db, "chats"),
+                    where("users", "array-contains", id),
+                    orderBy("updatedAt", "desc")
+                )
+            )
+        )
     )
 
-    const snap = await getDocs(q)
+    const allDocs = new Map<string, (typeof snaps)[number]["docs"][number]>()
+    for (const snap of snaps) {
+        for (const d of snap.docs) allDocs.set(d.id, d)
+    }
 
-    return snap.docs
+    return Array.from(allDocs.values())
         .map(d => {
             const data = d.data() as {
                 users?: unknown
@@ -193,6 +204,16 @@ export async function getUserChats(userId: string): Promise<ChatItem[]> {
         })
         .filter(chat => !chat.hidden)
         .filter(chat => !(chat.hiddenFor?.includes(userId)))
+        .filter(chat => !(userUid && chat.hiddenFor?.includes(userUid)))
+        .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
 
+}
+
+
+export async function getChatUsers(chatId: string): Promise<string[]> {
+    const snap = await getDoc(doc(db, "chats", chatId))
+    if (!snap.exists()) return []
+    const data = snap.data() as { users?: unknown }
+    return Array.isArray(data.users) ? data.users.filter((x): x is string => typeof x === "string") : []
 }
 

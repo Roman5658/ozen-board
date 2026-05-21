@@ -5,6 +5,7 @@ import {
     sendMessage,
     subscribeToChatMessages,
     markChatAsRead,
+    getChatUsers,
 } from "../data/chats"
 import { getUserPublicNickname } from "../data/usersPublic"
 import { useEffect, useState } from "react"
@@ -29,8 +30,16 @@ function ChatPage() {
     const [otherUserId, setOtherUserId] = useState<string>("")
     const [otherNickname, setOtherNickname] = useState<string>("")
     const [lastSentAt, setLastSentAt] = useState<number>(0)
+    const [sendError, setSendError] = useState<string>("")
 
 
+    const currentIds = currentUser
+        ? [currentUser.id, currentUser.uid, currentUser.email]
+        : []
+
+    function isCurrentUserId(value: string) {
+        return currentIds.includes(value)
+    }
 
 
     // ===== подписка на сообщения =====
@@ -55,21 +64,23 @@ function ChatPage() {
 
     // ===== определить собеседника =====
     useEffect(() => {
-        if (!currentUser) return
-        if (messages.length === 0) return
+        if (!currentUser || !chatId) return
 
-        const otherId = messages
-            .map(m => m.senderId)
-            .find(id => id !== currentUser.id)
+            ;(async () => {
+            try {
+                const users = await getChatUsers(chatId)
+                const otherId = users.find(id => !isCurrentUserId(id)) || ""
+                setOtherUserId(otherId)
 
-        if (!otherId) return
+                if (!otherId) return
 
-        setOtherUserId(otherId)
-
-        getUserPublicNickname(otherId).then(nick => {
-            setOtherNickname(nick || "Користувач")
-        })
-    }, [messages, currentUser])
+                const nick = await getUserPublicNickname(otherId)
+                setOtherNickname(nick || "Користувач")
+            } catch (e) {
+                console.error("[chat] failed to resolve other user", e)
+            }
+        })()
+    }, [chatId, currentIds.join("|")])
 
     // ===== guards =====
     if (!currentUser) {
@@ -127,7 +138,7 @@ function ChatPage() {
                     )}
 
                     {messages.map(m => {
-                        const isMine = m.senderId === currentUser.id
+                        const isMine = currentIds.includes(m.senderId)
 
                         return (
                             <div
@@ -167,6 +178,7 @@ function ChatPage() {
 
                         try {
                             setSending(true)
+                            setSendError("")
 
                             await sendMessage(
                                 chatId,
@@ -177,6 +189,9 @@ function ChatPage() {
 
                             setText("")
                             setLastSentAt(now)
+                        } catch (e) {
+                            console.error("[chat] send failed", e)
+                            setSendError("Не вдалося надіслати повідомлення. Спробуйте ще раз.")
                         } finally {
                             setSending(false)
                         }
@@ -192,7 +207,9 @@ function ChatPage() {
                         onChange={e => setText(e.target.value)}
                         disabled={sending}
                     />
-
+                    {sendError && (
+                        <div style={{ color: "#b91c1c", fontSize: 13 }}>{sendError}</div>
+                    )}
                     <button
                         className="btn-primary"
                         disabled={sending || !text.trim()}

@@ -179,7 +179,7 @@ function AccountPage({ t }: Props) {
 
         setLoadingChats(true)
 
-        getUserChats(user.id)
+        getUserChats(user.id, user.uid)
             .then((items) => {
                 setChats(items)
             })
