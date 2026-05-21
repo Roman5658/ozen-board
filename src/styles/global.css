@@ -671,7 +671,88 @@ h1, h2, h3, h4, h5, h6 {
     }
 }
 
+/* Bottom navigation collapsible behavior */
+:root {
+    --bottom-nav-toggle-height: 44px;
+    --bottom-nav-open-height: 88px;
+}
 
+.bottom-nav-wrap {
+    position: fixed;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    width: min(980px, calc(100% - 16px));
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.bottom-nav-toggle {
+    pointer-events: auto;
+    margin: 0 auto;
+    display: block;
+    min-height: var(--bottom-nav-toggle-height);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px 12px 0 0;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.bottom-nav {
+    pointer-events: auto;
+    margin: 0;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 100%;
+    border-radius: 14px 14px 0 0;
+    margin-bottom: 0;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav.is-collapsed {
+    display: none;
+}
+
+.app-root.bottom-nav-collapsed .app-main {
+    padding-bottom: calc(16px + var(--bottom-nav-toggle-height) + env(safe-area-inset-bottom));
+}
+
+.app-root.bottom-nav-open .app-main {
+    padding-bottom: calc(16px + var(--bottom-nav-open-height) + env(safe-area-inset-bottom));
+}
+
+.app-root.bottom-nav-collapsed {
+    --footer-bottom-padding: calc(16px + var(--bottom-nav-toggle-height) + env(safe-area-inset-bottom));
+}
+
+.app-root.bottom-nav-open {
+    --footer-bottom-padding: calc(16px + var(--bottom-nav-open-height) + env(safe-area-inset-bottom));
+}
+
+@media (max-width: 768px) {
+    .bottom-nav-wrap {
+        width: calc(100% - 8px);
+    }
+
+    .bottom-nav-toggle {
+        width: 100%;
+        font-size: 15px;
+    }
+
+    .bottom-nav {
+        gap: 4px;
+    }
+
+    .bottom-nav button {
+        min-height: 42px;
+        padding: 8px;
+    }
+}
 
 
 
