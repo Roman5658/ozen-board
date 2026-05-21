@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function authEmail() {
+      return signedIn() ? request.auth.token.email : null;
+    }
+
+    function authUid() {
+      return signedIn() ? request.auth.uid : null;
+    }
+
+    function isSelf(idValue) {
+      return signedIn() && (idValue == authUid() || idValue == authEmail());
+    }
+
+    function isAdmin() {
+      return signedIn() && authEmail() in [
+        'ozenenesis56@gmail.com'
+      ];
+    }
+
+    function isProtectedAdFieldChanged() {
+      return request.resource.data.pinType != resource.data.pinType ||
+             request.resource.data.pinnedAt != resource.data.pinnedAt ||
+             request.resource.data.pinnedUntil != resource.data.pinnedUntil ||
+             request.resource.data.pinQueueAt != resource.data.pinQueueAt ||
+             request.resource.data.bumpAt != resource.data.bumpAt ||
+             request.resource.data.highlightType != resource.data.highlightType ||
+             request.resource.data.highlightUntil != resource.data.highlightUntil ||
+             request.resource.data.paidAt != resource.data.paidAt ||
+             request.resource.data.paymentId != resource.data.paymentId ||
+             request.resource.data.status != resource.data.status;
+    }
+
+    function isProtectedAuctionFieldChanged() {
+      return request.resource.data.promotionType != resource.data.promotionType ||
+             request.resource.data.promotionUntil != resource.data.promotionUntil ||
+             request.resource.data.promotionQueueAt != resource.data.promotionQueueAt ||
+             request.resource.data.status != resource.data.status;
+    }
+
+    match /users/{userId} {
+      allow read, create, update, delete: if isSelf(userId);
+    }
+
+    match /ads/{adId} {
+      allow read: if true;
+      allow create: if signedIn() && isSelf(request.resource.data.userId);
+      allow update, delete: if signedIn() && (
+        (isSelf(resource.data.userId) && !isProtectedAdFieldChanged()) ||
+        isAdmin()
+      );
+    }
+
+    match /auctions/{auctionId} {
+      allow read: if true;
+      allow create: if signedIn() && isSelf(request.resource.data.ownerId);
+      allow update, delete: if signedIn() && (
+        (isSelf(resource.data.ownerId) && !isProtectedAuctionFieldChanged()) ||
+        isAdmin()
+      );
+    }
+
+    match /auctionBids/{auctionId}/bids/{bidId} {
+      allow read: if true;
+      allow create: if signedIn() && isSelf(request.resource.data.userId);
+      allow update, delete: if false;
+    }
+
+    match /chats/{chatId} {
+      allow read, update: if signedIn() && (
+        authUid() in resource.data.users || authEmail() in resource.data.users
+      );
+      allow create: if signedIn() && (
+        authUid() in request.resource.data.users || authEmail() in request.resource.data.users
+      );
+
+      match /messages/{messageId} {
+        allow read, create: if signedIn() && (
+          authUid() in get(/databases/$(database)/documents/chats/$(chatId)).data.users ||
+          authEmail() in get(/databases/$(database)/documents/chats/$(chatId)).data.users
+        );
+        allow update, delete: if false;
+      }
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn();
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /payments/{paymentId} {
+      allow read: if signedIn() && (
+        isSelf(resource.data.userId) ||
+        isSelf(resource.data.userEmail) ||
+        isAdmin()
+      );
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
