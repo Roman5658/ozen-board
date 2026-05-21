@@ -22,7 +22,13 @@ function NearbyPage({ t }: Props) {
     const [userPos, setUserPos] = useState<{ lat: number; lng: number } | null>(null)
     const [error, setError] = useState('')
     const [ads, setAds] = useState<Ad[]>([])
-
+    const [view, setView] = useState<'list' | 'grid'>(() => {
+        const saved = localStorage.getItem('nearbyAdsViewMode')
+        return saved === 'list' ? 'list' : 'grid'
+    })
+    useEffect(() => {
+        localStorage.setItem('nearbyAdsViewMode', view)
+    }, [view])
 
 
 
@@ -89,7 +95,7 @@ function NearbyPage({ t }: Props) {
         <div>
             <h2 className="h2">{t.nearbyTitle}</h2>
 
-            <div className="card stack8" style={{ marginBottom: '14px' }}>
+            <div className="card stack8" style={{marginBottom: '14px'}}>
                 <select
                     className="select"
                     value={radius}
@@ -105,19 +111,33 @@ function NearbyPage({ t }: Props) {
                     <option value={400}>400 км</option>
                     <option value={500}>500 км</option>
                 </select>
+                <div style={{display: 'flex', gap: 8}}>
+                    <button
+                        className={view === 'list' ? 'btn-primary' : 'btn-secondary'}
+                        onClick={() => setView('list')}
+                    >
+                        Список
+                    </button>
+                    <button
+                        className={view === 'grid' ? 'btn-primary' : 'btn-secondary'}
+                        onClick={() => setView('grid')}
+                    >
+                        Сетка
+                    </button>
+                </div>
             </div>
 
             {nearbyAds.length === 0 ? (
-                <div className="card" style={{ textAlign: 'center', color: '#6b7280' }}>
+                <div className="card" style={{textAlign: 'center', color: '#6b7280'}}>
                     Поблизу немає оголошень
                 </div>
             ) : (
-                <div className="stack12">
+                <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
                     {nearbyAds.map(ad => (
                         <Link
                             key={ad.id}
                             to={`/ad/${ad.id}`}
-                            style={{ textDecoration: 'none', color: 'inherit' }}
+                            style={{textDecoration: 'none', color: 'inherit'}}
                         >
                             <AdCard
                                 title={`${ad.title} · ${ad.distance.toFixed(1)} км`}
