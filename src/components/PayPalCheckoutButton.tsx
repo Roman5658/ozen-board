@@ -35,7 +35,7 @@ export default function PayPalCheckoutButton({
                     return orderId
                 } catch (e) {
                     console.error(e)
-                    onError("Не вдалося створити платіж PayPal")
+                    onError("Unable to create PayPal payment")
                     throw e
                 }
             }}
@@ -46,15 +46,15 @@ export default function PayPalCheckoutButton({
                     onSuccess(orderId)
                 } catch (e) {
                     console.error(e)
-                    onError("Платіж не підтверджено (capture помилка)")
+                    onError("Payment was not captured successfully")
                 }
             }}
             onCancel={() => {
-                onError("Оплату скасовано користувачем")
+                onError("Payment was canceled by user")
             }}
             onError={(err) => {
                 console.error(err)
-                onError("PayPal помилка під час оплати")
+                onError("PayPal error during payment")
             }}
         />
     )

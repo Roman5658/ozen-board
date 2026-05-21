@@ -14,6 +14,18 @@ import { getAdImages } from '../utils/getAdImages'
 type Props = {
     t: {
         nearbyTitle: string
+        nearby: {
+            detectingLocation: string
+            radiusKm: string
+            geoUnavailable: string
+            chooseCity: string
+            viewList: string
+            viewGrid: string
+            emptyNearby: string
+            emptyCity: string
+            cityLabel: string
+            distanceFromYou: string
+        }
     }
 }
 type GeoStatus = 'loading' | 'ready' | 'denied'
@@ -94,7 +106,7 @@ function NearbyPage({ t }: Props) {
     }, [ads, geoStatus, userPos, radius, selectedCity])
 
     if (geoStatus === 'loading') {
-        return <div className="card">Визначаємо ваше місцезнаходження…</div>
+        return <div className="card">{t.nearby.detectingLocation}</div>
     }
 
 
@@ -105,25 +117,19 @@ function NearbyPage({ t }: Props) {
             <div className="card stack8" style={{ marginBottom: '14px' }}>
                 {geoStatus === 'ready' ? (
                     <select className="select" value={radius} onChange={(e) => setRadius(Number(e.target.value))}>
-                        <option value={5}>5 км</option>
-                        <option value={10}>10 км</option>
-                        <option value={25}>25 км</option>
-                        <option value={50}>50 км</option>
-                        <option value={100}>100 км</option>
-                        <option value={200}>200 км</option>
-                        <option value={300}>300 км</option>
-                        <option value={400}>400 км</option>
-                        <option value={500}>500 км</option>
+                        {[5, 10, 25, 50, 100, 200, 300, 400, 500].map((km) => (
+                            <option key={km} value={km}>{km} {t.nearby.radiusKm}</option>
+                        ))}
                     </select>
                 ) : (
                     <>
-                        <div style={{ color: '#6b7280' }}>Геолокація недоступна. Оберіть місто вручну:</div>
+                        <div style={{color: '#6b7280'}}>{t.nearby.geoUnavailable}</div>
                         <select
                             className="select"
                             value={selectedCity}
                             onChange={(e) => setSelectedCity(e.target.value)}
                         >
-                            <option value="">Виберіть місто</option>
+                            <option value="">{t.nearby.chooseCity}</option>
                             {cityOptions.map((city) => (
                                 <option key={city} value={city}>
                                     {city}
@@ -136,11 +142,11 @@ function NearbyPage({ t }: Props) {
                 <div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>
                     <button className={view === 'list' ? 'btn-primary' : 'btn-secondary'}
                             onClick={() => setView('list')}>
-                        Список
+                        {t.nearby.viewList}
                     </button>
                     <button className={view === 'grid' ? 'btn-primary' : 'btn-secondary'}
                             onClick={() => setView('grid')}>
-                        Сетка
+                        {t.nearby.viewGrid}
                     </button>
                 </div>
             </div>
@@ -148,8 +154,8 @@ function NearbyPage({ t }: Props) {
             {nearbyAds.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', color: '#6b7280' }}>
                     {geoStatus === 'ready'
-                        ? 'Поблизу немає оголошень'
-                        : 'Немає оголошень для вибраного міста'}
+                        ? t.nearby.emptyNearby
+                        : t.nearby.emptyCity}
                 </div>
             ) : (
                 <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
@@ -157,7 +163,7 @@ function NearbyPage({ t }: Props) {
                         <Link key={ad.id} to={`/ad/${ad.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                             <AdCard
                                 title={ad.title}
-                                description={ad.distance !== undefined ? `${ad.distance.toFixed(1)} км від вас` : `Місто: ${ad.city}`}
+                                description={ad.distance !== undefined ? `${ad.distance.toFixed(1)} ${t.nearby.distanceFromYou}` : `${t.nearby.cityLabel}: ${ad.city}`}
                                 city={ad.city}
                                 price={ad.price}
                                 images={getAdImages(ad)}
