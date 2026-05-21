@@ -424,6 +424,25 @@ body {
     gap: 12px;
     min-width: 0;
 }
+.ads-grid--grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.ads-grid--list {
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+    .ads-grid--grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 767px) {
+    .ads-grid--grid {
+        grid-template-columns: 1fr;
+    }
+}
 .ad-image {
     height: 160px;
     background: #f3f4f6;

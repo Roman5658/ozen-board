@@ -100,7 +100,10 @@ function HomePage({ t }: Props) {
     const [query, setQuery] = useState('')
     const [city, setCity] = useState('')
     const [fireAds, setFireAds] = useState<Ad[]>([])
-    const [view, setView] = useState<'list' | 'grid'>('grid')
+    const [view, setView] = useState<'list' | 'grid'>(() => {
+        const saved = localStorage.getItem('adsViewMode')
+        return saved === 'list' ? 'list' : 'grid'
+    })
     const PAGE_SIZE = 30
     const [page, setPage] = useState(1)
     const now = Date.now()
@@ -123,7 +126,9 @@ function HomePage({ t }: Props) {
     useEffect(() => {
         setPage(1)
     }, [category, voivodeship, city, query])
-
+    useEffect(() => {
+        localStorage.setItem('adsViewMode', view)
+    }, [view])
     const filteredAndSortedAds = useMemo(() => {
         return fireAds
             .map(normalizeAd)
@@ -265,14 +270,14 @@ function HomePage({ t }: Props) {
                     voivodeship={voivodeship}
                     value={city}
                     onChange={setCity}
-                    t={{ allCities: t.home.allCities }}
+                    t={{allCities: t.home.allCities}}
                 />
 
 
                 <CategoryFilter value={category} onChange={setCategory} t={t}/>
             </div>
 
-            <div className="ads-grid">
+            <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
 
                 {top3Ads.length > 0 && (
                     <div className="ads-separator">{t.home.top3}</div>
@@ -335,7 +340,7 @@ function HomePage({ t }: Props) {
                         ad.pinnedUntil > now
 
                     return (
-                        <Link key={ad.id} to={`/ad/${ad.id}`} style={{ textDecoration: 'none' }}>
+                        <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
                             <AdCard
                                 ad={ad}
                                 isMine={ad.userId === currentUserId}
@@ -350,7 +355,7 @@ function HomePage({ t }: Props) {
 
             </div>
             {totalPages > 1 && (
-                <div style={{ display: "flex", justifyContent: "center", gap: 8, margin: "20px 0" }}>
+                <div style={{display: "flex", justifyContent: "center", gap: 8, margin: "20px 0"}}>
                     <button
                         className="btn-secondary"
                         disabled={page === 1}
@@ -360,7 +365,7 @@ function HomePage({ t }: Props) {
 
                     </button>
 
-                    <div style={{ alignSelf: "center", fontSize: 14 }}>
+                    <div style={{alignSelf: "center", fontSize: 14}}>
                         {t.home.page} {page} {t.home.of} {totalPages}
 
                     </div>

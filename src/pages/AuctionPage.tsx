@@ -38,6 +38,10 @@ function AuctionPage() {
     // UI
     const [city, setCity] = useState<'all' | string>('all')
     const [sort, setSort] = useState<'time' | 'bid'>('time')
+    const [view, setView] = useState<'list' | 'grid'>(() => {
+        const saved = localStorage.getItem('auctionsViewMode')
+        return saved === 'list' ? 'list' : 'grid'
+    })
 
     // DATA
     const [auctions, setAuctions] = useState<Auction[]>([])
@@ -48,6 +52,9 @@ function AuctionPage() {
     // i18n
     const lang = (localStorage.getItem('lang') as Lang) || DEFAULT_LANG
     const t = translations[lang]
+    useEffect(() => {
+        localStorage.setItem('auctionsViewMode', view)
+    }, [view])
 
     // =========================
     // LOAD AUCTIONS LIST
@@ -322,10 +329,24 @@ function AuctionPage() {
                             <option value="bid">{t.auctions.sortBid}</option>
 
                         </select>
+                        <div style={{display: 'flex', gap: 8, marginTop: 8}}>
+                            <button
+                                className={view === 'list' ? 'btn-primary' : 'btn-secondary'}
+                                onClick={() => setView('list')}
+                            >
+                                {t.home.viewList}
+                            </button>
+                            <button
+                                className={view === 'grid' ? 'btn-primary' : 'btn-secondary'}
+                                onClick={() => setView('grid')}
+                            >
+                                {t.home.viewGrid}
+                            </button>
+                        </div>
 
                     </div>
 
-                    <div className="ads-grid">
+                    <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
 
                         {topAuctionsVisible.length > 0 && (
                             <div className="ads-separator">🔥 {t.auctions.top}</div>
@@ -401,9 +422,6 @@ function AuctionPage() {
                                 />
                             </div>
                         ))}
-
-
-
 
 
                     </div>
