@@ -376,8 +376,8 @@ export const translations = {
                 none: "Без просування",
                 noneHint: "Звичайне розміщення",
 
-                top3Hint: "Найвище місце у місті (обмежено)",
-                top6Hint: "Після TOP 3",
+                top3Hint: "Найвище місце у місті на 3 дні (обмежено)",
+                top6Hint: "Після TOP 3 на 3 дні",
 
                 queue: "Усі місця зайняті — оголошення стане в чергу",
                 freeSlots: "Вільно: {{count}} з {{max}}",
@@ -386,7 +386,7 @@ export const translations = {
                 bumpHint: "Разове підняття вгору",
 
                 gold: "Виділити (gold)",
-                goldHint: "Виділення кольором",
+                goldHint: "Виділення кольором на 7 днів",
             },
 
         },
@@ -933,8 +933,8 @@ export const translations = {
                 none: "Bez promowania",
                 noneHint: "Zwykłe ogłoszenie",
 
-                top3Hint: "Najwyższa pozycja w mieście (limitowana)",
-                top6Hint: "Po TOP 3",
+                top3Hint: "Najwyższa pozycja w mieście na 3 dni (limitowana)",
+                top6Hint: "Po TOP 3 na 3 dni",
 
                 queue: "Wszystkie miejsca są zajęte — ogłoszenie trafi do kolejki",
                 freeSlots: "Dostępne: {{count}} z {{max}}",
@@ -943,7 +943,7 @@ export const translations = {
                 bumpHint: "Jednorazowe podniesienie na górę",
 
                 gold: "Wyróżnij (gold)",
-                goldHint: "Wyróżnienie kolorem",
+                goldHint: "Wyróżnienie kolorem na 7 dni",
             },
         },
 
