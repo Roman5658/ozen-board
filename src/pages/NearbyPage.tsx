@@ -42,6 +42,7 @@ function NearbyPage({ t }: Props) {
                     lat: pos.coords.latitude,
                     lng: pos.coords.longitude,
                 })
+                setGeoStatus('ready')
             },
             () => {
                 setGeoStatus('denied')
