@@ -724,8 +724,8 @@ h1, h2, h3, h4, h5, h6 {
 .ad-card,
 .auction-card {
     position: relative;
-    border: 1px solid #dbe3ee;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    border: 1px solid #aa9b9b;
+    box-shadow: 0 14px 20px rgba(15, 23, 42, 20);
 }
 
 .ad-card::before,
