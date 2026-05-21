@@ -5,6 +5,7 @@ export type Ad = {
     category: "work" | "sell" | "buy" | "service" | "rent"
     voivodeship: string
     city: string
+    address?: string
     price: string
 
     // 🔁 legacy (ПОКА)
