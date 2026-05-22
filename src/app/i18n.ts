@@ -27,6 +27,14 @@ export const translations = {
         addTitle: 'Додати оголошення',
         auctionTitle: 'Аукціон',
         accountTitle: 'Мій акаунт',
+        seo: {
+            appTitle: 'Безкоштовні оголошення й аукціони в Польщі | Xoven',
+            appDescription: 'Безкоштовні оголошення в Польщі: купити, продати, оренда, послуги, робота, аукціони. Також: объявления в Польше, работа в Польше.',
+            title: 'Оголошення в Польщі | Xoven',
+            description: 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Також: объявления в Польше, продать в Польше.',
+            heroLine1: 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Xoven допомагає швидко знаходити товари, аукціони, роботу, житло, авто, електроніку та послуги.',
+            heroLine2: 'Xoven — платформа оголошень у Польщі. Тут можна купити, продати, знайти роботу, оренду, послуги та локальні аукціони.',
+        },
 
         categories: {
             all: 'Усі',
@@ -587,7 +595,14 @@ export const translations = {
         addTitle: 'Dodaj ogłoszenie',
         auctionTitle: 'Aukcja',
         accountTitle: 'Moje konto',
-
+        seo: {
+            appTitle: 'Darmowe ogłoszenia i aukcje w Polsce | Xoven',
+            appDescription: 'Darmowe ogłoszenia lokalne w Polsce: kupię, sprzedam, usługi, wynajem, praca, aukcje. Także: объявления в Польше, купить в Польше, продать в Польше.',
+            title: 'Ogłoszenia lokalne w Polsce | Xoven',
+            description: 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług. Також: объявления в Польше, купить в Польше, работа в Польше.',
+            heroLine1: 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług w swojej okolicy. Xoven pomaga szybko znaleźć oferty, aukcje, pracę, mieszkania, samochody, elektronikę i usługi.',
+            heroLine2: 'Platforma ogłoszeń dla Ukraińców w Polsce. Na Xoven możesz kupować, sprzedawać, znaleźć pracę, wynajem, usługi oraz aukcje lokalne.',
+        },
         categories: {
             all: 'Wszystko',
             work: 'Praca',

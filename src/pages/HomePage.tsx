@@ -61,6 +61,12 @@ type Props = {
             rent: string
         }
         voivodeships: Record<Voivodeship, string>
+        seo: {
+            title: string
+            description: string
+            heroLine1: string
+            heroLine2: string
+        }
         adCard: {
             today: string
             yesterday: string
@@ -98,10 +104,8 @@ function HomePage({ t }: Props) {
     const lang = location.pathname.startsWith('/pl') ? 'pl' : 'uk'
 
     useSeo({
-        title: lang === 'pl' ? 'Ogłoszenia lokalne w Polsce | Xoven' : 'Оголошення в Польщі | Xoven',
-        description: lang === 'pl'
-            ? 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług. Також: объявления в Польше, купить в Польше, работа в Польше.'
-            : 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Також: объявления в Польше, продать в Польше.',
+        title: t.seo.title,
+        description: t.seo.description,
         path: location.pathname,
         lang,
         alternates: [
@@ -257,19 +261,16 @@ function HomePage({ t }: Props) {
     return (
         <div>
             <h2 className="h2">{t.homeTitle}</h2>
-            <div className="card" style={{marginBottom: 14, fontSize: '14px', lineHeight: 1.5}}>
-                {lang === 'pl'
-                    ? 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług w swojej okolicy. Xoven pomaga szybko znaleźć oferty, aukcje, pracę, mieszkania, samochody, elektronikę i usługi.'
-                    : 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Xoven допомагає швидко знаходити товари, аукціони, роботу, житло, авто, електроніку та послуги.'}
 
-                <br/><br/>
+            <div className="card" style={{ marginBottom: 14, fontSize: '14px', lineHeight: 1.5 }}>
+                {t.seo.heroLine1}
 
-                {lang === 'pl'
-                    ? 'Platforma ogłoszeń dla Ukraińców w Polsce. Na Xoven możesz kupować, sprzedawać, znaleźć pracę, wynajem, usługi oraz aukcje lokalne.'
-                    : 'Xoven — платформа оголошень у Польщі. Тут можна купити, продати, знайти роботу, оренду, послуги та локальні аукціони.'}
+                <br /><br />
+
+                {t.seo.heroLine2}
             </div>
 
-            <div className="card stack8" style={{marginBottom: 14}}>
+            <div className="card stack8" style={{ marginBottom: 14 }}>
                 <input
                     className="input"
                     placeholder={t.home.searchPlaceholder}

@@ -43,12 +43,8 @@ function App() {
     const location = useLocation()
 
     useSeo({
-        title: lang === 'pl'
-            ? 'Darmowe ogłoszenia i aukcje w Polsce | Xoven'
-            : 'Безкоштовні оголошення й аукціони в Польщі | Xoven',
-        description: lang === 'pl'
-            ? 'Darmowe ogłoszenia lokalne w Polsce: kupię, sprzedam, usługi, wynajem, praca, aukcje. Także: объявления в Польше, купить в Польше, продать в Польше.'
-            : 'Безкоштовні оголошення в Польщі: купити, продати, оренда, послуги, робота, аукціони. Також: объявления в Польше, работа в Польше.',
+        title: t.seo.appTitle,
+        description: t.seo.appDescription,
         path: location.pathname,
         lang: lang,
         alternates: [
