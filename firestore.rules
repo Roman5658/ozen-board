@@ -92,10 +92,10 @@ return signedIn() && authEmail() in [
       }
     }
 
-    match /reports/{reportId} {
-      allow create: if signedIn();
-      allow read, update, delete: if isAdmin();
-    }
+match /reports/{reportId} {
+allow create: if true;
+allow read, update, delete: if isAdmin();
+}
 match /userReviews/{reviewId} {
 allow read: if true;
 allow create: if signedIn() &&
