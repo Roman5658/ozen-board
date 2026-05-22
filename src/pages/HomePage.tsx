@@ -266,7 +266,7 @@ function HomePage({ t }: Props) {
 
                 {lang === 'pl'
                     ? 'Platforma ogłoszeń dla Ukraińców w Polsce. Na Xoven możesz kupować, sprzedawać, znaleźć pracę, wynajem, usługi oraz aukcje lokalne.'
-                    : 'Xoven — платформа оголошень для українців у Польщі. Тут можна купити, продати, знайти роботу, оренду, послуги та локальні аукціони.'}
+                    : 'Xoven — платформа оголошень у Польщі. Тут можна купити, продати, знайти роботу, оренду, послуги та локальні аукціони.'}
             </div>
 
             <div className="card stack8" style={{marginBottom: 14}}>
