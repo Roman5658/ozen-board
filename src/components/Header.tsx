@@ -52,10 +52,14 @@ function Header({ title, subtitle,warning, lang, languages, onLangChange }: Prop
                         disabled={lang === 'uk'}
                         style={{
                             minWidth: '100px',
-                            height: '42px',
+                            height: '32px',
                             borderRadius: '6px',
                             border: '3px solid transparent',
+                            display: 'flex',
+                            justifyContent: 'space-around',
+                            alignItems: 'center',
                             background: `
+                            
 linear-gradient(#fff, #fff) padding-box,
 linear-gradient(to bottom, #0057B7, #FFD700) border-box
 `,
@@ -120,9 +124,12 @@ linear-gradient(
                         disabled={lang === 'pl'}
                         style={{
                             minWidth: '100px',
-                            height: '42px',
+                            height: '32px',
                             borderRadius: '6px',
                             border: '3px solid transparent',
+                            display: 'flex',
+                            justifyContent: 'space-around',
+                            alignItems: 'center',
                             background: `
 linear-gradient(#fff, #fff) padding-box,
 linear-gradient(to bottom, #ffffff, #dc143c) border-box

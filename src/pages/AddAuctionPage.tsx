@@ -541,7 +541,9 @@ function AddAuctionPage({ t }: Props) {
                                 {t.addAuction.payment.info}
 
                             </div>
-
+                            <div style={{fontSize: 13, color: "#6b7280"}}>
+                                {t.addAuction.payment.queueInfo}
+                            </div>
                             <div style={{fontWeight: 700}}>{t.addAuction.payment.amount}:
                                 {pricePLN} PLN
                             </div>

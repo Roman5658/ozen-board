@@ -550,6 +550,10 @@ function AddPage({ t }: Props) {
 
                             {isFormValid && (
                                 <>
+                                    <div style={{fontSize: 13, color: "#6b7280"}}>
+                                        {a.payment.queueInfo}
+                                    </div>
+
                                     <div style={{fontSize: 16}}>
                                         {a.payment.amount}:{" "}
                                         <strong>
@@ -591,7 +595,7 @@ function AddPage({ t }: Props) {
                     )}
 
                     <label className="promotion-option">
-                        <input
+                    <input
                             type="radio"
                             name="promotion"
                             checked={promotion === 'none'}

@@ -1,13 +1,13 @@
 export const PRICES = {
     ad: {
-        bump: "13.00",
-        top3: "19.99",
-        top6: "15.00",
-        gold: "7.00",
+        bump: "7.00",
+        top3: "14.99",
+        top6: "9.99",
+        gold: "5.00",
     },
     auction: {
-        "top-auction": "19.00",
-        featured: "12.00",
-        "highlight-gold": "9.00",
+        "top-auction": "14.99",
+        featured: "8.00",
+        "highlight-gold": "5.00",
     },
 } as const

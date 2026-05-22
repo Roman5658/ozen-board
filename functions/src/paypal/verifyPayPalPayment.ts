@@ -128,15 +128,15 @@ export const verifyPayPalPayment = onCall(async (request) => {
 // ======================
     const PRICE_MAP = {
         ad: {
-            bump: { value: 13.0, currency: "PLN" },
-            top3: { value: 19.99, currency: "PLN" },
-            top6: { value: 15.0, currency: "PLN" },
-            gold: { value: 7.0, currency: "PLN" },
+            bump: { value: 7.0, currency: "PLN" },
+            top3: { value: 14.99, currency: "PLN" },
+            top6: { value: 9.99, currency: "PLN" },
+            gold: { value: 5.0, currency: "PLN" },
         },
         auction: {
-            top: { value: 19.0, currency: "PLN" },
-            featured: { value: 12.0, currency: "PLN" },
-            gold: { value: 9.0, currency: "PLN" },
+            top: { value: 14.99, currency: "PLN" },
+            featured: { value: 8.0, currency: "PLN" },
+            gold: { value: 5.0, currency: "PLN" },
         },
     } as const;
     const priceGroup =

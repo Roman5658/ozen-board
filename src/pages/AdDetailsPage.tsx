@@ -339,10 +339,12 @@ function AdDetailsPage({ t }: Props) {
                             {payAction === "top6" && `⭐ TOP 6 (${PRICES.ad.top6} PLN)`}
                             {payAction === "gold" && `✨ Виділити GOLD (${PRICES.ad.gold} PLN)`}
                         </div>
-
+                        <div style={{fontSize: 13, color: "#6b7280"}}>
+                            {a.payment.queueInfo}
+                        </div>
 
                         <PayPalButtons
-                            style={{ layout: "vertical" }}
+                            style={{layout: "vertical"}}
                             createOrder={(_, actions) => {
                                 return actions.order.create({
                                     intent: "CAPTURE",

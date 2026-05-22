@@ -312,6 +312,8 @@ export const translations = {
 
             payment: {
                 title: "Оплата дії",
+                queueInfo:
+                    "Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
                 success: "Оплата успішна",
                 error: "Помилка оплати",
             },
@@ -379,6 +381,8 @@ export const translations = {
             payment: {
                 title: "Оплата просування",
                 amount: "Сума",
+                queueInfo:
+                    "Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
                 fillBeforePay:
                     "Перед оплатою заповніть усі обовʼязкові поля та додайте хоча б одне фото",
             },
@@ -460,6 +464,8 @@ export const translations = {
                 title: "Оплата просування",
                 info: "Після успішної оплати аукціон буде активовано автоматично",
                 amount: "Сума",
+                queueInfo:
+                    "Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
             },
 
             actions: {
@@ -903,6 +909,8 @@ export const translations = {
 
             payment: {
                 title: "Płatność",
+                queueInfo:
+                    "Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
                 success: "Płatność zakończona",
                 error: "Błąd płatności",
             },
@@ -970,6 +978,8 @@ export const translations = {
             payment: {
                 title: "Płatność za promowanie",
                 amount: "Kwota",
+                queueInfo:
+                    "Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
                 fillBeforePay:
                     "Przed dokonaniem płatności wypełnij wszystkie wymagane pola i dodaj co najmniej jedno zdjęcie",
             },
@@ -1050,6 +1060,8 @@ export const translations = {
                 title: "Płatność za promowanie",
                 info: "Po udanej płatności aukcja zostanie automatycznie aktywowana",
                 amount: "Kwota",
+                queueInfo:
+                    "Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
             },
 
             actions: {
