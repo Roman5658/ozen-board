@@ -1,6 +1,6 @@
 export const translations = {
     uk: {
-        title: 'Ozen Board',
+        title: 'Xoven',
         subtitle: 'Локальна дошка оголошень',
         warning: 'Будьте обережні з передоплатою та підозрілими пропозиціями',
 
@@ -118,7 +118,7 @@ export const translations = {
                 generalText: 'Користуючись платформою, ви погоджуєтеся з цими умовами.',
 
                 platformTitle: '2. Відповідальність платформи',
-                platformText: 'Ozen Board не є стороною угод між користувачами.',
+                platformText: 'Xoven не є стороною угод між користувачами.',
 
                 usersTitle: '3. Відповідальність користувачів',
                 usersText: 'Користувачі самі відповідають за свої дії та оголошення.',
@@ -140,7 +140,7 @@ export const translations = {
         cookies: {
             title: 'Cookies',
             intro:
-                'Сайт Ozen Board використовує файли cookie для забезпечення коректної роботи сервісу та покращення користувацького досвіду.',
+                'Сайт Xoven використовує файли cookie для забезпечення коректної роботи сервісу та покращення користувацького досвіду.',
 
             sections: {
                 whatTitle: 'Що таке cookie?',
@@ -560,7 +560,7 @@ export const translations = {
     },
 
     pl: {
-        title: 'Ozen Board',
+        title: 'Xoven',
         subtitle: 'Lokalna tablica ogłoszeń',
         warning: 'Uważaj na przedpłaty i podejrzane oferty',
 
@@ -675,7 +675,7 @@ export const translations = {
                 generalText: 'Korzystając z platformy, akceptujesz niniejsze warunki.',
 
                 platformTitle: '2. Odpowiedzialność platformy',
-                platformText: 'Ozen Board nie jest stroną umów zawieranych między użytkownikami.',
+                platformText: 'Xoven nie jest stroną umów zawieranych między użytkownikami.',
 
                 usersTitle: '3. Odpowiedzialność użytkowników',
                 usersText: 'Użytkownicy ponoszą odpowiedzialność za swoje działania i ogłoszenia.',
@@ -697,7 +697,7 @@ export const translations = {
         cookies: {
             title: 'Cookies',
             intro:
-                'Serwis Ozen Board wykorzystuje pliki cookie w celu zapewnienia prawidłowego działania serwisu oraz poprawy komfortu użytkownika.',
+                'Serwis Xoven wykorzystuje pliki cookie w celu zapewnienia prawidłowego działania serwisu oraz poprawy komfortu użytkownika.',
 
             sections: {
                 whatTitle: 'Czym są pliki cookie?',
