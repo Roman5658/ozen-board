@@ -3,6 +3,9 @@ import { placeBid } from '../data/placeBid'
 import { useNavigate } from 'react-router-dom'
 import AuthorCard from "../components/AuthorCard"
 import type { translations } from "../app/i18n"
+import { PRICES } from "../config/prices"
+import { verifyPayPalPayment } from "../api/payments"
+import PayPalCheckoutButton from "./PayPalCheckoutButton"
 
 type Bid = {
     id: string
@@ -19,7 +22,7 @@ type Seller = {
     karma: number
 }
 
-
+type AuctionPromotionAction = "top-auction" | "featured" | "highlight-gold"
 
 type Props = {
     t: (typeof translations)[keyof typeof translations]
@@ -34,9 +37,13 @@ type Props = {
     isAuthenticated: boolean
     seller?: Seller
     auctionId: string
+    promotionType: "none" | AuctionPromotionAction
+    promotionUntil?: number | null
+    promotionQueueAt?: number | null
     onBack: () => void
     currentUserId: string | null
     onBidSuccess: () => void
+    onPromotionSuccess: () => void
 }
 
 
@@ -52,9 +59,13 @@ function AuctionDetails({
                             isAuthenticated,
                             seller,
                             auctionId,
+                            promotionType,
+                            promotionUntil,
+                            promotionQueueAt,
                             onBack,
                             currentUserId,
                             onBidSuccess,
+                            onPromotionSuccess,
                         }: Props) {
     const [amount, setAmount] = useState('')
     const [error, setError] = useState('')
@@ -62,12 +73,20 @@ function AuctionDetails({
     const [reportText, setReportText] = useState('')
     const [reportSent, setReportSent] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [payAction, setPayAction] = useState<AuctionPromotionAction | null>(null)
+    const [isPromoting, setIsPromoting] = useState(false)
     const navigate = useNavigate()
     const [activeIndex, setActiveIndex] = useState(0)
     const [isImageOpen, setIsImageOpen] = useState(false)
     const mainImage = images?.[activeIndex]
 
     const isEnded = timeLeft === t.auctionDetails.ended
+    const hasActivePromotion =
+        !!promotionUntil &&
+        promotionUntil > Date.now()
+    const hasQueuedPromotion =
+        !!promotionQueueAt &&
+        (!promotionUntil || promotionUntil <= Date.now())
 
     const isAuthor =
         !!(
@@ -145,6 +164,12 @@ function AuctionDetails({
         finally {
             setIsSubmitting(false)
         }
+    }
+
+    function getPromotionLabel(action: AuctionPromotionAction): string {
+        if (action === "top-auction") return "TOP"
+        if (action === "featured") return "Featured"
+        return "GOLD"
     }
 
 
@@ -283,7 +308,7 @@ function AuctionDetails({
                 />
             )}
 
-            {isAuthor && !isEnded && bids.length === 0 && (
+            {isAuthor && !isEnded && (
                 <div
                     style={{
                         marginTop: 12,
@@ -296,6 +321,7 @@ function AuctionDetails({
                         {t.auctionDetails.ownerPanel.title}
                     </div>
 
+                    {bids.length === 0 && (
                     <button
                         type="button"
                         onClick={() => navigate(`/edit-auction/${auctionId}`)}
@@ -312,6 +338,78 @@ function AuctionDetails({
                     >
                         ✏️ {t.auctionDetails.actions.edit}
                     </button>
+                    )}
+
+                    {promotionType !== "none" && (hasActivePromotion || hasQueuedPromotion) && (
+                        <div style={{fontSize: 13, color: "#4b5563", marginTop: 8}}>
+                            {hasActivePromotion
+                                ? `Promotion active: ${getPromotionLabel(promotionType)}`
+                                : `Promotion queued: ${getPromotionLabel(promotionType)}`}
+                        </div>
+                    )}
+
+                    <div style={{display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8}}>
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={hasActivePromotion || hasQueuedPromotion || isPromoting}
+                            onClick={() => setPayAction("top-auction")}
+                        >
+                            TOP ({PRICES.auction["top-auction"]} PLN)
+                        </button>
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={hasActivePromotion || hasQueuedPromotion || isPromoting}
+                            onClick={() => setPayAction("featured")}
+                        >
+                            Featured ({PRICES.auction.featured} PLN)
+                        </button>
+                        <button
+                            type="button"
+                            className="btn-secondary"
+                            disabled={hasActivePromotion || hasQueuedPromotion || isPromoting}
+                            onClick={() => setPayAction("highlight-gold")}
+                        >
+                            GOLD ({PRICES.auction["highlight-gold"]} PLN)
+                        </button>
+                    </div>
+
+                    {payAction && (
+                        <div className="card stack12" style={{marginTop: 12}}>
+                            <strong>{t.addAuction.payment.title}</strong>
+                            <div style={{fontSize: 14}}>
+                                {getPromotionLabel(payAction)} ({PRICES.auction[payAction]} PLN)
+                            </div>
+                            <div style={{fontSize: 13, color: "#6b7280"}}>
+                                {t.addAuction.payment.queueInfo}
+                            </div>
+                            <PayPalCheckoutButton
+                                amountPLN={PRICES.auction[payAction]}
+                                description="Ozen Board - auction promotion"
+                                disabled={isPromoting}
+                                onApprove={async (orderId) => {
+                                    setIsPromoting(true)
+                                    await verifyPayPalPayment({
+                                        orderId,
+                                        targetType: "auction",
+                                        targetId: auctionId,
+                                        promotionType: payAction,
+                                    })
+
+                                    setIsPromoting(false)
+                                    setPayAction(null)
+                                    onPromotionSuccess()
+                                    alert("Promotion activated")
+                                }}
+                                onError={() => {
+                                    setIsPromoting(false)
+                                    setPayAction(null)
+                                    alert("Promotion payment error")
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
 

@@ -12,6 +12,7 @@ export const verifyPayPalPayment = httpsCallable<
     },
     {
         ok: boolean;
-        promotionUntil: number;
+        promotionUntil: number | null;
+        queued: boolean;
     }
 >(functions, "verifyPayPalPayment");

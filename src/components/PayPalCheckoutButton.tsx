@@ -1,23 +1,29 @@
 import { PayPalButtons } from "@paypal/react-paypal-js"
 
 type Props = {
-    amountPLN: number
+    amountPLN: number | string
     description: string
-    onSuccess: (orderId: string) => void
+    disabled?: boolean
+    onApprove: (orderId: string) => void | Promise<void>
     onError: (message: string) => void
 }
 
 export default function PayPalCheckoutButton({
                                                  amountPLN,
                                                  description,
-                                                 onSuccess,
+                                                 disabled = false,
+                                                 onApprove,
                                                  onError,
                                              }: Props) {
-    const value = amountPLN.toFixed(2)
+    const value =
+        typeof amountPLN === "number"
+            ? amountPLN.toFixed(2)
+            : amountPLN
 
     return (
         <PayPalButtons
             style={{ layout: "vertical", label: "paypal" }}
+            disabled={disabled}
             createOrder={async (_data, actions) => {
                 try {
                     const orderId = await actions.order.create({
@@ -43,14 +49,16 @@ export default function PayPalCheckoutButton({
                     throw e
                 }
             }}
-            onApprove={async (_data, actions) => {
+            onApprove={async (data) => {
                 try {
-                    const capture = await actions.order?.capture()
-                    const orderId = capture?.id ?? ""
-                    onSuccess(orderId)
+                    if (!data.orderID) {
+                        throw new Error("Missing PayPal order id")
+                    }
+
+                    await onApprove(data.orderID)
                 } catch (e) {
                     console.error(e)
-                    onError("Payment was not captured successfully")
+                    onError("PayPal payment could not be verified")
                 }
             }}
             onCancel={() => {
