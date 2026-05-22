@@ -117,7 +117,29 @@ export const verifyPayPalPayment = onCall(async (request) => {
         };
     };
 
-    if (order.status !== "COMPLETED" && order.status !== "APPROVED") {
+    if (order.status === "APPROVED") {
+        const captureRes = await fetch(
+            `${PAYPAL_BASE}/v2/checkout/orders/${orderId}/capture`,
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${tokenData.access_token}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        if (!captureRes.ok) {
+            const captureError = await captureRes.text();
+            console.error("PayPal capture failed:", captureError);
+            throw new Error("PayPal capture failed");
+        }
+
+        const capturedOrder = await captureRes.json() as typeof order;
+        Object.assign(order, capturedOrder);
+    }
+
+    if (order.status !== "COMPLETED") {
         throw new Error(`Payment not completed: ${order.status}`);
     }
 

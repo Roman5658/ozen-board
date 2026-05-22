@@ -351,14 +351,12 @@ function AddAuctionPage({ t }: Props) {
                                         intent: "CAPTURE",
                                         purchase_units: [{ amount: { value: pricePLN, currency_code: "PLN" } }],
                                     })}
-                                    onApprove={async (_, actions) => {
-                                        if (!actions.order) return
+                                    onApprove={async (data) => {
                                         setError(null)
                                         setIsPaying(true)
+
                                         try {
-                                            const details = await actions.order.capture()
-                                            if (!details.id) throw new Error("PayPal order id missing")
-                                            setPaypalOrderId(details.id)
+                                            setPaypalOrderId(data.orderID!)
                                             setPaymentCompleted(true)
                                         } catch {
                                             setError(t.addAuction.errors.paypalError)

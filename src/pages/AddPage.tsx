@@ -587,12 +587,8 @@ function AddPage({ t }: Props) {
                                                 ],
                                             })
                                         }}
-                                        onApprove={async (_, actions) => {
-                                            if (!actions.order) return
-
-                                            const details = await actions.order.capture()
-
-                                            setPaypalOrderId(details.id!)
+                                        onApprove={async (data) => {
+                                            setPaypalOrderId(data.orderID!)
                                             setPaymentCompleted(true)
                                         }}
                                         onError={(err) => {
