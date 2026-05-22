@@ -34,6 +34,8 @@ export const translations = {
             description: 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Також: объявления в Польше, продать в Польше.',
             heroLine1: 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Xoven допомагає швидко знаходити товари, аукціони, роботу, житло, авто, електроніку та послуги.',
             heroLine2: 'Xoven — платформа оголошень у Польщі. Тут можна купити, продати, знайти роботу, оренду, послуги та локальні аукціони.',
+            showSeoText: 'Показати опис платформи',
+            hideSeoText: 'Сховати опис платформи',
         },
 
         categories: {
@@ -602,6 +604,8 @@ export const translations = {
             description: 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług. Також: объявления в Польше, купить в Польше, работа в Польше.',
             heroLine1: 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług w swojej okolicy. Xoven pomaga szybko znaleźć oferty, aukcje, pracę, mieszkania, samochody, elektronikę i usługi.',
             heroLine2: 'Platforma ogłoszeń dla Ukraińców w Polsce. Na Xoven możesz kupować, sprzedawać, znaleźć pracę, wynajem, usługi oraz aukcje lokalne.',
+            showSeoText: 'Pokaż opis platformy',
+            hideSeoText: 'Ukryj opis platformy',
         },
         categories: {
             all: 'Wszystko',

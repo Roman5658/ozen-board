@@ -66,6 +66,8 @@ type Props = {
             description: string
             heroLine1: string
             heroLine2: string
+            showSeoText: string
+            hideSeoText: string
         }
         adCard: {
             today: string
@@ -136,6 +138,7 @@ function HomePage({ t }: Props) {
     })
     const PAGE_SIZE = 30
     const [page, setPage] = useState(1)
+    const [isSeoTextVisible, setIsSeoTextVisible] = useState(false)
     const now = Date.now()
     const localUser = getLocalUser()
     const currentUserId = localUser?.id
@@ -262,15 +265,27 @@ function HomePage({ t }: Props) {
         <div>
             <h2 className="h2">{t.homeTitle}</h2>
 
-            <div className="card" style={{ marginBottom: 14, fontSize: '14px', lineHeight: 1.5 }}>
-                {t.seo.heroLine1}
+            <div className="card" style={{marginBottom: 14}}>
+                <button
+                    className="btn-secondary"
+                    type="button"
+                    onClick={() => setIsSeoTextVisible(v => !v)}
+                >
+                    {isSeoTextVisible ? t.seo.hideSeoText : t.seo.showSeoText}
+                </button>
 
-                <br /><br />
+                {isSeoTextVisible && (
+                    <div style={{ marginTop: 10, fontSize: '14px', lineHeight: 1.5 }}>
+                        {t.seo.heroLine1}
 
-                {t.seo.heroLine2}
+                        <br /><br />
+
+                        {t.seo.heroLine2}
+                    </div>
+                )}
             </div>
 
-            <div className="card stack8" style={{ marginBottom: 14 }}>
+            <div className="card stack8" style={{marginBottom: 14}}>
                 <input
                     className="input"
                     placeholder={t.home.searchPlaceholder}
