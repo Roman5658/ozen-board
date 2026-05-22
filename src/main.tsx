@@ -12,9 +12,9 @@ createRoot(document.getElementById('root')!).render(
         <PayPalScriptProvider
             options={{
                 clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
-                "client-id": import.meta.env.VITE_PAYPAL_CLIENT_ID,
                 currency: "PLN",
                 intent: "capture",
+                locale: "pl_PL",
             }}
         >
 
@@ -24,4 +24,3 @@ createRoot(document.getElementById('root')!).render(
         </PayPalScriptProvider>
     </StrictMode>
 )
-

@@ -54,6 +54,13 @@ function AddAuctionPage({ t }: Props) {
 
     // ===== AUTH =====
     const isPaidPromotion = promotion !== "none"
+    const isDev = import.meta.env.DEV
+
+    function devLog(...args: unknown[]) {
+        if (isDev) {
+            console.log("[AddAuctionPage]", ...args)
+        }
+    }
 
 // 👇 ХУКИ ВСЕГДА СНАЧАЛА
     const pricePLN = useMemo(() => {
@@ -171,6 +178,11 @@ function AddAuctionPage({ t }: Props) {
         }
 
         const normalizedPromotion = normalizeAuctionPromotion(promotion)
+        devLog("createAuction", {
+            selectedPromotion: promotion,
+            normalizedPromotion,
+            pricePLN,
+        })
         const promotionUntil =
             normalizedPromotion === "gold"
                 ? createdAt + 7 * DAY
@@ -180,7 +192,7 @@ function AddAuctionPage({ t }: Props) {
                         ? createdAt + 3 * DAY
                         : null
 
-        const docRef =    await addDoc(collection(db, "auctions"), {
+        const docRef = await addDoc(collection(db, "auctions"), {
             title: title.trim(),
             description: description.trim(),
             category,
@@ -205,12 +217,19 @@ function AddAuctionPage({ t }: Props) {
             promotionUntil,
             promotionQueueAt: null,
         })
+        devLog("created auctionId", docRef.id)
         if (normalizedPromotion !== "none") {
             if (!paypalOrderId) {
                 setError(t.addAuction.errors.paypalError)
                 throw new Error(t.addAuction.errors.paypalError)
             }
 
+            devLog("verifyPayPalPayment payload", {
+                orderId: paypalOrderId,
+                targetType: "auction",
+                targetId: docRef.id,
+                promotionType: normalizedPromotion,
+            })
             await verifyPayPalPayment({
                 orderId: paypalOrderId,
                 targetType: "auction",
@@ -337,41 +356,6 @@ function AddAuctionPage({ t }: Props) {
                 {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
                 <div className="card stack12">
                     <strong>{t.addAuction.promotion.title}</strong>
-                    {isPaidPromotion && (
-                        <div className="card stack12">
-                            <strong>{t.addAuction.payment.title}</strong>
-                            {!isFormValid && <div>{t.addAuction.payment.fillBeforePay}</div>}
-                            {isFormValid && <>
-                                <div style={{ fontSize: 13, color: "#6b7280" }}>{t.addAuction.payment.queueInfo}</div>
-                                <div style={{ fontWeight: 700 }}>{t.addAuction.payment.amount}: {pricePLN} PLN</div>
-                                <PayPalButtons
-                                    style={{ layout: "vertical" }}
-                                    disabled={isPaying}
-                                    createOrder={(_, actions) => actions.order.create({
-                                        intent: "CAPTURE",
-                                        purchase_units: [{ amount: { value: pricePLN, currency_code: "PLN" } }],
-                                    })}
-                                    onApprove={async (_, actions) => {
-                                        if (!actions.order) return
-                                        setError(null)
-                                        setIsPaying(true)
-                                        try {
-                                            const details = await actions.order.capture()
-                                            if (!details.id) throw new Error("PayPal order id missing")
-                                            setPaypalOrderId(details.id)
-                                            setPaymentCompleted(true)
-                                        } catch {
-                                            setError(t.addAuction.errors.paypalError)
-                                        } finally {
-                                            setIsPaying(false)
-                                        }
-                                    }}
-                                    onError={(err) => { console.error(err); setError(t.addAuction.errors.paypalError) }}
-                                />
-                            </>}
-                        </div>
-                    )}
-
                     <label className="promotion-option">
                         <input type="radio" name="promotion" checked={promotion === "none"}
                                onChange={() => setPromotion("none")}/>
@@ -411,13 +395,46 @@ function AddAuctionPage({ t }: Props) {
 
                     {promotionInfo && <div style={{ fontSize: 13, color: promotionInfo.isQueue ? "#b45309" : "#047857" }}>{promotionInfo.text}</div>}
                 </div>
+                {isPaidPromotion && (
+                    <div className="card stack12">
+                        <strong>{t.addAuction.payment.title}</strong>
+                        {!isFormValid && <div>{t.addAuction.payment.fillBeforePay}</div>}
+                        {isFormValid && <>
+                            <div style={{ fontSize: 13, color: "#6b7280" }}>{t.addAuction.payment.queueInfo}</div>
+                            <div style={{ fontWeight: 700 }}>{t.addAuction.payment.amount}: {pricePLN} PLN</div>
+                            <PayPalButtons
+                                style={{ layout: "vertical" }}
+                                disabled={isPaying || paymentCompleted}
+                                createOrder={(_, actions) => actions.order.create({
+                                    intent: "CAPTURE",
+                                    purchase_units: [{ amount: { value: pricePLN, currency_code: "PLN" } }],
+                                })}
+                                onApprove={async (_, actions) => {
+                                    if (!actions.order) return
+                                    setError(null)
+                                    setIsPaying(true)
+                                    try {
+                                        const details = await actions.order.capture()
+                                        if (!details.id) throw new Error("PayPal order id missing")
+                                        devLog("captured paypal order", details.id)
+                                        setPaypalOrderId(details.id)
+                                        setPaymentCompleted(true)
+                                    } catch {
+                                        setError(t.addAuction.errors.paypalError)
+                                    } finally {
+                                        setIsPaying(false)
+                                    }
+                                }}
+                                onError={(err) => { console.error(err); setError(t.addAuction.errors.paypalError) }}
+                            />
+                        </>}
+                    </div>
+                )}
 
                 <button className="btn-primary" disabled={isSubmitting || isPaying || (isPaidPromotion && !paymentCompleted)}>
                     {isSubmitting
                         ? t.addAuction.actions.loading
-                        : isPaidPromotion && !paymentCompleted
-                            ? t.addAuction.actions.pay
-                            : t.addAuction.actions.create}
+                        : t.addAuction.actions.create}
                 </button>
 
             </form>
