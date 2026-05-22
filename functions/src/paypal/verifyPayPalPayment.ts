@@ -44,11 +44,9 @@ export const verifyPayPalPayment = onCall(async (request) => {
 // NORMALIZE PROMOTION TYPE (FRONT → SERVER)
 // ======================
     let normalizedPromotion: string = promotionType;
-
-    if (targetType === "auction") {
-        if (promotionType === "top-auction") normalizedPromotion = "top";
-        if (promotionType === "highlight-gold") normalizedPromotion = "gold";
-    }
+    if (promotionType === "top-auction") normalizedPromotion = "top";
+    if (promotionType === "highlight-gold") normalizedPromotion = "gold";
+    if (promotionType === "featured") normalizedPromotion = "featured";
 
 
     // ======================
@@ -207,7 +205,7 @@ export const verifyPayPalPayment = onCall(async (request) => {
 
 // ❌ GOLD уже активен
         if (
-            promotionType === "gold" &&
+            normalizedPromotion === "gold" &&
             ad.highlightUntil &&
             ad.highlightUntil > now
         ) {
@@ -216,7 +214,7 @@ export const verifyPayPalPayment = onCall(async (request) => {
 
 // ❌ TOP уже активен или в очереди
         if (
-            (promotionType === "top3" || promotionType === "top6") &&
+            (normalizedPromotion === "top3" || normalizedPromotion === "top6") &&
             (
                 (ad.pinnedUntil && ad.pinnedUntil > now) ||
                 (ad.pinQueueAt && (!ad.pinnedUntil || ad.pinnedUntil <= now))
@@ -227,17 +225,17 @@ export const verifyPayPalPayment = onCall(async (request) => {
 
         const update: any = {};
 
-        if (promotionType === "top3" || promotionType === "top6") {
-            update.pinType = promotionType;
+        if (normalizedPromotion === "top3" || normalizedPromotion === "top6") {
+            update.pinType = normalizedPromotion;
             update.pinnedAt = now;
             update.pinnedUntil = promotionUntil;
         }
 
-        if (promotionType === "bump") {
+        if (normalizedPromotion === "bump") {
             update.bumpAt = now;
         }
 
-        if (promotionType === "gold") {
+        if (normalizedPromotion === "gold") {
             update.highlightType = "gold";
             update.highlightUntil = promotionUntil;
         }
