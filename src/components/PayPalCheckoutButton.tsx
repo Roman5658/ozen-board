@@ -29,6 +29,9 @@ export default function PayPalCheckoutButton({
                     const orderId = await actions.order.create({
                         intent: "CAPTURE",
                         application_context: {
+                            locale: "pl-PL",
+                            return_url: window.location.href,
+                            cancel_url: window.location.href,
                             shipping_preference: "NO_SHIPPING",
                             user_action: "PAY_NOW",
                         },
