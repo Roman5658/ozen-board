@@ -15,7 +15,7 @@ createRoot(document.getElementById('root')!).render(
 
                 currency: "PLN",
                 intent: "capture",
-                locale: "pl_PL",
+
             }}
         >
 
