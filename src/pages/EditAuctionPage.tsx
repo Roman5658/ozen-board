@@ -5,6 +5,7 @@ import { db } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { canEditAuction } from "../utils/canEdit"
+import { buildAuctionPath } from '../utils/slug'
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP
 
 function EditAuctionPage() {
@@ -144,7 +145,7 @@ function EditAuctionPage() {
                 updatedAt: Date.now(),
             })
 
-            navigate(`/auction/${auction.id}`)
+            navigate(buildAuctionPath(auction.title, auction.city, auction.id))
         } catch (e) {
             console.error(e)
             setError("Помилка збереження")

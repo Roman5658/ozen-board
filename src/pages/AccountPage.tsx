@@ -17,6 +17,7 @@ import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
 import { getUserChats } from "../data/chats"
+import { buildAdPath, buildAuctionPath } from '../utils/slug'
 type Props = {
     t: (typeof translations)[keyof typeof translations]
 }
@@ -754,7 +755,7 @@ function AccountPage({ t }: Props) {
                     <div className="ads-grid">
                     {myAds.map(ad => (
                             <div key={ad.id} className="stack8">
-                                <Link to={`/ad/${ad.id}`} style={{textDecoration: "none", color: "inherit", display: "block",}}>
+                                <Link to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: "none", color: "inherit", display: "block",}}>
                                     <AdCard
                                         ad={ad}
                                         isMine={true}
@@ -822,7 +823,7 @@ function AccountPage({ t }: Props) {
                                     <div style={{display: "flex", gap: 8}}>
                                         <button
                                             className="btn-secondary"
-                                            onClick={() => navigate(`/auction/${auction.id}`)}
+                                            onClick={() => navigate(buildAuctionPath(auction.title, auction.city, auction.id))}
                                         >
                                             {a.myAuctions.goTo}
                                         </button>

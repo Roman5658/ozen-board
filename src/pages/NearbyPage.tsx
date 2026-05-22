@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { getAdImages } from '../utils/getAdImages'
+import { buildAdPath } from '../utils/slug'
 
 
 
@@ -160,7 +161,7 @@ function NearbyPage({ t }: Props) {
             ) : (
                 <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
                     {nearbyAds.map((ad) => (
-                        <Link key={ad.id} to={`/ad/${ad.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                        <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{ textDecoration: 'none', color: 'inherit' }}>
                             <AdCard
                                 title={ad.title}
                                 description={ad.distance !== undefined ? `${ad.distance.toFixed(1)} ${t.nearby.distanceFromYou}` : `${t.nearby.cityLabel}: ${ad.city}`}

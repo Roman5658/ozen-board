@@ -5,6 +5,7 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { getLocalUser } from '../data/localUser'
 import type { Ad } from '../types/ad'
+import { buildAdPath } from '../utils/slug'
 
 function MyAdsPage() {
     const navigate = useNavigate()
@@ -12,7 +13,7 @@ function MyAdsPage() {
 
     const [ads, setAds] = useState<Ad[]>([])
     const [loading, setLoading] = useState(true)
-    const now = Date.now()
+    const [now] = useState(() => Date.now())
 
     useEffect(() => {
         if (!user) {
@@ -80,7 +81,7 @@ function MyAdsPage() {
                     return (
                         <div key={ad.id} className="card stack8">
                             <Link
-                                to={`/ad/${ad.id}`}
+                                to={buildAdPath(ad.title, ad.city, ad.id)}
                                 style={{ textDecoration: 'none', color: 'inherit' }}
                             >
                                 <strong>{ad.title}</strong>
@@ -151,7 +152,7 @@ function MyAdsPage() {
 
                             {/* КНОПКИ */}
                             <div style={{ display: 'flex', gap: 8 }}>
-                                <Link to={`/ad/${ad.id}`} className="btn-secondary">
+                                <Link to={buildAdPath(ad.title, ad.city, ad.id)} className="btn-secondary">
                                     Переглянути
                                 </Link>
 

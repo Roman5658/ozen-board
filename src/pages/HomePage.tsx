@@ -12,6 +12,7 @@ import { getLocalUser } from '../data/localUser'
 import { useEffect, useState, useMemo } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../app/firebase'
+import { buildAdPath } from '../utils/slug'
 
 type Voivodeship =
     | 'all'
@@ -284,7 +285,7 @@ function HomePage({ t }: Props) {
 
                 )}
                 {top3Ads.map(ad => (
-                    <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
+                    <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: 'none'}}>
                         <AdCard
                             ad={ad}
                             isMine={ad.userId === currentUserId}
@@ -300,7 +301,7 @@ function HomePage({ t }: Props) {
 
                 )}
                 {top6Ads.map(ad => (
-                    <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
+                    <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: 'none'}}>
                         <AdCard
                             ad={ad}
                             isMine={ad.userId === currentUserId}
@@ -317,7 +318,7 @@ function HomePage({ t }: Props) {
 
                 )}
                 {bumpAds.map(ad => (
-                    <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
+                    <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: 'none'}}>
                         <AdCard
                             ad={ad}
                             isMine={ad.userId === currentUserId}
@@ -340,7 +341,7 @@ function HomePage({ t }: Props) {
                         ad.pinnedUntil > now
 
                     return (
-                        <Link key={ad.id} to={`/ad/${ad.id}`} style={{textDecoration: 'none'}}>
+                        <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: 'none'}}>
                             <AdCard
                                 ad={ad}
                                 isMine={ad.userId === currentUserId}

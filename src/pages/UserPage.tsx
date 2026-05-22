@@ -11,7 +11,7 @@ import AuctionCard from '../components/AuctionCard'
 import { getLocalUser } from '../data/localUser'
 import { translations, DEFAULT_LANG } from '../app/i18n'
 import type { Lang } from '../app/i18n'
-
+import { buildAdPath, buildAuctionPath } from '../utils/slug'
 
 
 
@@ -223,7 +223,7 @@ function UserPage() {
                     {ads.map(ad => (
                         <Link
                             key={ad.id}
-                            to={`/ad/${ad.id}`}
+                            to={buildAdPath(ad.title, ad.city, ad.id)}
                             style={{ textDecoration: 'none', color: 'inherit' }}
                         >
                             <AdCard {...ad} />
@@ -253,7 +253,7 @@ function UserPage() {
                         return (
                             <Link
                                 key={auction.id}
-                                to={`/auction/${auction.id}`}
+                                to={buildAuctionPath(auction.title, auction.city, auction.id)}
                                 style={{ textDecoration: 'none', color: 'inherit' }}
                             >
                                 <AuctionCard

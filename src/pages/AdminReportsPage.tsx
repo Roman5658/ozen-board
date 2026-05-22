@@ -5,6 +5,7 @@ import type { Report } from "../types/report"
 import type { Ad } from "../types/ad"
 
 import { db } from "../app/firebase"
+import { buildAdPath } from "../utils/slug"
 
 
 function AdminReportsPage() {
@@ -159,7 +160,7 @@ function AdminReportsPage() {
                                 <div style={{ fontWeight: 700 }}>{ad.price}</div>
 
                                 <a
-                                    href={`/ad/${ad.id}`}
+                                    href={buildAdPath(ad.title, ad.city, ad.id)}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="btn-secondary"

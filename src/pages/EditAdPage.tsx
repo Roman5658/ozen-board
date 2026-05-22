@@ -5,6 +5,7 @@ import { db } from "../app/firebase";
 import { getLocalUser } from "../data/localUser";
 import { CITIES_BY_VOIVODESHIP } from "../data/cities";
 import type { Ad } from "../types/ad";
+import { buildAdPath } from '../utils/slug';
 
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP;
 
@@ -129,7 +130,7 @@ function EditAdPage() {
                 updatedAt: Date.now(),
             });
 
-            navigate(`/ad/${ad.id}`);
+            navigate(buildAdPath(ad.title, ad.city, ad.id));
         } catch (e) {
             console.error(e);
             setError("Помилка збереження");

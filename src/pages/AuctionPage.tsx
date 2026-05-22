@@ -20,6 +20,7 @@ import { getTimeLeft } from '../utils/time'
 import { translations, DEFAULT_LANG } from '../app/i18n'
 import type { Lang } from '../app/i18n'
 import type { Auction } from '../types/auction'
+import { buildAuctionPath, extractIdFromSlug } from '../utils/slug'
 
 type AuctionBid = {
     id: string
@@ -31,7 +32,7 @@ type AuctionBid = {
 
 function AuctionPage() {
     const navigate = useNavigate()
-    const { id } = useParams<{ id?: string }>()
+    const { id: slugOrId } = useParams<{ id?: string }>()
 
     const [now] = useState(() => Date.now())
 
@@ -165,13 +166,15 @@ function AuctionPage() {
     // OPEN AUCTION BY URL
     // =========================
     useEffect(() => {
-        if (!id) {
+        if (!slugOrId) {
             setActiveAuction(null)
             setBids([])
             return
         }
 
-        const auctionId = id // 🔥 здесь id уже string
+        const auctionIdFromSlug = extractIdFromSlug(slugOrId)
+        if (!auctionIdFromSlug) return
+        const auctionId = auctionIdFromSlug
 
         async function openAuction() {
             await loadAuctionById(auctionId)
@@ -182,7 +185,15 @@ function AuctionPage() {
         }
 
         openAuction()
-    }, [id])
+    }, [slugOrId])
+
+    useEffect(() => {
+        if (!slugOrId || !activeAuction) return
+        const canonicalPath = buildAuctionPath(activeAuction.title, activeAuction.city, activeAuction.id)
+        if (`/auction/${slugOrId}` !== canonicalPath) {
+            navigate(canonicalPath, { replace: true })
+        }
+    }, [slugOrId, activeAuction, navigate])
 
     // =========================
     // AUTH
@@ -352,7 +363,8 @@ function AuctionPage() {
                             <div className="ads-separator">🔥 {t.auctions.top}</div>
                         )}
                         {topAuctionsVisible.map(item => (
-                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
+                            <div key={item.id}
+                                 onClick={() => navigate(buildAuctionPath(item.title, item.city, item.id))}>
                                 <AuctionCard
                                     t={t}
                                     title={item.title}
@@ -377,7 +389,8 @@ function AuctionPage() {
                             <div className="ads-separator">⭐ {t.auctions.featured}</div>
                         )}
                         {featuredAuctionsVisible.map(item => (
-                            <div key={item.id} onClick={() => navigate(`/auction/${item.id}`)}>
+                            <div key={item.id}
+                                 onClick={() => navigate(buildAuctionPath(item.title, item.city, item.id))}>
                                 <AuctionCard
                                     t={t}
                                     title={item.title}
@@ -403,7 +416,7 @@ function AuctionPage() {
                         {regularAuctions.map(item => (
                             <div
                                 key={item.id}
-                                onClick={() => navigate(`/auction/${item.id}`)}
+                                onClick={() => navigate(buildAuctionPath(item.title, item.city, item.id))}
                             >
                                 <AuctionCard
                                     t={t}

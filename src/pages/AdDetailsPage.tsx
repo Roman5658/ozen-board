@@ -12,6 +12,7 @@ import { addDoc, collection } from "firebase/firestore"
 import { getLocalUser } from "../data/localUser"
 import AuthorCard from "../components/AuthorCard"
 import { getAdImages } from "../utils/getAdImages";
+import { buildAdPath, extractIdFromSlug } from "../utils/slug";
 import { db } from '../app/firebase'
 import type { Ad } from '../types/ad'
 type Props = {
@@ -20,7 +21,7 @@ type Props = {
 function AdDetailsPage({ t }: Props) {
     const a = t.adDetails
 
-    const { id } = useParams<{ id: string }>()
+    const { id: slugOrId } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const [isImageOpen, setIsImageOpen] = useState(false)
     const currentUser = getLocalUser()
@@ -126,14 +127,16 @@ function AdDetailsPage({ t }: Props) {
 
     useEffect(() => {
         async function loadAd() {
-            if (!id) return
+            const parsedId = extractIdFromSlug(slugOrId)
+            if (!parsedId) return
 
-            const ref = doc(db, 'ads', id)
+            const ref = doc(db, 'ads', parsedId)
             const snap = await getDoc(ref)
+
 
             if (snap.exists()) {
                 setAd({
-                    id, // ✅ string из Firestore
+                    id: parsedId, // ✅ string из Firestore
                     ...(snap.data() as Omit<Ad, 'id'>),
                 })
                 setActiveIndex(0)
@@ -147,7 +150,15 @@ function AdDetailsPage({ t }: Props) {
         }
 
         loadAd()
-    }, [id])
+    }, [slugOrId])
+
+    useEffect(() => {
+        if (!ad || !slugOrId) return
+        const canonicalPath = buildAdPath(ad.title, ad.city, ad.id)
+        if (`/ad/${slugOrId}` !== canonicalPath) {
+            navigate(canonicalPath, { replace: true })
+        }
+    }, [ad, slugOrId, navigate])
 
     if (loading) {
         return <div className="card">{a.loading}</div>
