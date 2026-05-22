@@ -466,12 +466,14 @@ export const translations = {
                 amount: "Сума",
                 queueInfo:
                     "Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
+                fillBeforePay: "Спочатку заповніть обовʼязкові поля",
             },
 
             actions: {
                 create: "Створити аукціон",
                 loading: "Завантаження...",
-                payBelow: "Оплатіть PayPal нижче",
+                payBelow: "створити",
+                pay: "Оплатіть PayPal",
             },
 
             modes: {
@@ -1062,12 +1064,14 @@ export const translations = {
                 amount: "Kwota",
                 queueInfo:
                     "Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
+                fillBeforePay: "Najpierw wypełnij wymagane pola",
             },
 
             actions: {
                 create: "Utwórz aukcję",
                 loading: "Ładowanie...",
-                payBelow: "Opłać PayPal poniżej",
+                payBelow: "stworzyć",
+                pay: "Opłać PayPal",
             },
 
             modes: {

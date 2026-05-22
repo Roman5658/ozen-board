@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { collection, addDoc } from "firebase/firestore"
-import { doc, updateDoc } from "firebase/firestore"
 import { PRICES } from "../config/prices"
 import type { translations } from "../app/i18n"
 import { db, storage } from "../app/firebase"
@@ -45,7 +44,8 @@ function AddAuctionPage({ t }: Props) {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [promotion, setPromotion] = useState<AuctionPromotion>("none")
     const [isPaying, setIsPaying] = useState(false)
-    const [draftAuctionId, setDraftAuctionId] = useState<string | null>(null)
+    const [paymentCompleted, setPaymentCompleted] = useState(false)
+    const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
 
     const [promotionInfo, setPromotionInfo] = useState<{
         text: string
@@ -61,7 +61,10 @@ function AddAuctionPage({ t }: Props) {
         return PRICES.auction[promotion]
     }, [promotion])
 
-
+    useEffect(() => {
+        setPaymentCompleted(false)
+        setPaypalOrderId(null)
+    }, [promotion])
 // 👇 ПОТОМ любая логика и return
     const user = getLocalUser()
     if (!user) {
@@ -75,7 +78,11 @@ function AddAuctionPage({ t }: Props) {
 
     const safeUser = user
 
-
+    function normalizeAuctionPromotion(type: AuctionPromotion): "none" | "top" | "featured" | "gold" {
+        if (type === "top-auction") return "top"
+        if (type === "highlight-gold") return "gold"
+        return type
+    }
     // ===== VALIDATION =====
     function validateForm(): { ok: true; endsAt: number } | { ok: false; reason: string } {
         if (
@@ -96,21 +103,9 @@ function AddAuctionPage({ t }: Props) {
         const endsAt = new Date(endsAtDate).getTime()
         const maxEndsAt = createdAt + 10 * DAY
 
-        if (Number.isNaN(endsAt)) {
-            return { ok: false, reason: t.addAuction.errors.invalidDate }
-
-        }
-
-        if (endsAt <= createdAt) {
-            return { ok: false, reason: t.addAuction.errors.pastDate }
-
-        }
-
-        if (endsAt > maxEndsAt) {
-            return { ok: false, reason: t.addAuction.errors.tooLong }
-
-        }
-
+        if (Number.isNaN(endsAt)) return { ok: false, reason: t.addAuction.errors.invalidDate }
+        if (endsAt <= createdAt) return { ok: false, reason: t.addAuction.errors.pastDate }
+        if (endsAt > maxEndsAt) return { ok: false, reason: t.addAuction.errors.tooLong }
         return { ok: true, endsAt }
     }
 
@@ -124,9 +119,7 @@ function AddAuctionPage({ t }: Props) {
         })
 
 
-        // ❗ НИЧЕГО НЕ БЛОКИРУЕМ
-        // очередь — это допустимое состояние
-        return
+
     }
 
     async function loadPromotionInfo(type: "top" | "featured") {
@@ -135,11 +128,7 @@ function AddAuctionPage({ t }: Props) {
             return
         }
 
-        const res = await checkAuctionPromotionAvailability({
-            voivodeship,
-            city,
-            type,
-        })
+        const res = await checkAuctionPromotionAvailability({ voivodeship, city, type })
 
         if (res.ok) {
             setPromotionInfo({
@@ -148,81 +137,18 @@ function AddAuctionPage({ t }: Props) {
                     .replace("{{max}}", String(res.limit)),
                 isQueue: false,
             })
-        } else {
-            setPromotionInfo({
-                text: `${t.addAuction.promotion.queue} (${res.queueCount})`,
-                isQueue: true,
-            })
+            return
         }
 
-    }
-
-// ===== CREATE DRAFT AUCTION (до оплаты) =====
-// Создаёт "черновик" и возвращает реальный auctionId
-    async function createDraftAuction(): Promise<string> {
-        const validation = validateForm()
-        if (!validation.ok) {
-            setError(validation.reason)
-            throw new Error(validation.reason)
-        }
-
-        await checkTopLimitIfNeeded()
-
-        const createdAt = Date.now()
-        const endsAt = validation.endsAt
-
-        // 1) загружаем фото сразу (можно и после оплаты, но так проще для MVP)
-        const imageUrls: string[] = []
-        for (const file of imageFiles) {
-            const imageRef = ref(storage, `auctions/${safeUser.id}/${createdAt}-${file.name}`)
-            await uploadBytes(imageRef, file)
-            const imageUrl = await getDownloadURL(imageRef)
-            imageUrls.push(imageUrl)
-        }
-
-        // 2) создаём документ и получаем ID
-        const docRef = await addDoc(collection(db, "auctions"), {
-            title: title.trim(),
-            description: description.trim(),
-            category,
-            voivodeship,
-            city,
-
-            startPrice: Number(startPrice),
-            buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
-            currentBid: Number(startPrice),
-            bidsCount: 0,
-
-            images: imageUrls,
-
-            ownerId: safeUser.id,
-            ownerName: safeUser.nickname || "User",
-
-            // ВАЖНО: draft
-            status: "draft",
-
-            createdAt,
-            endsAt,
-
-            // пока без промо — промо включим только после verifyPayPalPayment
-            promotionType: promotion === "top-auction" ? "top" :
-                promotion === "featured" ? "featured" :
-                    promotion === "highlight-gold" ? "gold" :
-                        "none",
-
-            promotionUntil: null,
-
-            promotionQueueAt:
-                promotion === "top-auction" || promotion === "featured"
-                    ? Date.now()
-                    : null,
+        setPromotionInfo({
+            text: `${t.addAuction.promotion.queue} (${res.queueCount})`,
+            isQueue: true,
 
         })
 
-        return docRef.id
     }
 
-    // ===== CREATE AUCTION (ЕДИНСТВЕННОЕ место, где создаётся аукцион) =====
+
     async function createAuction() {
         const validation = validateForm()
         if (!validation.ok) {
@@ -235,7 +161,7 @@ function AddAuctionPage({ t }: Props) {
         const createdAt = Date.now()
         const endsAt = validation.endsAt
 
-        // upload images
+
         const imageUrls: string[] = []
         for (const file of imageFiles) {
             const imageRef = ref(storage, `auctions/${safeUser.id}/${createdAt}-${file.name}`)
@@ -244,17 +170,17 @@ function AddAuctionPage({ t }: Props) {
             imageUrls.push(imageUrl)
         }
 
-        // promotionUntil (твои сроки: 3/3/7)
+        const normalizedPromotion = normalizeAuctionPromotion(promotion)
         const promotionUntil =
-            promotion === "highlight-gold"
+            normalizedPromotion === "gold"
                 ? createdAt + 7 * DAY
-                : promotion === "featured"
+                : normalizedPromotion === "featured" || normalizedPromotion === "top"
                     ? createdAt + 3 * DAY
                     : promotion === "top-auction"
                         ? createdAt + 3 * DAY
                         : null
 
-        await addDoc(collection(db, "auctions"), {
+        const docRef =    await addDoc(collection(db, "auctions"), {
             title: title.trim(),
             description: description.trim(),
             category,
@@ -275,9 +201,23 @@ function AddAuctionPage({ t }: Props) {
             createdAt,
             endsAt,
 
-            promotionType: promotion,
+            promotionType: normalizedPromotion,
             promotionUntil,
+            promotionQueueAt: null,
         })
+        if (normalizedPromotion !== "none") {
+            if (!paypalOrderId) {
+                setError(t.addAuction.errors.paypalError)
+                throw new Error(t.addAuction.errors.paypalError)
+            }
+
+            await verifyPayPalPayment({
+                orderId: paypalOrderId,
+                targetType: "auction",
+                targetId: docRef.id,
+                promotionType: normalizedPromotion,
+            })
+        }
 
         navigate("/auctions")
     }
@@ -287,8 +227,7 @@ function AddAuctionPage({ t }: Props) {
         e.preventDefault()
         setError(null)
 
-        // если платное — НЕ создаем через submit
-        if (isPaidPromotion) {
+        if (isPaidPromotion && !paymentCompleted) {
             const v = validateForm()
             if (!v.ok) setError(v.reason)
             else setError(t.addAuction.errors.paypalFirst)
@@ -307,13 +246,22 @@ function AddAuctionPage({ t }: Props) {
         }
     }
 
-    // ===== UI =====
+    const isFormValid =
+        title.trim() &&
+        description.trim() &&
+        category &&
+        voivodeship &&
+        city &&
+        startPrice &&
+        imageFiles.length > 0 &&
+        endsAtDate
+
     return (
         <div className="card stack12">
             <h2 className="h2">{t.addAuction.title}</h2>
 
 
-            {/* Перемикач */}
+
             <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" className="btn-secondary" onClick={() => navigate("/add")}>
                     {t.addAuction.modes.ad}
@@ -325,22 +273,11 @@ function AddAuctionPage({ t }: Props) {
             </div>
 
             <form className="stack12" onSubmit={handleSubmit}>
-                <input
-                    className="input"
-                    placeholder={t.addAuction.fields.title}
 
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                />
-
-                <textarea
-                    className="input"
-                    placeholder={t.addAuction.fields.description}
-
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                />
-
+                <input className="input" placeholder={t.addAuction.fields.title} value={title}
+                       onChange={(e) => setTitle(e.target.value)}/>
+                <textarea className="input" placeholder={t.addAuction.fields.description} value={description}
+                          onChange={(e) => setDescription(e.target.value)}/>
                 <select className="input" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
                     <option value="">{t.addAuction.fields.category}</option>
                     <option value="sell">{t.addAuction.categories.sell}</option>
@@ -349,126 +286,91 @@ function AddAuctionPage({ t }: Props) {
                     <option value="rent">{t.addAuction.categories.rent}</option>
                 </select>
 
-                <select
-                    className="input"
-                    value={voivodeship}
-                    onChange={(e) => {
-                        setVoivodeship(e.target.value)
-                        setCity("")
-                        setPromotionInfo(null)
-
-                    }}
-                >
+                <select className="input" value={voivodeship} onChange={(e) => {
+                    setVoivodeship(e.target.value);
+                    setCity("");
+                    setPromotionInfo(null)
+                }}>
                     <option value="">{t.addAuction.fields.voivodeship}</option>
-                    {Object.keys(CITIES_BY_VOIVODESHIP).map((v) => (
-                        <option key={v} value={v}>
-                            {v}
-                        </option>
-                    ))}
+                    {Object.keys(CITIES_BY_VOIVODESHIP).map((v) => <option key={v} value={v}>{v}</option>)}
                 </select>
 
                 {voivodeship && (
                     <select className="input" value={city} onChange={(e) => setCity(e.target.value)}>
                         <option value="">{t.addAuction.fields.city}</option>
-                        {(CITIES_BY_VOIVODESHIP[voivodeship as VoivodeshipKey] ?? []).map((c) => (
-                            <option key={c} value={c}>
-                                {c}
-                            </option>
-                        ))}
+                        {(CITIES_BY_VOIVODESHIP[voivodeship as VoivodeshipKey] ?? []).map((c) => <option key={c}
+                                                                                                         value={c}>{c}</option>)}
                     </select>
                 )}
 
-                <input
-                    className="input"
-                    type="number"
-                    placeholder={t.addAuction.fields.startPrice}
-
-                    value={startPrice}
-                    onChange={(e) => setStartPrice(e.target.value)}
-                />
-
-                <input
-                    className="input"
-                    type="number"
-                    placeholder={t.addAuction.fields.buyNowPrice}
-
-                    value={buyNowPrice}
-                    onChange={(e) => setBuyNowPrice(e.target.value)}
-                />
-
+                <input className="input" type="number" placeholder={t.addAuction.fields.startPrice} value={startPrice}
+                       onChange={(e) => setStartPrice(e.target.value)}/>
+                <input className="input" type="number" placeholder={t.addAuction.fields.buyNowPrice} value={buyNowPrice}
+                       onChange={(e) => setBuyNowPrice(e.target.value)}/>
                 <input className="input" type="date" value={endsAtDate}
                        onChange={(e) => setEndsAtDate(e.target.value)}/>
+                <div style={{fontSize: 13, color: "#6b7280"}}>{t.addAuction.fields.maxDaysHint}</div>
 
-                <div style={{fontSize: 13, color: "#6b7280"}}>{t.addAuction.fields.maxDaysHint}
-                </div>
+                <input type="file" accept="image/*" multiple onChange={(e) => {
+                    const newFiles = Array.from(e.target.files ?? [])
+                    if (imageFiles.length + newFiles.length > 5) {
+                        setError(t.addAuction.errors.maxImages)
+                        return
+                    }
+                    setImageFiles((prev) => [...prev, ...newFiles])
+                    e.currentTarget.value = ""
+                }}/>
 
-                <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                        const newFiles = Array.from(e.target.files ?? [])
-                        if (imageFiles.length + newFiles.length > 5) {
-                            setError(t.addAuction.errors.maxImages)
 
-                            return
-                        }
-                        setImageFiles((prev) => [...prev, ...newFiles])
-                        e.currentTarget.value = ""
-                    }}
-                />
-
-                {/* Превʼю */}
                 {imageFiles.length > 0 && (
                     <div style={{display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8}}>
                         {imageFiles.map((file, index) => {
                             const url = URL.createObjectURL(file)
-                            return (
-                                <div
-                                    key={index}
-                                    style={{
-                                        position: "relative",
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: 8,
-                                        overflow: "hidden",
-                                        border: "1px solid #e5e7eb",
-                                    }}
-                                >
-                                    <img src={url} alt={`preview-${index}`}
-                                         style={{width: "100%", height: "100%", objectFit: "cover"}}/>
-                                    <button
-                                        type="button"
-                                        onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))}
-                                        style={{
-                                            position: "absolute",
-                                            top: 4,
-                                            right: 4,
-                                            width: 22,
-                                            height: 22,
-                                            borderRadius: "50%",
-                                            border: "none",
-                                            background: "rgba(0,0,0,0.6)",
-                                            color: "#fff",
-                                            cursor: "pointer",
-                                            fontSize: 14,
-                                            lineHeight: "22px",
-                                            textAlign: "center",
-                                        }}
-                                        aria-label="Видалити фото"
-                                    >
-                                        ×
-                                    </button>
-                                </div>
-                            )
+                            return <div key={index} style={{ position: "relative", width: 80, height: 80, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                                <img src={url} alt={`preview-${index}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                <button type="button" onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))} style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.6)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: "22px", textAlign: "center" }} aria-label="Видалити фото">×</button>
+                            </div>
                         })}
                     </div>
                 )}
 
-                {/* PROMOTION */}
+                {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
                 <div className="card stack12">
                     <strong>{t.addAuction.promotion.title}</strong>
-
+                    {isPaidPromotion && (
+                        <div className="card stack12">
+                            <strong>{t.addAuction.payment.title}</strong>
+                            {!isFormValid && <div>{t.addAuction.payment.fillBeforePay}</div>}
+                            {isFormValid && <>
+                                <div style={{ fontSize: 13, color: "#6b7280" }}>{t.addAuction.payment.queueInfo}</div>
+                                <div style={{ fontWeight: 700 }}>{t.addAuction.payment.amount}: {pricePLN} PLN</div>
+                                <PayPalButtons
+                                    style={{ layout: "vertical" }}
+                                    disabled={isPaying}
+                                    createOrder={(_, actions) => actions.order.create({
+                                        intent: "CAPTURE",
+                                        purchase_units: [{ amount: { value: pricePLN, currency_code: "PLN" } }],
+                                    })}
+                                    onApprove={async (_, actions) => {
+                                        if (!actions.order) return
+                                        setError(null)
+                                        setIsPaying(true)
+                                        try {
+                                            const details = await actions.order.capture()
+                                            if (!details.id) throw new Error("PayPal order id missing")
+                                            setPaypalOrderId(details.id)
+                                            setPaymentCompleted(true)
+                                        } catch {
+                                            setError(t.addAuction.errors.paypalError)
+                                        } finally {
+                                            setIsPaying(false)
+                                        }
+                                    }}
+                                    onError={(err) => { console.error(err); setError(t.addAuction.errors.paypalError) }}
+                                />
+                            </>}
+                        </div>
+                    )}
 
                     <label className="promotion-option">
                         <input type="radio" name="promotion" checked={promotion === "none"}
@@ -479,160 +381,42 @@ function AddAuctionPage({ t }: Props) {
                     </label>
 
                     <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
-                            checked={promotion === "top-auction"}
-                            onChange={async () => {
-                                setPromotion("top-auction")
-                                await loadPromotionInfo("top")
-                            }}
-                        />
-
+                        <input type="radio" name="promotion" checked={promotion === "top-auction"}
+                               onChange={async () => {
+                                   setPromotion("top-auction");
+                                   await loadPromotionInfo("top")
+                               }}/>
                         🔥 {t.addAuction.promotion.top}
                         <div className="hint">{t.addAuction.promotion.topHint}</div>
 
                     </label>
 
                     <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
-                            checked={promotion === "featured"}
-                            onChange={async () => {
-                                setPromotion("featured")
-                                await loadPromotionInfo("featured")
-                            }}
-                        />
+                        <input type="radio" name="promotion" checked={promotion === "featured"} onChange={async () => {
+                            setPromotion("featured");
+                            await loadPromotionInfo("featured")
+                        }}/>
                         ⭐ {t.addAuction.promotion.featured}
                         <div className="hint">{t.addAuction.promotion.featuredHint}</div>
 
                     </label>
 
                     <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
-                            checked={promotion === "highlight-gold"}
-                            onChange={() => setPromotion("highlight-gold")}
-                        />
+                        <input type="radio" name="promotion" checked={promotion === "highlight-gold"}
+                               onChange={() => setPromotion("highlight-gold")}/>
                         ✨ {t.addAuction.promotion.gold}
                         <div className="hint">{t.addAuction.promotion.goldHint}</div>
 
                     </label>
-                    {promotionInfo && (
-                        <div
-                            style={{
-                                fontSize: 13,
-                                color: promotionInfo.isQueue ? "#b45309" : "#047857",
-                            }}
-                        >
-                            {promotionInfo.text}
-                        </div>
-                    )}
 
-                    {/* PAYPAL (только если платное) */}
-                    {isPaidPromotion && (
-                        <div className="card stack12">
-                            <strong>{t.addAuction.payment.title}</strong>
-
-
-                            <div style={{fontSize: 13, color: "#6b7280"}}>
-                                {t.addAuction.payment.info}
-
-                            </div>
-                            <div style={{fontSize: 13, color: "#6b7280"}}>
-                                {t.addAuction.payment.queueInfo}
-                            </div>
-                            <div style={{fontWeight: 700}}>{t.addAuction.payment.amount}:
-                                {pricePLN} PLN
-                            </div>
-
-                            <PayPalButtons
-                                style={{layout: "vertical"}}
-                                disabled={isPaying}
-                                createOrder={async (_, actions) => {
-                                    const v = validateForm()
-                                    if (!v.ok) {
-                                        setError(v.reason)
-                                        throw new Error(v.reason)
-                                    }
-
-                                    // 1️⃣ создаём draft и сохраняем ID
-                                    const auctionId = await createDraftAuction()
-                                    setDraftAuctionId(auctionId)
-
-                                    // 2️⃣ создаём PayPal order
-                                    return actions.order.create({
-                                        intent: "CAPTURE",
-                                        purchase_units: [
-                                            {
-                                                amount: {
-                                                    value: pricePLN,
-                                                    currency_code: "PLN",
-                                                },
-                                            },
-                                        ],
-                                    })
-                                }}
-
-                                onApprove={async (_, actions) => {
-                                    if (!actions.order) return
-                                    setError(null)
-                                    setIsPaying(true)
-
-                                    try {
-                                        // 1) capture
-                                        const details = await actions.order.capture()
-
-                                        if (!details.id) {
-                                            throw new Error("PayPal order id missing")
-                                        }
-
-                                        await verifyPayPalPayment({
-                                            orderId: details.id,
-                                            targetType: "auction",
-                                            targetId: draftAuctionId!,
-                                            promotionType: promotion,
-                                        })
-
-
-// 3) activate draft
-                                        await updateDoc(doc(db, "auctions", draftAuctionId!), {
-                                            status: "active",
-                                            promotionQueueAt: null, // очередь обработана сервером
-                                        })
-
-
-                                        navigate("/auctions")
-
-                                    } catch (err) {
-                                        const msg = err instanceof Error ? err.message : t.addAuction.errors.paypalError
-
-                                        setError(msg)
-                                    } finally {
-                                        setIsPaying(false)
-                                        setIsSubmitting(false)
-                                    }
-                                }}
-                                onError={(err) => {
-                                    console.error(err)
-                                    setError(t.addAuction.errors.paypalError)
-
-                                }}
-                            />
-                        </div>
-                    )}
+                    {promotionInfo && <div style={{ fontSize: 13, color: promotionInfo.isQueue ? "#b45309" : "#047857" }}>{promotionInfo.text}</div>}
                 </div>
 
-                {error && <div style={{color: "#b91c1c"}}>{error}</div>}
-
-                {/* Кнопка нужна ТОЛЬКО для бесплатного */}
-                <button className="btn-primary" disabled={isSubmitting || isPaying || isPaidPromotion}>
-                    {isPaidPromotion
-                        ? t.addAuction.actions.payBelow
-                        : isSubmitting
-                            ? t.addAuction.actions.loading
+                <button className="btn-primary" disabled={isSubmitting || isPaying || (isPaidPromotion && !paymentCompleted)}>
+                    {isSubmitting
+                        ? t.addAuction.actions.loading
+                        : isPaidPromotion && !paymentCompleted
+                            ? t.addAuction.actions.pay
                             : t.addAuction.actions.create}
                 </button>
 
