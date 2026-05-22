@@ -21,6 +21,7 @@ import { translations, DEFAULT_LANG } from '../app/i18n'
 import type { Lang } from '../app/i18n'
 import type { Auction } from '../types/auction'
 import { buildAuctionPath, extractIdFromSlug } from '../utils/slug'
+import { useSeo, BASE_URL } from '../utils/seo'
 
 type AuctionBid = {
     id: string
@@ -194,6 +195,36 @@ function AuctionPage() {
             navigate(canonicalPath, { replace: true })
         }
     }, [slugOrId, activeAuction, navigate])
+    const seoLang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
+    useSeo({
+        title: activeAuction
+            ? (seoLang === 'pl' ? `${activeAuction.title} ${activeAuction.city} | Xoven` : `Купити ${activeAuction.title} ${activeAuction.city} | Xoven`)
+            : (seoLang === 'pl' ? 'Aukcje w Polsce | Xoven' : 'Аукціони в Польщі | Xoven'),
+        description: activeAuction
+            ? (seoLang === 'pl'
+                ? `Licytuj lokalnie w Polsce. Zobacz aukcję: ${activeAuction.title} w ${activeAuction.city}.`
+                : `Бери участь в аукціонах у Польщі. Переглянь лот: ${activeAuction.title} у ${activeAuction.city}.`)
+            : (seoLang === 'pl' ? 'Aukcje lokalne w Polsce.' : 'Локальні аукціони в Польщі.'),
+        path: activeAuction ? `/auction/${slugOrId ?? activeAuction.id}` : '/auctions',
+        lang: seoLang,
+        alternates: [
+            { hreflang: 'pl-PL', href: `${BASE_URL}/pl/aukcje` },
+            { hreflang: 'uk-UA', href: `${BASE_URL}/uk/auktsiony` },
+            { hreflang: 'x-default', href: `${BASE_URL}/pl/aukcje` },
+        ],
+        jsonLd: activeAuction ? {
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: activeAuction.title,
+            description: activeAuction.description,
+            offers: {
+                '@type': 'Offer',
+                priceCurrency: 'PLN',
+                price: activeAuction.currentBid,
+                availability: 'https://schema.org/InStock',
+            },
+        } : undefined,
+    })
 
     // =========================
     // AUTH

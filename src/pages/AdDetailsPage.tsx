@@ -7,7 +7,7 @@ import { formatPricePLN } from "../utils/formatPricePLN"
 import type { translations } from "../app/i18n"
 
 import { PayPalButtons } from "@paypal/react-paypal-js"
-
+import { useSeo, BASE_URL } from '../utils/seo'
 import { addDoc, collection } from "firebase/firestore"
 import { getLocalUser } from "../data/localUser"
 import AuthorCard from "../components/AuthorCard"
@@ -159,6 +159,36 @@ function AdDetailsPage({ t }: Props) {
             navigate(canonicalPath, { replace: true })
         }
     }, [ad, slugOrId, navigate])
+    const lang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
+    const seoTitle = ad
+        ? (lang === 'pl' ? `${ad.title} ${ad.city} | Xoven` : `Купити ${ad.title} ${ad.city} | Xoven`)
+        : (lang === 'pl' ? 'Ogłoszenie | Xoven' : 'Оголошення | Xoven')
+    const seoDescription = ad
+        ? (lang === 'pl'
+            ? `Kupuj i sprzedawaj lokalnie w Polsce. Zobacz ogłoszenie: ${ad.title} w ${ad.city}.`
+            : `Купуй та продавай у Польщі. Переглянь оголошення: ${ad.title} у ${ad.city}.`)
+        : (lang === 'pl' ? 'Darmowe ogłoszenia w Polsce.' : 'Безкоштовні оголошення в Польщі.')
+
+    useSeo({
+        title: seoTitle,
+        description: seoDescription,
+        path: `/ad/${slugOrId ?? ''}`,
+        lang,
+        alternates: [
+            { hreflang: 'pl-PL', href: `${BASE_URL}/pl/ogloszenia` },
+            { hreflang: 'uk-UA', href: `${BASE_URL}/uk/ogoloshennya` },
+            { hreflang: 'x-default', href: `${BASE_URL}/pl/ogloszenia` },
+        ],
+        jsonLd: ad ? {
+            '@context': 'https://schema.org',
+            '@type': 'Offer',
+            name: ad.title,
+            description: ad.description,
+            price: ad.price ?? 0,
+            priceCurrency: 'PLN',
+            areaServed: 'PL',
+        } : undefined,
+    })
 
     if (loading) {
         return <div className="card">{a.loading}</div>

@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /login
+Disallow: /profile
+Disallow: /settings
+Disallow: /account
+Disallow: /my-ads
 
-Sitemap: https://ozen-board.vercel.app/sitemap.xml
+Sitemap: https://xoven.pl/sitemap.xml

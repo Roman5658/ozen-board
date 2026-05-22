@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import AdminReportsPage from "../pages/AdminReportsPage"
 import AddAuctionPage from '../pages/AddAuctionPage'
 import UserPage from '../pages/UserPage'
@@ -30,6 +30,7 @@ import AdDetailsPage from '../pages/AdDetailsPage'
 
 import Header from '../components/Header'
 import AppLayout from './AppLayout'
+import { useSeo, BASE_URL } from '../utils/seo'
 import EditAuctionPage from '../pages/EditAuctionPage'
 import AdminPaymentsPage from "../pages/AdminPaymentsPage"
 import AdminAuctionsPage from "../pages/AdminAuctionsPage"
@@ -40,6 +41,44 @@ function App() {
 
     const t = translations[lang]
     const location = useLocation()
+
+    useSeo({
+        title: lang === 'pl'
+            ? 'Darmowe ogłoszenia i aukcje w Polsce | Xoven'
+            : 'Безкоштовні оголошення й аукціони в Польщі | Xoven',
+        description: lang === 'pl'
+            ? 'Darmowe ogłoszenia lokalne w Polsce: kupię, sprzedam, usługi, wynajem, praca, aukcje. Także: объявления в Польше, купить в Польше, продать в Польше.'
+            : 'Безкоштовні оголошення в Польщі: купити, продати, оренда, послуги, робота, аукціони. Також: объявления в Польше, работа в Польше.',
+        path: location.pathname,
+        lang: lang,
+        alternates: [
+            { hreflang: 'pl-PL', href: `${BASE_URL}/pl/` },
+            { hreflang: 'uk-UA', href: `${BASE_URL}/uk/` },
+            { hreflang: 'x-default', href: `${BASE_URL}/pl/` },
+        ],
+        jsonLd: [
+            {
+                '@context': 'https://schema.org',
+                '@type': 'WebSite',
+                name: 'Xoven',
+                url: BASE_URL,
+                inLanguage: ['pl-PL', 'uk-UA'],
+                potentialAction: {
+                    '@type': 'SearchAction',
+                    target: `${BASE_URL}/${lang}/ogloszenia?q={search_term_string}`,
+                    'query-input': 'required name=search_term_string',
+                },
+            },
+            {
+                '@context': 'https://schema.org',
+                '@type': 'Organization',
+                name: 'Xoven',
+                url: BASE_URL,
+                logo: `${BASE_URL}/vite.svg`,
+            },
+        ],
+    })
+
 
     function changeLang(next: Lang) {
         setLang(next)
@@ -64,7 +103,17 @@ function App() {
             t={t}
         >
             <Routes>
-                <Route path="/" element={<HomePage t={t} />} />
+                <Route path="/" element={<Navigate to={`/${lang}/`} replace />} />
+                <Route path="/pl" element={<Navigate to="/pl/" replace />} />
+                <Route path="/uk" element={<Navigate to="/uk/" replace />} />
+                <Route path="/pl/" element={<HomePage t={translations.pl} />} />
+                <Route path="/pl/ogloszenia" element={<HomePage t={translations.pl} />} />
+                <Route path="/pl/uslugi" element={<HomePage t={translations.pl} />} />
+                <Route path="/pl/wynajem" element={<HomePage t={translations.pl} />} />
+                <Route path="/uk/" element={<HomePage t={translations.uk} />} />
+                <Route path="/uk/ogoloshennya" element={<HomePage t={translations.uk} />} />
+                <Route path="/uk/poslugy" element={<HomePage t={translations.uk} />} />
+                <Route path="/uk/orenda" element={<HomePage t={translations.uk} />} />
                 <Route path="/nearby" element={<NearbyPage t={t} />} />
 
                 <Route path="/add-auction" element={<AddAuctionPage t={t} />} />
@@ -85,7 +134,8 @@ function App() {
                 {/* Аукционы */}
                 <Route path="/auctions" element={<AuctionPage  />} />
                 <Route path="/auction/:id" element={<AuctionPage />} />
-
+                <Route path="/pl/aukcje" element={<AuctionPage />} />
+                <Route path="/uk/auktsiony" element={<AuctionPage />} />
 
                 {/* Обычные объявления */}
                 <Route path="/ad/:id" element={<AdDetailsPage t={t} />} />

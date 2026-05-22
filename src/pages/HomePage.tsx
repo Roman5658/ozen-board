@@ -6,13 +6,14 @@ import AdCard from '../components/AdCard'
 import CategoryFilter from '../components/CategoryFilter'
 import VoivodeshipFilter from '../components/VoivodeshipFilter'
 import CityByVoivodeshipFilter from '../components/CityByVoivodeshipFilter'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { getLocalUser } from '../data/localUser'
 
 import { useEffect, useState, useMemo } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { buildAdPath } from '../utils/slug'
+import { useSeo, BASE_URL } from '../utils/seo'
 
 type Voivodeship =
     | 'all'
@@ -93,6 +94,30 @@ function normalizeAd(ad: Ad): Ad {
 }
 
 function HomePage({ t }: Props) {
+    const location = useLocation()
+    const lang = location.pathname.startsWith('/pl') ? 'pl' : 'uk'
+
+    useSeo({
+        title: lang === 'pl' ? 'Ogłoszenia lokalne w Polsce | Xoven' : 'Оголошення в Польщі | Xoven',
+        description: lang === 'pl'
+            ? 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług. Також: объявления в Польше, купить в Польше, работа в Польше.'
+            : 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Також: объявления в Польше, продать в Польше.',
+        path: location.pathname,
+        lang,
+        alternates: [
+            { hreflang: 'pl-PL', href: `${BASE_URL}/pl/` },
+            { hreflang: 'uk-UA', href: `${BASE_URL}/uk/` },
+            { hreflang: 'x-default', href: `${BASE_URL}/pl/` },
+        ],
+        jsonLd: {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+                { '@type': 'ListItem', position: 1, name: 'Xoven', item: `${BASE_URL}/${lang}/` },
+                { '@type': 'ListItem', position: 2, name: lang === 'pl' ? 'Ogłoszenia' : 'Оголошення', item: `${BASE_URL}${location.pathname}` },
+            ],
+        },
+    })
     const [category, setCategory] = useState<
         'all' | 'work' | 'buy' | 'sell' | 'service' | 'rent'
     >('all')
@@ -232,6 +257,17 @@ function HomePage({ t }: Props) {
     return (
         <div>
             <h2 className="h2">{t.homeTitle}</h2>
+            <div className="card" style={{marginBottom: 14, fontSize: '14px', lineHeight: 1.5}}>
+                {lang === 'pl'
+                    ? 'Darmowe ogłoszenia lokalne w Polsce. Kupuj, sprzedawaj, wynajmuj i korzystaj z usług w swojej okolicy. Xoven pomaga szybko znaleźć oferty, aukcje, pracę, mieszkania, samochody, elektronikę i usługi.'
+                    : 'Безкоштовні оголошення в Польщі. Купуй, продавай, орендуй та знаходь послуги поруч. Xoven допомагає швидко знаходити товари, аукціони, роботу, житло, авто, електроніку та послуги.'}
+
+                <br/><br/>
+
+                {lang === 'pl'
+                    ? 'Platforma ogłoszeń dla Ukraińców w Polsce. Na Xoven możesz kupować, sprzedawać, znaleźć pracę, wynajem, usługi oraz aukcje lokalne.'
+                    : 'Xoven — платформа оголошень для українців у Польщі. Тут можна купити, продати, знайти роботу, оренду, послуги та локальні аукціони.'}
+            </div>
 
             <div className="card stack8" style={{marginBottom: 14}}>
                 <input
