@@ -165,9 +165,9 @@ function AdDetailsPage({ t }: Props) {
         : (lang === 'pl' ? 'Ogłoszenie | Xoven' : 'Оголошення | Xoven')
     const seoDescription = ad
         ? (lang === 'pl'
-            ? `Kupuj i sprzedawaj lokalnie w Polsce. Zobacz ogłoszenie: ${ad.title} w ${ad.city}.`
-            : `Купуй та продавай у Польщі. Переглянь оголошення: ${ad.title} у ${ad.city}.`)
-        : (lang === 'pl' ? 'Darmowe ogłoszenia w Polsce.' : 'Безкоштовні оголошення в Польщі.')
+            ? `Kupuj i sprzedawaj lokalnie. Zobacz ogłoszenie: ${ad.title} w ${ad.city}.`
+            : `Купуй та продавай локально. Переглянь оголошення: ${ad.title} у ${ad.city}.`)
+        : (lang === 'pl' ? 'Darmowe ogłoszenia.' : 'Безкоштовні оголошення.')
 
     useSeo({
         title: seoTitle,

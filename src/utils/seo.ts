@@ -61,7 +61,7 @@ export function useSeo(payload: SeoPayload) {
         const alternateLocale = payload.lang === 'pl' ? 'uk_UA' : 'pl_PL'
 
         setOrCreateMeta('name', 'description', payload.description)
-        setOrCreateMeta('name', 'keywords', 'ogłoszenia, darmowe ogłoszenia, aukcje, usługi, wynajem, praca, оголошення в Польщі, послуги, оренда, объявления в Польше, работа в Польше')
+        setOrCreateMeta('name', 'keywords', 'ogłoszenia, darmowe ogłoszenia, aukcje, usługi, wynajem, praca, оголошення, послуги, оренда, объявления, работа')
         setOrCreateMeta('name', 'robots', payload.noindex ? 'noindex,nofollow' : 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1')
         setOrCreateMeta('property', 'og:site_name', 'Xoven')
         setOrCreateMeta('property', 'og:title', payload.title)

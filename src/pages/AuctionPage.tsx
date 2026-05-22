@@ -199,12 +199,12 @@ function AuctionPage() {
     useSeo({
         title: activeAuction
             ? (seoLang === 'pl' ? `${activeAuction.title} ${activeAuction.city} | Xoven` : `Купити ${activeAuction.title} ${activeAuction.city} | Xoven`)
-            : (seoLang === 'pl' ? 'Aukcje w Polsce | Xoven' : 'Аукціони в Польщі | Xoven'),
+            : (seoLang === 'pl' ? 'Aukcje | Xoven' : 'Аукціони | Xoven'),
         description: activeAuction
             ? (seoLang === 'pl'
-                ? `Licytuj lokalnie w Polsce. Zobacz aukcję: ${activeAuction.title} w ${activeAuction.city}.`
-                : `Бери участь в аукціонах у Польщі. Переглянь лот: ${activeAuction.title} у ${activeAuction.city}.`)
-            : (seoLang === 'pl' ? 'Aukcje lokalne w Polsce.' : 'Локальні аукціони в Польщі.'),
+                ? `Licytuj lokalnie. Zobacz aukcję: ${activeAuction.title} w ${activeAuction.city}.`
+                : `Бери участь в локальних аукціонах. Переглянь лот: ${activeAuction.title} у ${activeAuction.city}.`)
+            : (seoLang === 'pl' ? 'Aukcje lokalne.' : 'Локальні аукціони.'),
         path: activeAuction ? `/auction/${slugOrId ?? activeAuction.id}` : '/auctions',
         lang: seoLang,
         alternates: [
