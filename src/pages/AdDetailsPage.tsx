@@ -246,7 +246,8 @@ function AdDetailsPage({ t }: Props) {
                 {/* Продавець (MVP-заглушка) */}
                 <AuthorCard
                     userId={ad.userId}
-                    isOwner={isOwner}
+                    adId={ad.id}
+                    adTitle={ad.title}
                     onReport={() => setIsReportOpen(true)}
                 />
                 {isOwner && (
@@ -532,11 +533,14 @@ function AdDetailsPage({ t }: Props) {
                                         await addDoc(collection(db, "reports"), {
                                             adId: ad.id,
                                             adTitle: ad.title,
-                                            reportedUserId: ad.userId,
+                                            targetUserId: ad.userId,
+                                            targetUserName: "",
                                             reporterUserId: user?.id,
                                             message: reportText.trim(),
                                             createdAt: Date.now(),
                                             status: "new",
+                                            reporterUserName: user?.nickname ?? "",
+                                            reason: "user-report",
                                         })
 
                                         alert(a.report.sent)

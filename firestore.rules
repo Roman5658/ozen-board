@@ -96,6 +96,20 @@ return signedIn() && authEmail() in [
       allow create: if signedIn();
       allow read, update, delete: if isAdmin();
     }
+match /userReviews/{reviewId} {
+allow read: if true;
+allow create: if signedIn() &&
+    isSelf(request.resource.data.authorUserId) &&
+    request.resource.data.targetUserId != request.resource.data.authorUserId &&
+    request.resource.data.comment is string && request.resource.data.comment.size() > 0 &&
+    ((request.resource.data.rating is int && request.resource.data.rating >= 1 && request.resource.data.rating <= 5) ||
+     request.resource.data.karmaValue in [-1, 1]);
+allow update: if signedIn() && isSelf(resource.data.authorUserId) &&
+    request.resource.data.authorUserId == resource.data.authorUserId &&
+    request.resource.data.targetUserId == resource.data.targetUserId &&
+    request.resource.data.adId == resource.data.adId;
+allow delete: if isAdmin();
+}
 
     match /payments/{paymentId} {
       allow read: if signedIn() && (

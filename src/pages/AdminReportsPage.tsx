@@ -1,184 +1,38 @@
-import { useEffect, useState } from "react"
-import { collection, getDocs, doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore"
-
-import type { Report } from "../types/report"
-import type { Ad } from "../types/ad"
-
+import { useEffect, useMemo, useState } from "react"
+import { collection, deleteDoc, doc, getDocs, updateDoc } from "firebase/firestore"
 import { db } from "../app/firebase"
-import { buildAdPath } from "../utils/slug"
 
+import type { Report, ReportStatus } from "../types/report"
+import type { UserReview } from "../types/userReview"
 
-function AdminReportsPage() {
-
-
+export default function AdminReportsPage() {
     const [reports, setReports] = useState<Report[]>([])
-    const [adsMap, setAdsMap] = useState<Record<string, Ad>>({})
-    const [loading, setLoading] = useState(true)
+    const [reviews, setReviews] = useState<UserReview[]>([])
+    const [tab, setTab] = useState<'reports' | 'reviews' | 'karma'>('reports')
 
-    // -------------------------
-    // действия администратора
-    // -------------------------
+    useEffect(() => { (async () => {
+        const [rSnap, vSnap] = await Promise.all([getDocs(collection(db, 'reports')), getDocs(collection(db, 'userReviews'))])
+        setReports(rSnap.docs.map(d => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const x = d.data() as any
+            return { id: d.id, adId: x.adId ?? '', adTitle: x.adTitle ?? '', targetUserId: x.targetUserId ?? x.reportedUserId ?? '', targetUserName: x.targetUserName, reporterUserId: x.reporterUserId, reporterUserName: x.reporterUserName, message: x.message ?? '', reason: x.reason ?? '', createdAt: x.createdAt ?? Date.now(), status: (x.status ?? 'new') as ReportStatus }
+        }))
+        setReviews(vSnap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
+    })() }, [])
 
-    async function markResolved(reportId: string) {
-        await updateDoc(doc(db, "reports", reportId), {
-            status: "resolved",
-        })
+    const badKarma = useMemo(() => {
+        const map: Record<string, { name: string; karma: number; count: number }> = {}
+        reviews.forEach(r => { const k = r.targetUserId; map[k] ??= { name: r.targetUserName ?? k, karma: 0, count: 0 }; map[k].karma += r.karmaValue ?? 0; map[k].count += 1 })
+        return Object.entries(map).filter(([, v]) => v.karma < 0).sort((a, b) => a[1].karma - b[1].karma)
+    }, [reviews])
 
-        setReports((prev) =>
-            prev.map((r) =>
-                r.id === reportId ? { ...r, status: "resolved" } : r
-            )
-        )
-    }
+    async function setStatus(reportId: string, status: ReportStatus) { await updateDoc(doc(db, 'reports', reportId), { status }); setReports(prev => prev.map(r => r.id === reportId ? { ...r, status } : r)) }
 
-    async function deleteAdByReport(reportId: string, adId: string) {
-        const ok = window.confirm("Видалити оголошення назавжди?")
-        if (!ok) return
-
-        await deleteDoc(doc(db, "ads", adId))
-
-        await updateDoc(doc(db, "reports", reportId), {
-            status: "resolved",
-        })
-
-        setReports((prev) =>
-            prev.map((r) =>
-                r.id === reportId ? { ...r, status: "resolved" } : r
-            )
-        )
-
-        setAdsMap((prev) => {
-            const copy = { ...prev }
-            delete copy[adId]
-            return copy
-        })
-    }
-
-    // -------------------------
-    // загрузка жалоб
-    // -------------------------
-
-    useEffect(() => {
-        async function loadReports() {
-            const snap = await getDocs(collection(db, "reports"))
-
-            const data: Report[] = snap.docs.map((d) => ({
-                id: d.id,
-                ...(d.data() as Omit<Report, "id">),
-            }))
-
-            setReports(data)
-
-            const ads: Record<string, Ad> = {}
-
-            for (const r of data) {
-                const adSnap = await getDoc(doc(db, "ads", r.adId))
-                if (adSnap.exists()) {
-                    ads[r.adId] = {
-                        id: adSnap.id,
-                        ...(adSnap.data() as Omit<Ad, "id">),
-                    }
-                }
-            }
-
-            setAdsMap(ads)
-            setLoading(false)
-        }
-
-        loadReports()
-    }, [])
-
-
-    // -------------------------
-    // защита
-    // -------------------------
-
-
-    if (loading) {
-        return <div className="card">Завантаження…</div>
-    }
-
-    // -------------------------
-    // UI
-    // -------------------------
-
-    return (
-        <div className="stack12">
-            <h2 className="h2">Скарги користувачів</h2>
-
-            {reports.length === 0 && (
-                <div className="card">Скарг поки немає</div>
-            )}
-
-            {reports.map((r) => {
-                const ad = adsMap[r.adId]
-
-                return (
-                    <div key={r.id} className="card stack12">
-                        <div style={{ fontSize: 12, fontWeight: 700 }}>
-                            Статус: {r.status === "resolved" ? "Вирішено" : "Нове"}
-                        </div>
-
-                        {r.status !== "resolved" && (
-                            <div className="stack8">
-                                <button
-                                    className="btn-secondary"
-                                    onClick={() => markResolved(r.id)}
-                                >
-                                    Позначити як вирішено
-                                </button>
-
-                                {ad && (
-                                    <button
-                                        className="btn-danger"
-                                        onClick={() => deleteAdByReport(r.id, ad.id)}
-                                    >
-                                        Видалити оголошення
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
-                        <div><b>Оголошення:</b> {r.adTitle}</div>
-                        <div><b>Текст:</b> {r.message}</div>
-
-                        {ad && (
-                            <div className="card stack8" style={{ background: "#f9fafb" }}>
-                                <img
-                                    src={ad.image}
-                                    alt={ad.title}
-                                    style={{
-                                        width: "100%",
-                                        maxHeight: 180,
-                                        objectFit: "contain",
-                                        borderRadius: 8,
-                                    }}
-                                />
-
-                                <div><b>{ad.title}</b></div>
-                                <div>{ad.city} · {ad.voivodeship}</div>
-                                <div style={{ fontWeight: 700 }}>{ad.price}</div>
-
-                                <a
-                                    href={buildAdPath(ad.title, ad.city, ad.id)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn-secondary"
-                                    style={{ textAlign: "center" }}
-                                >
-                                    Перейти до оголошення
-                                </a>
-                            </div>
-                        )}
-
-                        <div style={{ fontSize: 12, color: "#6b7280" }}>
-                            На користувача: {r.reportedUserId}
-                        </div>
-                    </div>
-                )
-            })}
-        </div>
-    )
+    return <div className='stack12'>
+        <h2 className='h2'>Репутація / Скарги</h2>
+        <div style={{ display: 'flex', gap: 8 }}><button className='btn-secondary' onClick={() => setTab('reports')}>Жалобы</button><button className='btn-secondary' onClick={() => setTab('reviews')}>Отзывы</button><button className='btn-secondary' onClick={() => setTab('karma')}>Плохая карма</button></div>
+        {tab === 'reports' && reports.map(r => <div key={r.id} className='card stack8'><div><b>{r.status}</b> · {new Date(r.createdAt).toLocaleString()}</div><div>От: {r.reporterUserName ?? r.reporterUserId ?? 'unknown'} → {r.targetUserName ?? r.targetUserId}</div><div>Объявление: {r.adTitle}</div><div>{r.message}</div><div style={{display:'flex',gap:8}}><button className='btn-secondary' onClick={() => setStatus(r.id, 'reviewed')}>отметить просмотренной</button><button className='btn-secondary' onClick={() => setStatus(r.id, 'resolved')}>решить</button><button className='btn-danger' onClick={() => setStatus(r.id, 'rejected')}>отклонить</button></div></div>)}
+        {tab === 'reviews' && reviews.map(r => <div key={r.id} className='card'><div><b>{r.authorUserName ?? r.authorUserId}</b> → {r.targetUserName ?? r.targetUserId}</div><div>{r.adTitle}</div><div>rating {r.rating ?? '-'} · karma {r.karmaValue ?? 0}</div><div>{r.comment}</div><button className='btn-danger' onClick={async () => { await deleteDoc(doc(db, 'userReviews', r.id)); setReviews(prev => prev.filter(x => x.id !== r.id)) }}>Удалить отзыв</button></div>)}
+        {tab === 'karma' && badKarma.map(([id, v]) => <div key={id} className='card'>{v.name} ({id}) · карма {v.karma} · отзывов {v.count}</div>)}
+    </div>
 }
-
-export default AdminReportsPage

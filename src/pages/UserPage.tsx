@@ -12,6 +12,7 @@ import { getLocalUser } from '../data/localUser'
 import { translations, DEFAULT_LANG } from '../app/i18n'
 import type { Lang } from '../app/i18n'
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
+import type { UserReview } from '../types/userReview'
 
 
 
@@ -31,8 +32,10 @@ function UserPage() {
     const [ads, setAds] = useState<Ad[]>([])
     const [adsLoading, setAdsLoading] = useState(false)
     const [auctions, setAuctions] = useState<Auction[]>([])
+
     const [auctionsLoading, setAuctionsLoading] = useState(false)
     const currentUser = getLocalUser()
+    const [reviews, setReviews] = useState<UserReview[]>([])
     const isLoggedIn = !!currentUser
     const isOwnProfile = currentUser?.id === id
     const lang = (localStorage.getItem('lang') as Lang) || DEFAULT_LANG
@@ -132,6 +135,14 @@ function UserPage() {
         loadUserAuctions()
     }, [id])
 
+    useEffect(() => {
+        if (!id) return
+            ;(async () => {
+            const snap = await getDocs(query(collection(db, 'userReviews'), where('targetUserId', '==', id)))
+            setReviews(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
+        })()
+    }, [id])
+
     if (loading) {
         return <div className="card">{t.userPage.loading}</div>
 
@@ -150,12 +161,14 @@ function UserPage() {
             <div style={{marginTop: 12}}>
                 <div><b>{t.userPage.nickname}:</b>
                     {user.nickname}</div>
-                <div style={{marginTop: 6}}><b>{t.userPage.karma}:</b>
-                    {user.karma}</div>
+                <div style={{marginTop: 6}}><b>{t.userPage.karma}:</b> {user.karma}</div>
+                <div style={{marginTop: 6}}>
+                    <b>Рейтинг:</b> {(reviews.length ? (reviews.reduce((sum, r) => sum + (r.rating ?? 0), 0) / reviews.length) : 0).toFixed(1)} · <b>Відгуків:</b> {reviews.length} · <b>Репутація:</b> {reviews.reduce((sum, r) => sum + (r.karmaValue ?? 0), 0)}
+                </div>
                 {isLoggedIn && !isOwnProfile && (
                     <button
                         className="btn-primary"
-                        style={{ marginTop: 12 }}
+                        style={{marginTop: 12}}
                         onClick={() => {
                             alert('Чати будуть доступні незабаром')
                         }}
@@ -203,18 +216,29 @@ function UserPage() {
                     </div>
                 )}
             </div>
-            <hr style={{ margin: '20px 0' }} />
+            <hr style={{margin: '20px 0'}}/>
+            <h3>Відгуки</h3>
+            {reviews.length === 0 ? <div style={{fontSize: 14, color: '#666'}}>Поки немає відгуків</div> :
+                <div className='stack12'>{reviews.map(r => <div key={r.id} className='card'>
+                    <div><b>{r.authorUserName ?? r.authorUserId}</b> · {new Date(r.createdAt).toLocaleDateString()}
+                    </div>
+                    <div>{r.adTitle}</div>
+                    <div>rating: {r.rating ?? '-'} · karma: {r.karmaValue ?? 0}</div>
+                    <div>{r.comment}</div>
+                </div>)}</div>}
+
+            <hr style={{margin: '20px 0'}}/>
 
             <h3>{t.userPage.adsTitle}</h3>
 
 
             {adsLoading ? (
-                <div style={{ fontSize: 14, color: '#666' }}>
+                <div style={{fontSize: 14, color: '#666'}}>
                     {t.userPage.adsLoading}
 
                 </div>
             ) : ads.length === 0 ? (
-                <div style={{ fontSize: 14, color: '#666' }}>
+                <div style={{fontSize: 14, color: '#666'}}>
                     {t.userPage.noAds}
 
                 </div>
@@ -224,7 +248,7 @@ function UserPage() {
                         <Link
                             key={ad.id}
                             to={buildAdPath(ad.title, ad.city, ad.id)}
-                            style={{ textDecoration: 'none', color: 'inherit' }}
+                            style={{textDecoration: 'none', color: 'inherit'}}
                         >
                             <AdCard {...ad} />
                         </Link>
@@ -232,17 +256,27 @@ function UserPage() {
                 </div>
             )}
 
-            <hr style={{ margin: '20px 0' }} />
+            <hr style={{margin: '20px 0'}}/>
+            <h3>Відгуки</h3>
+            {reviews.length === 0 ? <div style={{fontSize: 14, color: '#666'}}>Поки немає відгуків</div> :
+                <div className='stack12'>{reviews.map(r => <div key={r.id} className='card'>
+                    <div><b>{r.authorUserName ?? r.authorUserId}</b> · {new Date(r.createdAt).toLocaleDateString()}
+                    </div>
+                    <div>{r.adTitle}</div>
+                    <div>rating: {r.rating ?? '-'} · karma: {r.karmaValue ?? 0}</div>
+                    <div>{r.comment}</div>
+                </div>)}</div>}
 
+            <hr style={{margin: '20px 0'}}/>
             <h3>{t.userPage.auctionsTitle}</h3>
 
 
             {auctionsLoading ? (
-                <div style={{ fontSize: 14, color: '#666' }}>
+                <div style={{fontSize: 14, color: '#666'}}>
                     {t.userPage.auctionsLoading}
                 </div>
             ) : auctions.length === 0 ? (
-                <div style={{ fontSize: 14, color: '#666' }}>
+                <div style={{fontSize: 14, color: '#666'}}>
                     {t.userPage.noAuctions}
                 </div>
             ) : (
@@ -254,7 +288,7 @@ function UserPage() {
                             <Link
                                 key={auction.id}
                                 to={buildAuctionPath(auction.title, auction.city, auction.id)}
-                                style={{ textDecoration: 'none', color: 'inherit' }}
+                                style={{textDecoration: 'none', color: 'inherit'}}
                             >
                                 <AuctionCard
                                     t={t}

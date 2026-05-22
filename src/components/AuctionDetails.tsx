@@ -276,7 +276,8 @@ function AuctionDetails({
             {seller && (
                 <AuthorCard
                     userId={seller.id}
-                    isOwner={isAuthor}
+                    adId={auctionId}
+                    adTitle={title}
                     onReport={() => setIsReportOpen(true)}
                 />
             )}
