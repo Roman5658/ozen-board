@@ -12,7 +12,7 @@ export type Ad = {
     image?: string
     isPremium?: boolean
     isPinned?: boolean
-    status?: "active" | "deleted" | "expired"
+    status?: "active" | "pending_payment" | "deleted" | "expired"
     // оплата и продвижение
     paidAt?: number
     paymentId?: string

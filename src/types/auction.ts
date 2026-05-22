@@ -1,4 +1,4 @@
-export type AuctionStatus = "active" | "ended"
+export type AuctionStatus = "active" | "pending_payment" | "ended"
 export type AuctionPromotionType =
     | "none"
     | "top-auction"

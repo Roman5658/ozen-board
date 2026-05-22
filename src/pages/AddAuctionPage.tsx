@@ -46,6 +46,7 @@ function AddAuctionPage({ t }: Props) {
     const [isPaying, setIsPaying] = useState(false)
     const [paymentCompleted, setPaymentCompleted] = useState(false)
     const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
+    const paymentSuccessMessage = "Оплата успешно подтверждена. Теперь нажмите «Создать аукцион», чтобы завершить публикацию."
 
     const [promotionInfo, setPromotionInfo] = useState<{
         text: string
@@ -64,6 +65,7 @@ function AddAuctionPage({ t }: Props) {
     useEffect(() => {
         setPaymentCompleted(false)
         setPaypalOrderId(null)
+        setIsPaying(false)
     }, [promotion])
 // 👇 ПОТОМ любая логика и return
     const user = getLocalUser()
@@ -182,7 +184,7 @@ function AddAuctionPage({ t }: Props) {
             ownerId: safeUser.id,
             ownerName: safeUser.nickname || "User",
 
-            status: "active",
+            status: isPaidPromotion ? "pending_payment" : "active",
             createdAt,
             endsAt,
 
@@ -196,12 +198,16 @@ function AddAuctionPage({ t }: Props) {
                 throw new Error(t.addAuction.errors.paypalError)
             }
 
-            await verifyPayPalPayment({
+            const paymentResult = await verifyPayPalPayment({
                 orderId: paypalOrderId,
                 targetType: "auction",
                 targetId: docRef.id,
                 promotionType: promotion,
             })
+
+            if (!paymentResult.data?.ok) {
+                throw new Error(t.addAuction.errors.paypalError)
+            }
         }
 
         navigate("/auctions")
@@ -329,32 +335,60 @@ function AddAuctionPage({ t }: Props) {
                             {isFormValid && <>
                                 <div style={{ fontSize: 13, color: "#6b7280" }}>{t.addAuction.payment.queueInfo}</div>
                                 <div style={{ fontWeight: 700 }}>{t.addAuction.payment.amount}: {pricePLN} PLN</div>
-                                <PayPalCheckoutButton
-                                    amountPLN={pricePLN}
-                                    description="Ozen Board - auction promotion"
-                                    disabled={isPaying}
-                                    onApprove={async (orderId) => {
-                                        setError(null)
-                                        setIsPaying(true)
+                                {paymentCompleted ? (
+                                    <div style={{
+                                        padding: 12,
+                                        borderRadius: 8,
+                                        border: "1px solid #16a34a",
+                                        background: "#ecfdf5",
+                                        color: "#166534",
+                                        fontSize: 14,
+                                    }}>
+                                        {paymentSuccessMessage}
+                                    </div>
+                                ) : (
+                                    <PayPalCheckoutButton
+                                        amountPLN={pricePLN}
+                                        description="Ozen Board - auction promotion"
+                                        disabled={isPaying}
+                                        paymentCompleted={paymentCompleted}
+                                        orderId={paypalOrderId}
+                                        onApprove={async (orderId) => {
+                                            setError(null)
+                                            setIsPaying(true)
 
-                                        try {
-                                            setPaypalOrderId(orderId)
-                                            setPaymentCompleted(true)
-                                        } catch {
-                                            setError(t.addAuction.errors.paypalError)
-                                        } finally {
+                                            try {
+                                                const paymentResult = await verifyPayPalPayment({
+                                                    orderId,
+                                                    targetType: "auction",
+                                                    promotionType: promotion,
+                                                })
+
+                                                if (!paymentResult.data?.ok) {
+                                                    throw new Error(t.addAuction.errors.paypalError)
+                                                }
+
+                                                setPaypalOrderId(orderId)
+                                                setPaymentCompleted(true)
+                                            } finally {
+                                                setIsPaying(false)
+                                            }
+                                        }}
+                                        onError={(message) => {
+                                            if (paymentCompleted || paypalOrderId) return
                                             setIsPaying(false)
-                                        }
-                                    }}
-                                    onError={(message) => { setError(message || t.addAuction.errors.paypalError) }}
-                                />
+                                            setError(message || t.addAuction.errors.paypalError)
+                                        }}
+                                    />
+                                )}
                             </>}
                         </div>
                     )}
 
                     <label className="promotion-option">
                         <input type="radio" name="promotion" checked={promotion === "none"}
-                               onChange={() => setPromotion("none")}/>
+                               onChange={() => setPromotion("none")}
+                               disabled={paymentCompleted || isPaying}/>
                         🆓 {t.addAuction.promotion.none}
                         <div className="hint">{t.addAuction.promotion.noneHint}</div>
 
@@ -365,7 +399,8 @@ function AddAuctionPage({ t }: Props) {
                                onChange={async () => {
                                    setPromotion("top-auction");
                                    await loadPromotionInfo("top")
-                               }}/>
+                               }}
+                               disabled={paymentCompleted || isPaying}/>
                         🔥 {t.addAuction.promotion.top}
                         <div className="hint">{t.addAuction.promotion.topHint}</div>
 
@@ -375,7 +410,8 @@ function AddAuctionPage({ t }: Props) {
                         <input type="radio" name="promotion" checked={promotion === "featured"} onChange={async () => {
                             setPromotion("featured");
                             await loadPromotionInfo("featured")
-                        }}/>
+                        }}
+                               disabled={paymentCompleted || isPaying}/>
                         ⭐ {t.addAuction.promotion.featured}
                         <div className="hint">{t.addAuction.promotion.featuredHint}</div>
 
@@ -383,7 +419,8 @@ function AddAuctionPage({ t }: Props) {
 
                     <label className="promotion-option">
                         <input type="radio" name="promotion" checked={promotion === "highlight-gold"}
-                               onChange={() => setPromotion("highlight-gold")}/>
+                               onChange={() => setPromotion("highlight-gold")}
+                               disabled={paymentCompleted || isPaying}/>
                         ✨ {t.addAuction.promotion.gold}
                         <div className="hint">{t.addAuction.promotion.goldHint}</div>
 

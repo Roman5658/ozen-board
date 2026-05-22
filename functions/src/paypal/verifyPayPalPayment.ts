@@ -86,23 +86,55 @@ export const verifyPayPalPayment = onCall(async (request) => {
 
     const orderId = requireString(data.orderId, "orderId");
     const targetType = requireTargetType(data.targetType);
-    const targetId = requireString(data.targetId, "targetId");
+    const targetId = optionalString(data.targetId);
     const normalized = normalizePayment(targetType, data.promotionType);
+    const paymentRef = db.collection("payments").doc(orderId);
 
-    await assertOrderNotProcessed(orderId);
-    await assertTargetCanBePromoted(targetType, targetId, normalized.storagePromotion);
+    const existingPayment = await paymentRef.get();
+    if (existingPayment.exists) {
+        return await handleExistingPayment(
+            paymentRef,
+            existingPayment.data() ?? {},
+            orderId,
+            targetType,
+            targetId,
+            normalized
+        );
+    }
+
+    const legacyPaymentSnap = await db.collection("payments")
+        .where("orderId", "==", orderId)
+        .limit(1)
+        .get();
+    if (!legacyPaymentSnap.empty) {
+        const legacyPayment = legacyPaymentSnap.docs[0];
+        return await handleExistingPayment(
+            legacyPayment.ref,
+            legacyPayment.data(),
+            orderId,
+            targetType,
+            targetId,
+            normalized
+        );
+    }
+
+    if (targetId) {
+        await assertTargetCanBePromoted(targetType, targetId, normalized.storagePromotion);
+    }
 
     const paypalBase = getPayPalBaseUrl();
     const accessToken = await getPayPalAccessToken(paypalBase);
 
     const order = await getPayPalOrder(paypalBase, accessToken, orderId);
-    if (order.status !== "APPROVED") {
+    if (order.status !== "APPROVED" && order.status !== "COMPLETED") {
         throw new Error(`PayPal order must be APPROVED before backend capture: ${order.status ?? "unknown"}`);
     }
 
     assertPayPalAmount(getOrderAmount(order), normalized.priceAmount);
 
-    const capturedOrder = await capturePayPalOrder(paypalBase, accessToken, orderId);
+    const capturedOrder = order.status === "COMPLETED"
+        ? order
+        : await capturePayPalOrder(paypalBase, accessToken, orderId);
     if (capturedOrder.status !== "COMPLETED") {
         throw new Error(`Payment not completed after backend capture: ${capturedOrder.status ?? "unknown"}`);
     }
@@ -111,7 +143,50 @@ export const verifyPayPalPayment = onCall(async (request) => {
     const paidAmount = completedCapture?.amount ?? getOrderAmount(capturedOrder) ?? getOrderAmount(order);
     assertPayPalAmount(paidAmount, normalized.priceAmount);
 
-    const paymentRef = db.collection("payments").doc(orderId);
+    if (!targetId) {
+        await db.runTransaction(async (transaction) => {
+            const existingPaymentInTransaction = await transaction.get(paymentRef);
+            if (existingPaymentInTransaction.exists) {
+                throw new Error("Payment already processed");
+            }
+
+            transaction.create(paymentRef, {
+                provider: "paypal",
+                orderId: capturedOrder.id ?? orderId,
+                captureId: completedCapture?.id ?? null,
+
+                userId: null,
+
+                targetType,
+                targetId: null,
+                promotionType: normalized.storagePromotion,
+
+                amount: paidAmount?.value ?? normalized.priceAmount,
+                currency: paidAmount?.currency_code ?? CURRENCY,
+
+                payerEmail: capturedOrder.payer?.email_address ?? order.payer?.email_address ?? null,
+
+                status: "completed",
+                promotionUntil: null,
+                queued: false,
+                capturedAt: Date.now(),
+                createdAt: Date.now(),
+            });
+        });
+
+        return {
+            ok: true,
+            orderId: capturedOrder.id ?? orderId,
+            targetType,
+            targetId: null,
+            promotionType: normalized.storagePromotion,
+            promotionUntil: null,
+            queued: false,
+            amount: paidAmount?.value ?? normalized.priceAmount,
+            currency: paidAmount?.currency_code ?? CURRENCY,
+            payer: capturedOrder.payer?.email_address ?? order.payer?.email_address ?? null,
+        };
+    }
 
     const promotionResult = await db.runTransaction(async (transaction): Promise<PromotionResult> => {
         const existingPayment = await transaction.get(paymentRef);
@@ -165,6 +240,14 @@ function requireString(value: unknown, fieldName: string): string {
     }
 
     return value.trim();
+}
+
+function optionalString(value: unknown): string | null {
+    if (value === undefined || value === null) {
+        return null;
+    }
+
+    return requireString(value, "targetId");
 }
 
 function requireTargetType(value: unknown): TargetType {
@@ -225,16 +308,132 @@ function normalizePayment(targetType: TargetType, promotionType: unknown): Norma
     throw new Error("Invalid promotion type for target");
 }
 
-async function assertOrderNotProcessed(orderId: string): Promise<void> {
-    const paymentRef = db.collection("payments").doc(orderId);
-    const [paymentDoc, legacyPaymentSnap] = await Promise.all([
-        paymentRef.get(),
-        db.collection("payments").where("orderId", "==", orderId).limit(1).get(),
-    ]);
+async function handleExistingPayment(
+    paymentRef: FirebaseFirestore.DocumentReference,
+    payment: FirebaseFirestore.DocumentData,
+    orderId: string,
+    targetType: TargetType,
+    targetId: string | null,
+    normalized: NormalizedPayment
+) {
+    assertExistingPaymentMatches(payment, orderId, targetType, normalized);
 
-    if (paymentDoc.exists || !legacyPaymentSnap.empty) {
-        throw new Error("Payment already processed");
+    const existingTargetId = typeof payment.targetId === "string" && payment.targetId.trim()
+        ? payment.targetId.trim()
+        : null;
+
+    if (!targetId || existingTargetId) {
+        if (targetId && existingTargetId !== targetId) {
+            throw new Error("Payment is already attached to another target");
+        }
+
+        return paymentResponse(orderId, targetType, existingTargetId, normalized, payment);
     }
+
+    const promotionResult = await db.runTransaction(async (transaction): Promise<PromotionResult> => {
+        const currentPaymentSnap = await transaction.get(paymentRef);
+        if (!currentPaymentSnap.exists) {
+            throw new Error("Payment not found");
+        }
+
+        const currentPayment = currentPaymentSnap.data() ?? {};
+        assertExistingPaymentMatches(currentPayment, orderId, targetType, normalized);
+
+        const currentTargetId = typeof currentPayment.targetId === "string" && currentPayment.targetId.trim()
+            ? currentPayment.targetId.trim()
+            : null;
+
+        if (currentTargetId) {
+            if (currentTargetId !== targetId) {
+                throw new Error("Payment is already attached to another target");
+            }
+
+            return {
+                ownerUserId: typeof currentPayment.userId === "string" ? currentPayment.userId : null,
+                promotionUntil: typeof currentPayment.promotionUntil === "number"
+                    ? currentPayment.promotionUntil
+                    : null,
+                queued: currentPayment.queued === true,
+            };
+        }
+
+        const result = await applyPromotion(transaction, targetType, targetId, normalized);
+
+        transaction.update(paymentRef, {
+            targetId,
+            userId: result.ownerUserId,
+            promotionUntil: result.promotionUntil,
+            queued: result.queued,
+            attachedAt: Date.now(),
+        });
+
+        return result;
+    });
+
+    return {
+        ok: true,
+        orderId,
+        targetType,
+        targetId,
+        promotionType: normalized.storagePromotion,
+        promotionUntil: promotionResult.promotionUntil,
+        queued: promotionResult.queued,
+        amount: payment.amount ?? normalized.priceAmount,
+        currency: payment.currency ?? CURRENCY,
+        payer: payment.payerEmail ?? null,
+    };
+}
+
+function assertExistingPaymentMatches(
+    payment: FirebaseFirestore.DocumentData,
+    orderId: string,
+    targetType: TargetType,
+    normalized: NormalizedPayment
+): void {
+    if (payment.provider !== "paypal" || payment.status !== "completed") {
+        throw new Error("Payment is not completed");
+    }
+
+    if (payment.orderId && payment.orderId !== orderId) {
+        throw new Error("Payment order mismatch");
+    }
+
+    if (payment.targetType !== targetType) {
+        throw new Error("Payment target type mismatch");
+    }
+
+    if (payment.promotionType !== normalized.storagePromotion) {
+        throw new Error("Payment promotion mismatch");
+    }
+
+    assertPayPalAmount(
+        {
+            value: typeof payment.amount === "string" ? payment.amount : normalized.priceAmount,
+            currency_code: typeof payment.currency === "string" ? payment.currency : CURRENCY,
+        },
+        normalized.priceAmount
+    );
+}
+
+function paymentResponse(
+    orderId: string,
+    targetType: TargetType,
+    targetId: string | null,
+    normalized: NormalizedPayment,
+    payment: FirebaseFirestore.DocumentData
+) {
+    return {
+        ok: true,
+        orderId,
+        targetType,
+        targetId,
+        promotionType: normalized.storagePromotion,
+        promotionUntil: typeof payment.promotionUntil === "number" ? payment.promotionUntil : null,
+        queued: payment.queued === true,
+        amount: payment.amount ?? normalized.priceAmount,
+        currency: payment.currency ?? CURRENCY,
+        payer: payment.payerEmail ?? null,
+    };
 }
 
 async function assertTargetCanBePromoted(
@@ -258,7 +457,7 @@ function assertPromotionState(
     promotion: StoragePromotion,
     now: number
 ): void {
-    if (target.status && target.status !== "active") {
+    if (target.status && target.status !== "active" && target.status !== "pending_payment") {
         throw new Error("Target is not active");
     }
 
@@ -452,6 +651,7 @@ async function applyAdPromotion(
     if (promotion === "bump") {
         transaction.update(adRef, {
             bumpAt: now,
+            status: "active",
         });
 
         return {
@@ -466,6 +666,7 @@ async function applyAdPromotion(
         transaction.update(adRef, {
             highlightType: "gold",
             highlightUntil: promotionUntil,
+            status: "active",
         });
 
         return {
@@ -500,12 +701,14 @@ async function applyAdPromotion(
             pinnedAt: now,
             pinnedUntil: promotionUntil,
             pinQueueAt: null,
+            status: "active",
         }
         : {
             pinType: promotion,
             pinnedAt: null,
             pinnedUntil: null,
             pinQueueAt: now,
+            status: "active",
         }
     );
 
@@ -540,6 +743,7 @@ async function applyAuctionPromotion(
             promotionType: promotion,
             promotionUntil,
             promotionQueueAt: null,
+            status: "active",
         });
 
         return {
@@ -575,11 +779,13 @@ async function applyAuctionPromotion(
             promotionType: promotion,
             promotionUntil,
             promotionQueueAt: null,
+            status: "active",
         }
         : {
             promotionType: promotion,
             promotionUntil: null,
             promotionQueueAt: now,
+            status: "active",
         }
     );
 

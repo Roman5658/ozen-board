@@ -50,6 +50,7 @@ function AddPage({ t }: Props) {
 
     const [error, setError] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isPaying, setIsPaying] = useState(false)
     type PromotionType =
         | 'none'
         | 'top3'
@@ -72,10 +73,12 @@ function AddPage({ t }: Props) {
     const [pinLoading, setPinLoading] = useState(false)
     const [paymentCompleted, setPaymentCompleted] = useState(false)
     const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
+    const paymentSuccessMessage = "Оплата успешно подтверждена. Теперь нажмите «Создать объявление», чтобы завершить публикацию."
 
     useEffect(() => {
         setPaymentCompleted(false)
         setPaypalOrderId(null)
+        setIsPaying(false)
     }, [promotion])
 
     useEffect(() => {
@@ -205,8 +208,12 @@ function AddPage({ t }: Props) {
             return
         }
 // если выбрали PIN — перепроверяем лимит прямо перед созданием
+        const isPaidPromotion = promotion !== "none"
+        if (isPaidPromotion && (!paymentCompleted || !paypalOrderId)) {
+            setError(a.errors.paymentNotConfirmed)
 
-
+            return
+        }
 
         try {
             setIsSubmitting(true)
@@ -239,7 +246,7 @@ function AddPage({ t }: Props) {
 
                 userId,
                 createdAt: timestamp,
-                status: "active",
+                status: isPaidPromotion ? "pending_payment" : "active",
 
                 ...(location ? { location } : {}),
 
@@ -253,7 +260,7 @@ function AddPage({ t }: Props) {
 
             const docRef = await addDoc(collection(db, "ads"), adData)
 
-            if (promotion !== "none") {
+            if (isPaidPromotion) {
                 if (!paypalOrderId) {
                     setError(a.errors.paymentNotConfirmed)
 
@@ -261,12 +268,16 @@ function AddPage({ t }: Props) {
                 }
 
 
-                await verifyPayPalPayment({
+                const paymentResult = await verifyPayPalPayment({
                     orderId: paypalOrderId,
                     targetType: "ad",
                     targetId: docRef.id,
                     promotionType: promotion,
                 })
+
+                if (!paymentResult.data?.ok) {
+                    throw new Error(a.errors.paymentNotConfirmed)
+                }
             }
 
 
@@ -516,21 +527,56 @@ function AddPage({ t }: Props) {
                                         </strong>
                                     </div>
 
-                                    <PayPalCheckoutButton
-                                        amountPLN={
-                                            promotion === "highlight-gold"
-                                                ? PRICES.ad.gold
-                                                : PRICES.ad[promotion]
-                                        }
-                                        description="Ozen Board - ad promotion"
-                                        onApprove={(orderId) => {
-                                            setPaypalOrderId(orderId)
-                                            setPaymentCompleted(true)
-                                        }}
-                                        onError={(message) => {
-                                            setError(message)
-                                        }}
-                                    />
+                                    {paymentCompleted ? (
+                                        <div style={{
+                                            padding: 12,
+                                            borderRadius: 8,
+                                            border: "1px solid #16a34a",
+                                            background: "#ecfdf5",
+                                            color: "#166534",
+                                            fontSize: 14,
+                                        }}>
+                                            {paymentSuccessMessage}
+                                        </div>
+                                    ) : (
+                                        <PayPalCheckoutButton
+                                            amountPLN={
+                                                promotion === "highlight-gold"
+                                                    ? PRICES.ad.gold
+                                                    : PRICES.ad[promotion]
+                                            }
+                                            description="Ozen Board - ad promotion"
+                                            disabled={isPaying}
+                                            paymentCompleted={paymentCompleted}
+                                            orderId={paypalOrderId}
+                                            onApprove={async (orderId) => {
+                                                setError(null)
+                                                setIsPaying(true)
+
+                                                try {
+                                                    const paymentResult = await verifyPayPalPayment({
+                                                        orderId,
+                                                        targetType: "ad",
+                                                        promotionType: promotion,
+                                                    })
+
+                                                    if (!paymentResult.data?.ok) {
+                                                        throw new Error(a.errors.paymentNotConfirmed)
+                                                    }
+
+                                                    setPaypalOrderId(orderId)
+                                                    setPaymentCompleted(true)
+                                                } finally {
+                                                    setIsPaying(false)
+                                                }
+                                            }}
+                                            onError={(message) => {
+                                                if (paymentCompleted || paypalOrderId) return
+                                                setIsPaying(false)
+                                                setError(message)
+                                            }}
+                                        />
+                                    )}
                                 </>
                             )}
                         </div>
@@ -542,6 +588,7 @@ function AddPage({ t }: Props) {
                             name="promotion"
                             checked={promotion === 'none'}
                             onChange={() => setPromotion('none')}
+                            disabled={paymentCompleted || isPaying}
                         />
                         🆓 Без просування
                         <div className="hint">{a.promotion.noneHint}
@@ -554,7 +601,7 @@ function AddPage({ t }: Props) {
                             name="promotion"
                             checked={promotion === 'top3'}
                             onChange={() => setPromotion('top3')}
-                            disabled={pinLoading}
+                            disabled={pinLoading || paymentCompleted || isPaying}
                         />
                         🔥 TOP 3
 
@@ -581,7 +628,7 @@ function AddPage({ t }: Props) {
                             name="promotion"
                             checked={promotion === 'top6'}
                             onChange={() => setPromotion('top6')}
-                            disabled={pinLoading}
+                            disabled={pinLoading || paymentCompleted || isPaying}
                         />
                         ⭐ TOP 6
 
@@ -608,6 +655,7 @@ function AddPage({ t }: Props) {
                             name="promotion"
                             checked={promotion === 'bump'}
                             onChange={() => setPromotion('bump')}
+                            disabled={paymentCompleted || isPaying}
                         />
                         🚀 {a.promotion.bump}
                         <div className="hint">{a.promotion.bumpHint}</div>
@@ -620,6 +668,7 @@ function AddPage({ t }: Props) {
                             name="promotion"
                             checked={promotion === 'highlight-gold'}
                             onChange={() => setPromotion('highlight-gold')}
+                            disabled={paymentCompleted || isPaying}
                         />
                         ✨ {a.promotion.gold}
                         <div className="hint">{a.promotion.goldHint}</div>
@@ -632,6 +681,7 @@ function AddPage({ t }: Props) {
                     className="btn-primary"
                     disabled={
                         isSubmitting ||
+                        isPaying ||
                         (promotion !== 'none' && !paymentCompleted)
                     }
                 >

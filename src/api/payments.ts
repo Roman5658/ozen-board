@@ -7,7 +7,7 @@ export const verifyPayPalPayment = httpsCallable<
     {
         orderId: string;
         targetType: "ad" | "auction";
-        targetId: string;
+        targetId?: string;
         promotionType: string;
     },
     {

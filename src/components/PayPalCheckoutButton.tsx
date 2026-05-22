@@ -1,9 +1,12 @@
+import { useRef } from "react"
 import { PayPalButtons } from "@paypal/react-paypal-js"
 
 type Props = {
     amountPLN: number | string
     description: string
     disabled?: boolean
+    paymentCompleted?: boolean
+    orderId?: string | null
     onApprove: (orderId: string) => void | Promise<void>
     onError: (message: string) => void
 }
@@ -12,9 +15,12 @@ export default function PayPalCheckoutButton({
                                                  amountPLN,
                                                  description,
                                                  disabled = false,
+                                                 paymentCompleted = false,
+                                                 orderId = null,
                                                  onApprove,
                                                  onError,
                                              }: Props) {
+    const approvedOrderIdRef = useRef<string | null>(null)
     const value =
         typeof amountPLN === "number"
             ? amountPLN.toFixed(2)
@@ -58,6 +64,7 @@ export default function PayPalCheckoutButton({
                         throw new Error("Missing PayPal order id")
                     }
 
+                    approvedOrderIdRef.current = data.orderID
                     await onApprove(data.orderID)
                 } catch (e) {
                     console.error(e)
@@ -65,7 +72,11 @@ export default function PayPalCheckoutButton({
                 }
             }}
             onCancel={() => {
-                onError("Payment was canceled by user")
+                if (paymentCompleted || orderId || approvedOrderIdRef.current) {
+                    return
+                }
+
+                onError("Payment was canceled before approval")
             }}
             onError={(err) => {
                 console.error(err)

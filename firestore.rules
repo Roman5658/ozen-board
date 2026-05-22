@@ -44,6 +44,26 @@ return signedIn() && authEmail() in [
              request.resource.data.status != resource.data.status;
     }
 
+    function hasProtectedAdCreateFields() {
+      return request.resource.data.keys().hasAny([
+        'pinType',
+        'pinnedAt',
+        'pinnedUntil',
+        'pinQueueAt',
+        'bumpAt',
+        'highlightType',
+        'highlightUntil',
+        'paidAt',
+        'paymentId'
+      ]);
+    }
+
+    function hasPaidAuctionCreateFields() {
+      return ('promotionType' in request.resource.data && request.resource.data.promotionType != 'none') ||
+             ('promotionUntil' in request.resource.data && request.resource.data.promotionUntil != null) ||
+             ('promotionQueueAt' in request.resource.data && request.resource.data.promotionQueueAt != null);
+    }
+
     match /users/{userId} {
        // Нужен публичный read для проверки занятых никнеймов при регистрации
             // и отображения никнеймов в чатах/карточках.
@@ -53,7 +73,9 @@ return signedIn() && authEmail() in [
 
     match /ads/{adId} {
       allow read: if true;
-      allow create: if signedIn() && isSelf(request.resource.data.userId);
+      allow create: if signedIn() &&
+        isSelf(request.resource.data.userId) &&
+        !hasProtectedAdCreateFields();
       allow update, delete: if signedIn() && (
         (isSelf(resource.data.userId) && !isProtectedAdFieldChanged()) ||
         isAdmin()
@@ -62,7 +84,9 @@ return signedIn() && authEmail() in [
 
     match /auctions/{auctionId} {
       allow read: if true;
-      allow create: if signedIn() && isSelf(request.resource.data.ownerId);
+      allow create: if signedIn() &&
+        isSelf(request.resource.data.ownerId) &&
+        !hasPaidAuctionCreateFields();
       allow update, delete: if signedIn() && (
         (isSelf(resource.data.ownerId) && !isProtectedAuctionFieldChanged()) ||
         isAdmin()
