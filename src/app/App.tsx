@@ -42,6 +42,8 @@ function App() {
     const t = translations[lang]
     const location = useLocation()
     const navigate = useNavigate()
+    const noindexPrefixes = ['/admin', '/account', '/my-ads', '/add', '/edit', '/chat']
+    const noindex = noindexPrefixes.some((prefix) => location.pathname.startsWith(prefix))
     useSeo({
         title: t.seo.appTitle,
         description: t.seo.appDescription,
@@ -52,6 +54,7 @@ function App() {
             { hreflang: 'uk-UA', href: `${BASE_URL}/uk/` },
             { hreflang: 'x-default', href: `${BASE_URL}/pl/` },
         ],
+        noindex,
         jsonLd: [
             {
                 '@context': 'https://schema.org',
