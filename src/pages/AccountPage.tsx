@@ -439,12 +439,12 @@ function AccountPage({ t }: Props) {
                                 return
                             }
                             if (containsCyrillic(cleanEmail)) {
-                                setAuthError("Email должен быть введён латиницей.")
+                                setAuthError(a.auth.errors.emailLatinOnly)
                                 return
                             }
                             if (mode === "register") {
                                 if (containsCyrillic(nickname) || !isLatinNickname(nickname)) {
-                                    setAuthError("Никнейм должен содержать только латинские буквы, цифры и символы . _ -")
+                                    setAuthError(a.auth.errors.nicknameLatinOnly)
                                     return
                                 }
                             }
