@@ -101,13 +101,14 @@ allow read: if true;
 allow create: if signedIn() &&
     isSelf(request.resource.data.authorUserId) &&
     request.resource.data.targetUserId != request.resource.data.authorUserId &&
-    request.resource.data.comment is string && request.resource.data.comment.size() > 0 &&
-    ((request.resource.data.rating is int && request.resource.data.rating >= 1 && request.resource.data.rating <= 5) ||
-     request.resource.data.karmaValue in [-1, 1]);
+request.resource.data.karmaValue in [-1, 1] &&
+(!("comment" in request.resource.data) || request.resource.data.comment is string);
 allow update: if signedIn() && isSelf(resource.data.authorUserId) &&
     request.resource.data.authorUserId == resource.data.authorUserId &&
     request.resource.data.targetUserId == resource.data.targetUserId &&
-    request.resource.data.adId == resource.data.adId;
+request.resource.data.adId == resource.data.adId &&
+request.resource.data.karmaValue in [-1, 1] &&
+(!("comment" in request.resource.data) || request.resource.data.comment is string);
 allow delete: if isAdmin();
 }
 

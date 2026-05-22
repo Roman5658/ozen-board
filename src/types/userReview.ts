@@ -6,9 +6,8 @@ export type UserReview = {
     authorUserName?: string
     adId: string
     adTitle: string
-    rating?: number
-    karmaValue?: -1 | 1
-    comment: string
+    karmaValue: -1 | 1
+    comment?: string
     role: 'seller' | 'buyer'
     createdAt: number
 }

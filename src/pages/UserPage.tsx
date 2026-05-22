@@ -163,7 +163,7 @@ function UserPage() {
                     {user.nickname}</div>
                 <div style={{marginTop: 6}}><b>{t.userPage.karma}:</b> {user.karma}</div>
                 <div style={{marginTop: 6}}>
-                    <b>Рейтинг:</b> {(reviews.length ? (reviews.reduce((sum, r) => sum + (r.rating ?? 0), 0) / reviews.length) : 0).toFixed(1)} · <b>Відгуків:</b> {reviews.length} · <b>Репутація:</b> {reviews.reduce((sum, r) => sum + (r.karmaValue ?? 0), 0)}
+                    <b>Відгуків:</b> {reviews.length} · <b>Репутація:</b> {reviews.reduce((sum, r) => sum + (r.karmaValue ?? 0), 0)}
                 </div>
                 {isLoggedIn && !isOwnProfile && (
                     <button
@@ -223,7 +223,7 @@ function UserPage() {
                     <div><b>{r.authorUserName ?? r.authorUserId}</b> · {new Date(r.createdAt).toLocaleDateString()}
                     </div>
                     <div>{r.adTitle}</div>
-                    <div>rating: {r.rating ?? '-'} · karma: {r.karmaValue ?? 0}</div>
+                    <div>карма: {r.karmaValue > 0 ? '+1' : '-1'}</div>
                     <div>{r.comment}</div>
                 </div>)}</div>}
 
@@ -256,16 +256,7 @@ function UserPage() {
                 </div>
             )}
 
-            <hr style={{margin: '20px 0'}}/>
-            <h3>Відгуки</h3>
-            {reviews.length === 0 ? <div style={{fontSize: 14, color: '#666'}}>Поки немає відгуків</div> :
-                <div className='stack12'>{reviews.map(r => <div key={r.id} className='card'>
-                    <div><b>{r.authorUserName ?? r.authorUserId}</b> · {new Date(r.createdAt).toLocaleDateString()}
-                    </div>
-                    <div>{r.adTitle}</div>
-                    <div>rating: {r.rating ?? '-'} · karma: {r.karmaValue ?? 0}</div>
-                    <div>{r.comment}</div>
-                </div>)}</div>}
+
 
             <hr style={{margin: '20px 0'}}/>
             <h3>{t.userPage.auctionsTitle}</h3>
