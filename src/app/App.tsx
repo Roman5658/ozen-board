@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import AdminReportsPage from "../pages/AdminReportsPage"
 import AddAuctionPage from '../pages/AddAuctionPage'
 import UserPage from '../pages/UserPage'
@@ -41,7 +41,7 @@ function App() {
 
     const t = translations[lang]
     const location = useLocation()
-
+    const navigate = useNavigate()
     useSeo({
         title: t.seo.appTitle,
         description: t.seo.appDescription,
@@ -79,6 +79,7 @@ function App() {
     function changeLang(next: Lang) {
         setLang(next)
         localStorage.setItem('lang', next)
+        navigate(`/${next}/`)
     }
 
     return (
