@@ -1,338 +1,591 @@
-import fetch from "node-fetch";
 import { onCall } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 
-// Инициализация Firebase Admin
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+
 const db = admin.firestore();
 
+const CURRENCY = "PLN";
+const DAY = 24 * 60 * 60 * 1000;
+
+const PRICE_MAP = {
+    ad: {
+        bump: "7.00",
+        top3: "14.99",
+        top6: "9.99",
+        gold: "5.00",
+    },
+    auction: {
+        top: "14.99",
+        featured: "8.00",
+        gold: "5.00",
+    },
+} as const;
+
+const AD_TOP_LIMITS = {
+    top3: 3,
+    top6: 6,
+} as const;
+
+const AUCTION_PROMOTION_LIMITS = {
+    "top-auction": 3,
+    featured: 6,
+} as const;
+
+type TargetType = "ad" | "auction";
+type AdPromotion = "bump" | "top3" | "top6" | "gold";
+type AuctionPromotion = "top-auction" | "featured" | "highlight-gold";
+type StoragePromotion = AdPromotion | AuctionPromotion;
+
+type NormalizedPayment = {
+    targetType: TargetType;
+    storagePromotion: StoragePromotion;
+    priceAmount: string;
+};
+
+type PayPalAmount = {
+    value?: string;
+    currency_code?: string;
+};
+
+type PayPalCapture = {
+    id?: string;
+    status?: string;
+    amount?: PayPalAmount;
+};
+
+type PayPalOrder = {
+    id?: string;
+    status?: string;
+    purchase_units?: {
+        amount?: PayPalAmount;
+        payments?: {
+            captures?: PayPalCapture[];
+        };
+    }[];
+    payer?: {
+        email_address?: string;
+    };
+};
+
+type PromotionResult = {
+    ownerUserId: string | null;
+    promotionUntil: number | null;
+    queued: boolean;
+};
+
 export const verifyPayPalPayment = onCall(async (request) => {
-// ======================
-// 1. ДАННЫЕ С ФРОНТА
-// ======================
     const data = (request.data ?? {}) as {
         orderId?: string;
-        targetType?: "ad" | "auction";
+        targetType?: TargetType;
         targetId?: string;
         promotionType?: string;
     };
 
-    const orderId = data.orderId;
-    const targetType = data.targetType;
-    const targetId = data.targetId;
-    const promotionType = data.promotionType;
+    const orderId = requireString(data.orderId, "orderId");
+    const targetType = requireTargetType(data.targetType);
+    const targetId = requireString(data.targetId, "targetId");
+    const normalized = normalizePayment(targetType, data.promotionType);
 
-    if (!orderId || !targetType || !targetId || !promotionType) {
-        throw new Error("Missing payment data");
+    await assertOrderNotProcessed(orderId);
+    await assertTargetCanBePromoted(targetType, targetId, normalized.storagePromotion);
+
+    const paypalBase = getPayPalBaseUrl();
+    const accessToken = await getPayPalAccessToken(paypalBase);
+
+    const order = await getPayPalOrder(paypalBase, accessToken, orderId);
+    if (order.status !== "APPROVED") {
+        throw new Error(`PayPal order must be APPROVED before backend capture: ${order.status ?? "unknown"}`);
     }
-// ======================
-// 1.1 ЗАЩИТА ОТ ПОВТОРНОЙ ОБРАБОТКИ PAYPAL ORDER
-// ======================
-    const existingPayment = await db
-        .collection("payments")
-        .where("orderId", "==", orderId)
-        .limit(1)
-        .get();
 
-    if (!existingPayment.empty) {
+    assertPayPalAmount(getOrderAmount(order), normalized.priceAmount);
+
+    const capturedOrder = await capturePayPalOrder(paypalBase, accessToken, orderId);
+    if (capturedOrder.status !== "COMPLETED") {
+        throw new Error(`Payment not completed after backend capture: ${capturedOrder.status ?? "unknown"}`);
+    }
+
+    const completedCapture = getCompletedCapture(capturedOrder);
+    const paidAmount = completedCapture?.amount ?? getOrderAmount(capturedOrder) ?? getOrderAmount(order);
+    assertPayPalAmount(paidAmount, normalized.priceAmount);
+
+    const paymentRef = db.collection("payments").doc(orderId);
+
+    const promotionResult = await db.runTransaction(async (transaction): Promise<PromotionResult> => {
+        const existingPayment = await transaction.get(paymentRef);
+        if (existingPayment.exists) {
+            throw new Error("Payment already processed");
+        }
+
+        const result = await applyPromotion(transaction, targetType, targetId, normalized);
+
+        transaction.create(paymentRef, {
+            provider: "paypal",
+            orderId: capturedOrder.id ?? orderId,
+            captureId: completedCapture?.id ?? null,
+
+            userId: result.ownerUserId,
+
+            targetType,
+            targetId,
+            promotionType: normalized.storagePromotion,
+
+            amount: paidAmount?.value ?? normalized.priceAmount,
+            currency: paidAmount?.currency_code ?? CURRENCY,
+
+            payerEmail: capturedOrder.payer?.email_address ?? order.payer?.email_address ?? null,
+
+            status: "completed",
+            promotionUntil: result.promotionUntil,
+            queued: result.queued,
+            createdAt: Date.now(),
+        });
+        return result;
+    });
+
+    return {
+        ok: true,
+        orderId: capturedOrder.id ?? orderId,
+        targetType,
+        targetId,
+        promotionType: normalized.storagePromotion,
+        promotionUntil: promotionResult.promotionUntil,
+        queued: promotionResult.queued,
+        amount: paidAmount?.value ?? normalized.priceAmount,
+        currency: paidAmount?.currency_code ?? CURRENCY,
+        payer: capturedOrder.payer?.email_address ?? order.payer?.email_address ?? null,
+    };
+});
+
+function requireString(value: unknown, fieldName: string): string {
+    if (typeof value !== "string" || !value.trim()) {
+        throw new Error(`Missing ${fieldName}`);
+    }
+
+    return value.trim();
+}
+
+function requireTargetType(value: unknown): TargetType {
+    if (value !== "ad" && value !== "auction") {
+        throw new Error("Invalid target type");
+    }
+
+    return value;
+}
+
+function normalizePayment(targetType: TargetType, promotionType: unknown): NormalizedPayment {
+    const rawPromotion = requireString(promotionType, "promotionType");
+
+    if (targetType === "ad") {
+        if (rawPromotion === "bump" || rawPromotion === "top3" || rawPromotion === "top6") {
+            return {
+                targetType,
+                storagePromotion: rawPromotion,
+                priceAmount: PRICE_MAP.ad[rawPromotion],
+            };
+        }
+
+        if (rawPromotion === "gold" || rawPromotion === "highlight-gold") {
+            return {
+                targetType,
+                storagePromotion: "gold",
+                priceAmount: PRICE_MAP.ad.gold,
+            };
+        }
+    }
+
+    if (targetType === "auction") {
+        if (rawPromotion === "top" || rawPromotion === "top-auction") {
+            return {
+                targetType,
+                storagePromotion: "top-auction",
+                priceAmount: PRICE_MAP.auction.top,
+            };
+        }
+
+        if (rawPromotion === "featured") {
+            return {
+                targetType,
+                storagePromotion: "featured",
+                priceAmount: PRICE_MAP.auction.featured,
+            };
+        }
+
+        if (rawPromotion === "gold" || rawPromotion === "highlight-gold") {
+            return {
+                targetType,
+                storagePromotion: "highlight-gold",
+                priceAmount: PRICE_MAP.auction.gold,
+            };
+        }
+    }
+
+    throw new Error("Invalid promotion type for target");
+}
+
+async function assertOrderNotProcessed(orderId: string): Promise<void> {
+    const paymentRef = db.collection("payments").doc(orderId);
+    const [paymentDoc, legacyPaymentSnap] = await Promise.all([
+        paymentRef.get(),
+        db.collection("payments").where("orderId", "==", orderId).limit(1).get(),
+    ]);
+
+    if (paymentDoc.exists || !legacyPaymentSnap.empty) {
         throw new Error("Payment already processed");
     }
+}
 
-// ======================
-// NORMALIZE PROMOTION TYPE (FRONT → SERVER)
-// ======================
-    let normalizedPromotion: string = promotionType;
-    if (promotionType === "top-auction") normalizedPromotion = "top";
-    if (promotionType === "highlight-gold") normalizedPromotion = "gold";
-    if (promotionType === "featured") normalizedPromotion = "featured";
+async function assertTargetCanBePromoted(
+    targetType: TargetType,
+    targetId: string,
+    promotion: StoragePromotion
+): Promise<void> {
+    const targetRef = db.collection(targetType === "ad" ? "ads" : "auctions").doc(targetId);
+    const targetSnap = await targetRef.get();
 
+    if (!targetSnap.exists) {
+        throw new Error(targetType === "ad" ? "Ad not found" : "Auction not found");
+    }
 
-    // ======================
-    // 2. PAYPAL CREDENTIALS
-    // ======================
+    assertPromotionState(targetType, targetSnap.data() ?? {}, promotion, Date.now());
+}
+
+function assertPromotionState(
+    targetType: TargetType,
+    target: FirebaseFirestore.DocumentData,
+    promotion: StoragePromotion,
+    now: number
+): void {
+    if (target.status && target.status !== "active") {
+        throw new Error("Target is not active");
+    }
+
+    if (targetType === "ad") {
+        if (
+            promotion === "gold" &&
+            typeof target.highlightUntil === "number" &&
+            target.highlightUntil > now
+        ) {
+            throw new Error("Gold already active");
+        }
+
+        if (
+            (promotion === "top3" || promotion === "top6") &&
+            (
+                (typeof target.pinnedUntil === "number" && target.pinnedUntil > now) ||
+                (target.pinQueueAt && (!target.pinnedUntil || target.pinnedUntil <= now))
+            )
+        ) {
+            throw new Error("Top already active or queued");
+        }
+
+        return;
+    }
+
+    if (typeof target.endsAt === "number" && target.endsAt <= now) {
+        throw new Error("Auction is ended");
+    }
+
+    if (typeof target.promotionUntil === "number" && target.promotionUntil > now) {
+        throw new Error("Auction promotion already active");
+    }
+
+    if (target.promotionQueueAt && (!target.promotionUntil || target.promotionUntil <= now)) {
+        throw new Error("Auction already in queue");
+    }
+}
+
+function getPayPalBaseUrl(): string {
+    const mode = (process.env.PAYPAL_MODE || "live").toLowerCase();
+    return mode === "sandbox"
+        ? "https://api-m.sandbox.paypal.com"
+        : "https://api-m.paypal.com";
+}
+
+async function getPayPalAccessToken(paypalBase: string): Promise<string> {
     const clientId = process.env.PAYPAL_CLIENT_ID;
     const secret = process.env.PAYPAL_SECRET;
 
     if (!clientId || !secret) {
         throw new Error("PayPal credentials not configured");
     }
-// ======================
-// 2.1 PAYPAL BASE URL (sandbox / live)
-// ======================
-    const mode = (process.env.PAYPAL_MODE || "live").toLowerCase();
-    const PAYPAL_BASE =
-        mode === "sandbox"
-            ? "https://api-m.sandbox.paypal.com"
-            : "https://api-m.paypal.com";
 
-    // ======================
-    // 3. ACCESS TOKEN
-    // ======================
-    const tokenRes = await fetch(`${PAYPAL_BASE}/v1/oauth2/token`, {
-
+    const tokenRes = await fetch(`${paypalBase}/v1/oauth2/token`, {
         method: "POST",
         headers: {
-            Authorization:
-                "Basic " +
-                Buffer.from(`${clientId}:${secret}`).toString("base64"),
+            Authorization: "Basic " + Buffer.from(`${clientId}:${secret}`).toString("base64"),
             "Content-Type": "application/x-www-form-urlencoded",
         },
         body: "grant_type=client_credentials",
     });
 
-    const tokenData = (await tokenRes.json()) as {
-        access_token?: string;
-    };
+    if (!tokenRes.ok) {
+        const tokenError = await tokenRes.text();
+        console.error("Failed to get PayPal access token:", tokenError);
+        throw new Error("Failed to get PayPal access token");
+    }
 
+    const tokenData = await tokenRes.json() as { access_token?: string };
     if (!tokenData.access_token) {
         throw new Error("Failed to get PayPal access token");
     }
 
-    // ======================
-    // 4. ПРОВЕРКА ЗАКАЗА
-    // ======================
-    const orderRes = await fetch(
-        `${PAYPAL_BASE}/v2/checkout/orders/${orderId}`,
-        {
+    return tokenData.access_token;
+}
 
-            headers: {
-                Authorization: `Bearer ${tokenData.access_token}`,
-            },
-        }
-    );
+async function getPayPalOrder(
+    paypalBase: string,
+    accessToken: string,
+    orderId: string
+): Promise<PayPalOrder> {
+    const orderRes = await fetch(`${paypalBase}/v2/checkout/orders/${orderId}`, {
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+        },
+    });
 
-    const order = (await orderRes.json()) as {
-        id: string;
-        status: string;
-        purchase_units: {
-            amount: {
-                value: string;
-                currency_code: string;
-            };
-        }[];
-        payer?: {
-            email_address?: string;
-        };
-    };
+    if (!orderRes.ok) {
+        const orderError = await orderRes.text();
+        console.error("Failed to get PayPal order:", orderError);
+        throw new Error("Failed to get PayPal order");
+    }
 
-    if (order.status === "APPROVED") {
-        const captureRes = await fetch(
-            `${PAYPAL_BASE}/v2/checkout/orders/${orderId}/capture`,
-            {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${tokenData.access_token}`,
-                    "Content-Type": "application/json",
-                },
+    return await orderRes.json() as PayPalOrder;
+}
+
+async function capturePayPalOrder(
+    paypalBase: string,
+    accessToken: string,
+    orderId: string
+): Promise<PayPalOrder> {
+    const captureRes = await fetch(`${paypalBase}/v2/checkout/orders/${orderId}/capture`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+            "PayPal-Request-Id": orderId,
+        },
+    });
+
+    if (!captureRes.ok) {
+        const captureError = await captureRes.text();
+        console.error("PayPal capture failed:", captureError);
+        throw new Error("PayPal capture failed");
+    }
+
+    return await captureRes.json() as PayPalOrder;
+}
+
+function getOrderAmount(order: PayPalOrder): PayPalAmount | null {
+    return order.purchase_units?.[0]?.amount ?? null;
+}
+
+function getCompletedCapture(order: PayPalOrder): PayPalCapture | null {
+    for (const unit of order.purchase_units ?? []) {
+        for (const capture of unit.payments?.captures ?? []) {
+            if (capture.status === "COMPLETED") {
+                return capture;
             }
-        );
-
-        if (!captureRes.ok) {
-            const captureError = await captureRes.text();
-            console.error("PayPal capture failed:", captureError);
-            throw new Error("PayPal capture failed");
         }
-
-        const capturedOrder = await captureRes.json() as typeof order;
-        Object.assign(order, capturedOrder);
     }
 
-    if (order.status !== "COMPLETED") {
-        throw new Error(`Payment not completed: ${order.status}`);
+    return null;
+}
+
+function assertPayPalAmount(amount: PayPalAmount | null | undefined, expectedAmount: string): void {
+    if (!amount?.value || !amount.currency_code) {
+        throw new Error("Invalid PayPal order amount");
     }
 
-// ======================
-// 4.1 ЦЕНЫ (SERVER SIDE)
-// ======================
-    const PRICE_MAP = {
-        ad: {
-            bump: { value: 7.0, currency: "PLN" },
-            top3: { value: 14.99, currency: "PLN" },
-            top6: { value: 9.99, currency: "PLN" },
-            gold: { value: 5.0, currency: "PLN" },
-        },
-        auction: {
-            top: { value: 14.99, currency: "PLN" },
-            featured: { value: 8.0, currency: "PLN" },
-            gold: { value: 5.0, currency: "PLN" },
-        },
-    } as const;
-    const priceGroup =
-        targetType === "ad"
-            ? PRICE_MAP.ad
-            : PRICE_MAP.auction;
-
-    const expectedPrice =
-        priceGroup[normalizedPromotion as keyof typeof priceGroup];
-
-
-
-    if (!expectedPrice) {
-        throw new Error("Invalid promotion type for target");
-    }
-
-
-
-    if (!order.purchase_units || !order.purchase_units.length) {
-        throw new Error("Invalid PayPal order structure");
-    }
-
-    const paidAmount = Number(order.purchase_units[0].amount.value);
-    const paidCurrency = order.purchase_units[0].amount.currency_code;
-
-    if (paidCurrency !== expectedPrice.currency) {
+    if (amount.currency_code !== CURRENCY) {
         throw new Error("Invalid currency");
     }
 
-    if (paidAmount !== expectedPrice.value) {
-        throw new Error(
-            `Invalid amount. Expected ${expectedPrice.value}, got ${paidAmount}`
-        );
+    if (amountToCents(amount.value) !== amountToCents(expectedAmount)) {
+        throw new Error(`Invalid amount. Expected ${expectedAmount}, got ${amount.value}`);
+    }
+}
+
+function amountToCents(value: string): number {
+    const trimmed = value.trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) {
+        throw new Error(`Invalid amount format: ${value}`);
     }
 
+    const [whole, fraction = ""] = trimmed.split(".");
+    return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+}
 
-    // ======================
-    // 5. СРОК ПРОДВИЖЕНИЯ
-    // ======================
-    const DAY = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    let promotionUntil = now;
-    let ownerUserId: string | null = null;
-
-
-    if (normalizedPromotion === "gold") {
-        promotionUntil += 7 * DAY;
-    } else {
-        promotionUntil += 3 * DAY;
-    }
-
-
-
-    // ======================
-    // 6. ОБНОВЛЕНИЕ БАЗЫ
-    // ======================
+async function applyPromotion(
+    transaction: FirebaseFirestore.Transaction,
+    targetType: TargetType,
+    targetId: string,
+    payment: NormalizedPayment
+): Promise<PromotionResult> {
     if (targetType === "ad") {
-        const ref = db.collection("ads").doc(targetId);
-        const snap = await ref.get();
-
-        if (!snap.exists) {
-            throw new Error("Ad not found");
-        }
-
-        const ad = snap.data() as any;
-        ownerUserId = ad.userId;
-
-// ❌ GOLD уже активен
-        if (
-            normalizedPromotion === "gold" &&
-            ad.highlightUntil &&
-            ad.highlightUntil > now
-        ) {
-            throw new Error("Gold already active");
-        }
-
-// ❌ TOP уже активен или в очереди
-        if (
-            (normalizedPromotion === "top3" || normalizedPromotion === "top6") &&
-            (
-                (ad.pinnedUntil && ad.pinnedUntil > now) ||
-                (ad.pinQueueAt && (!ad.pinnedUntil || ad.pinnedUntil <= now))
-            )
-        ) {
-            throw new Error("Top already active or queued");
-        }
-
-        const update: any = {};
-
-        if (normalizedPromotion === "top3" || normalizedPromotion === "top6") {
-            update.pinType = normalizedPromotion;
-            update.pinnedAt = now;
-            update.pinnedUntil = promotionUntil;
-        }
-
-        if (normalizedPromotion === "bump") {
-            update.bumpAt = now;
-        }
-
-        if (normalizedPromotion === "gold") {
-            update.highlightType = "gold";
-            update.highlightUntil = promotionUntil;
-        }
-
-        await ref.update(update);
+        return await applyAdPromotion(transaction, targetId, payment.storagePromotion as AdPromotion);
     }
 
-    if (targetType === "auction") {
-        const ref = db.collection("auctions").doc(targetId);
-        const snap = await ref.get();
+    return await applyAuctionPromotion(transaction, targetId, payment.storagePromotion as AuctionPromotion);
+}
 
-        if (!snap.exists) {
-            throw new Error("Auction not found");
+async function applyAdPromotion(
+    transaction: FirebaseFirestore.Transaction,
+    adId: string,
+    promotion: AdPromotion
+): Promise<PromotionResult> {
+    const now = Date.now();
+    const adRef = db.collection("ads").doc(adId);
+    const adSnap = await transaction.get(adRef);
+
+    if (!adSnap.exists) {
+        throw new Error("Ad not found");
+    }
+
+    const ad = adSnap.data() ?? {};
+    assertPromotionState("ad", ad, promotion, now);
+
+    const ownerUserId = typeof ad.userId === "string" ? ad.userId : null;
+
+    if (promotion === "bump") {
+        transaction.update(adRef, {
+            bumpAt: now,
+        });
+
+        return {
+            ownerUserId,
+            promotionUntil: null,
+            queued: false,
+        };
+    }
+
+    if (promotion === "gold") {
+        const promotionUntil = now + 7 * DAY;
+        transaction.update(adRef, {
+            highlightType: "gold",
+            highlightUntil: promotionUntil,
+        });
+
+        return {
+            ownerUserId,
+            promotionUntil,
+            queued: false,
+        };
+    }
+
+    const city = requireString(ad.city, "ad city");
+    const activePinSnap = await transaction.get(
+        db.collection("ads")
+            .where("city", "==", city)
+            .where("pinType", "==", promotion)
+    );
+
+    let activeCount = 0;
+    activePinSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        if (doc.id !== adId && typeof data.pinnedUntil === "number" && data.pinnedUntil > now) {
+            activeCount++;
         }
+    });
 
-        const auction = snap.data() as any;
-        ownerUserId = auction.ownerId;
+    const limit = AD_TOP_LIMITS[promotion];
+    const hasFreeSlot = activeCount < limit;
+    const promotionUntil = hasFreeSlot ? now + 3 * DAY : null;
 
-        // ❌ если уже активна
-        if (auction.promotionUntil && auction.promotionUntil > now) {
-            throw new Error("Auction promotion already active");
+    transaction.update(adRef, hasFreeSlot
+        ? {
+            pinType: promotion,
+            pinnedAt: now,
+            pinnedUntil: promotionUntil,
+            pinQueueAt: null,
         }
-
-        // ❌ если уже в очереди
-        if (
-            auction.promotionQueueAt &&
-            (!auction.promotionUntil || auction.promotionUntil <= now)
-        ) {
-            throw new Error("Auction already in queue");
+        : {
+            pinType: promotion,
+            pinnedAt: null,
+            pinnedUntil: null,
+            pinQueueAt: now,
         }
+    );
 
-        await ref.update({
-            promotionType: normalizedPromotion,
+    return {
+        ownerUserId,
+        promotionUntil,
+        queued: !hasFreeSlot,
+    };
+}
+
+async function applyAuctionPromotion(
+    transaction: FirebaseFirestore.Transaction,
+    auctionId: string,
+    promotion: AuctionPromotion
+): Promise<PromotionResult> {
+    const now = Date.now();
+    const auctionRef = db.collection("auctions").doc(auctionId);
+    const auctionSnap = await transaction.get(auctionRef);
+
+    if (!auctionSnap.exists) {
+        throw new Error("Auction not found");
+    }
+
+    const auction = auctionSnap.data() ?? {};
+    assertPromotionState("auction", auction, promotion, now);
+
+    const ownerUserId = typeof auction.ownerId === "string" ? auction.ownerId : null;
+
+    if (promotion === "highlight-gold") {
+        const promotionUntil = now + 7 * DAY;
+        transaction.update(auctionRef, {
+            promotionType: promotion,
             promotionUntil,
             promotionQueueAt: null,
         });
 
-
+        return {
+            ownerUserId,
+            promotionUntil,
+            queued: false,
+        };
     }
 
-// ======================
-// 4.2 LOG PAYMENT
-// ======================
-    await db.collection("payments").add({
-        provider: "paypal",
-        orderId: order.id,
+    const voivodeship = requireString(auction.voivodeship, "auction voivodeship");
+    const city = requireString(auction.city, "auction city");
+    const activePromotionSnap = await transaction.get(
+        db.collection("auctions")
+            .where("voivodeship", "==", voivodeship)
+            .where("city", "==", city)
+            .where("promotionType", "==", promotion)
+    );
 
-        userId: ownerUserId,
-
-        targetType,
-        targetId,
-        promotionType: normalizedPromotion,
-
-        amount: paidAmount,
-        currency: paidCurrency,
-
-        payerEmail: order.payer?.email_address ?? null,
-
-        status: "completed",
-        createdAt: Date.now(),
+    let activeCount = 0;
+    activePromotionSnap.docs.forEach((doc) => {
+        const data = doc.data();
+        if (doc.id !== auctionId && typeof data.promotionUntil === "number" && data.promotionUntil > now) {
+            activeCount++;
+        }
     });
 
-    // ======================
-    // 7. ОТВЕТ
-    // ======================
-    return {
-        ok: true,
-        orderId: order.id,
-        targetType,
-        targetId,
-        promotionType: normalizedPromotion,
+    const limit = AUCTION_PROMOTION_LIMITS[promotion];
+    const hasFreeSlot = activeCount < limit;
+    const promotionUntil = hasFreeSlot ? now + 3 * DAY : null;
 
+    transaction.update(auctionRef, hasFreeSlot
+        ? {
+            promotionType: promotion,
+            promotionUntil,
+            promotionQueueAt: null,
+        }
+        : {
+            promotionType: promotion,
+            promotionUntil: null,
+            promotionQueueAt: now,
+        }
+    );
+
+    return {
+        ownerUserId,
         promotionUntil,
-        amount: order.purchase_units[0].amount.value,
-        currency: order.purchase_units[0].amount.currency_code,
-        payer: order.payer?.email_address ?? null,
+        queued: !hasFreeSlot,
     };
-});
+}

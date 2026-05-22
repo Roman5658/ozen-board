@@ -88,6 +88,7 @@ function AuctionPage() {
 
                         promotionType: raw.promotionType ?? "none",
                         promotionUntil: raw.promotionUntil ?? null,
+                        promotionQueueAt: raw.promotionQueueAt ?? null,
                     }
                 })
                 setAuctions(data)
@@ -134,6 +135,7 @@ function AuctionPage() {
 
             promotionType: raw.promotionType ?? "none",
             promotionUntil: raw.promotionUntil ?? null,
+            promotionQueueAt: raw.promotionQueueAt ?? null,
 
         })
     }
@@ -335,6 +337,9 @@ function AuctionPage() {
                     description={activeAuction.description}
                     images={activeAuction.images}
                     currentBid={activeAuction.currentBid}
+                    promotionType={activeAuction.promotionType}
+                    promotionUntil={activeAuction.promotionUntil ?? null}
+                    promotionQueueAt={activeAuction.promotionQueueAt ?? null}
                     timeLeft={getTimeLeft(activeAuction.endsAt)}
                     bids={bids}
                     isAuthenticated={isAuthenticated}
@@ -348,6 +353,9 @@ function AuctionPage() {
                     onBidSuccess={() => {
                         loadAuctionById(activeAuction.id)
                         loadBids(activeAuction.id)
+                    }}
+                    onPromotionSuccess={() => {
+                        loadAuctionById(activeAuction.id)
                     }}
                 />
 

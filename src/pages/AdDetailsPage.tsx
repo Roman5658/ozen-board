@@ -5,8 +5,8 @@ import { verifyPayPalPayment } from "../api/payments"
 import { PRICES } from "../config/prices"
 import { formatPricePLN } from "../utils/formatPricePLN"
 import type { translations } from "../app/i18n"
+import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
-import { PayPalButtons } from "@paypal/react-paypal-js"
 import { useSeo, BASE_URL } from '../utils/seo'
 import { addDoc, collection } from "firebase/firestore"
 import { getLocalUser } from "../data/localUser"
@@ -39,6 +39,7 @@ function AdDetailsPage({ t }: Props) {
     const [payAction, setPayAction] = useState<
         null | "bump" | "top3" | "top6" | "gold"
     >(null)
+    const [isPromoting, setIsPromoting] = useState(false)
 
 
     // async function handleHighlightGold() {
@@ -343,44 +344,28 @@ function AdDetailsPage({ t }: Props) {
                             {a.payment.queueInfo}
                         </div>
 
-                        <PayPalButtons
-                            style={{layout: "vertical"}}
-                            createOrder={(_, actions) => {
-                                return actions.order.create({
-                                    intent: "CAPTURE",
-                                    purchase_units: [
-                                        {
-                                            amount: {
-                                                value: PRICES.ad[payAction],
-                                                currency_code: "PLN",
-                                            },
-                                        },
-                                    ],
-                                })
-                            }}
+                        <PayPalCheckoutButton
+                            amountPLN={PRICES.ad[payAction]}
+                            description="Ozen Board - ad promotion"
+                            disabled={isPromoting}
+                            onApprove={async (orderId) => {
+                                if (!ad) return
 
-
-                            onApprove={async (_, actions) => {
-                                if (!actions.order || !ad) return
-
-                                const details = await actions.order.capture()
-
+                                setIsPromoting(true)
                                 await verifyPayPalPayment({
-                                    orderId: details.id!,
+                                    orderId,
                                     targetType: "ad",
                                     targetId: ad.id,
-                                    promotionType:
-                                        payAction === "gold" ? "gold" : payAction,
+                                    promotionType: payAction,
                                 })
 
                                 alert(a.payment.success)
-
                                 setPayAction(null)
+                                setIsPromoting(false)
                             }}
-
                             onError={() => {
                                 alert(a.payment.error)
-
+                                setIsPromoting(false)
                                 setPayAction(null)
                             }}
                         />

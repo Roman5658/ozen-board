@@ -8,9 +8,9 @@ import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
+import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
 
-import { PayPalButtons } from "@paypal/react-paypal-js"
 import { verifyPayPalPayment } from "../api/payments"
 
 type Category = "sell" | "buy" | "service" | "rent"
@@ -78,11 +78,6 @@ function AddAuctionPage({ t }: Props) {
 
     const safeUser = user
 
-    function normalizeAuctionPromotion(type: AuctionPromotion): "none" | "top" | "featured" | "gold" {
-        if (type === "top-auction") return "top"
-        if (type === "highlight-gold") return "gold"
-        return type
-    }
     // ===== VALIDATION =====
     function validateForm(): { ok: true; endsAt: number } | { ok: false; reason: string } {
         if (
@@ -170,16 +165,6 @@ function AddAuctionPage({ t }: Props) {
             imageUrls.push(imageUrl)
         }
 
-        const normalizedPromotion = normalizeAuctionPromotion(promotion)
-        const promotionUntil =
-            normalizedPromotion === "gold"
-                ? createdAt + 7 * DAY
-                : normalizedPromotion === "featured" || normalizedPromotion === "top"
-                    ? createdAt + 3 * DAY
-                    : promotion === "top-auction"
-                        ? createdAt + 3 * DAY
-                        : null
-
         const docRef =    await addDoc(collection(db, "auctions"), {
             title: title.trim(),
             description: description.trim(),
@@ -201,11 +186,11 @@ function AddAuctionPage({ t }: Props) {
             createdAt,
             endsAt,
 
-            promotionType: normalizedPromotion,
-            promotionUntil,
+            promotionType: "none",
+            promotionUntil: null,
             promotionQueueAt: null,
         })
-        if (normalizedPromotion !== "none") {
+        if (promotion !== "none") {
             if (!paypalOrderId) {
                 setError(t.addAuction.errors.paypalError)
                 throw new Error(t.addAuction.errors.paypalError)
@@ -215,7 +200,7 @@ function AddAuctionPage({ t }: Props) {
                 orderId: paypalOrderId,
                 targetType: "auction",
                 targetId: docRef.id,
-                promotionType: normalizedPromotion,
+                promotionType: promotion,
             })
         }
 
@@ -344,19 +329,16 @@ function AddAuctionPage({ t }: Props) {
                             {isFormValid && <>
                                 <div style={{ fontSize: 13, color: "#6b7280" }}>{t.addAuction.payment.queueInfo}</div>
                                 <div style={{ fontWeight: 700 }}>{t.addAuction.payment.amount}: {pricePLN} PLN</div>
-                                <PayPalButtons
-                                    style={{ layout: "vertical" }}
+                                <PayPalCheckoutButton
+                                    amountPLN={pricePLN}
+                                    description="Ozen Board - auction promotion"
                                     disabled={isPaying}
-                                    createOrder={(_, actions) => actions.order.create({
-                                        intent: "CAPTURE",
-                                        purchase_units: [{ amount: { value: pricePLN, currency_code: "PLN" } }],
-                                    })}
-                                    onApprove={async (data) => {
+                                    onApprove={async (orderId) => {
                                         setError(null)
                                         setIsPaying(true)
 
                                         try {
-                                            setPaypalOrderId(data.orderID!)
+                                            setPaypalOrderId(orderId)
                                             setPaymentCompleted(true)
                                         } catch {
                                             setError(t.addAuction.errors.paypalError)
@@ -364,7 +346,7 @@ function AddAuctionPage({ t }: Props) {
                                             setIsPaying(false)
                                         }
                                     }}
-                                    onError={(err) => { console.error(err); setError(t.addAuction.errors.paypalError) }}
+                                    onError={(message) => { setError(message || t.addAuction.errors.paypalError) }}
                                 />
                             </>}
                         </div>

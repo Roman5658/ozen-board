@@ -33,12 +33,13 @@ export async function checkAuctionPromotionAvailability(params: {
     const now = Date.now()
 
     const limit = AUCTION_LIMITS[type]
+    const promotionType = type === "top" ? "top-auction" : "featured"
 
     const q = query(
         collection(db, "auctions"),
         where("voivodeship", "==", voivodeship),
         where("city", "==", city),
-        where("promotionType", "==", type)
+        where("promotionType", "==", promotionType)
     )
 
     const snap = await getDocs(q)

@@ -44,6 +44,7 @@ export type Auction = {
 
     promotionType: AuctionPromotionType
     promotionUntil?: number | null
+    promotionQueueAt?: number | null
 
 }
 

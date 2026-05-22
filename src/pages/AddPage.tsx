@@ -13,8 +13,8 @@ import type { translations } from "../app/i18n"
 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import type { Ad } from "../types/ad"
-import { PayPalButtons } from "@paypal/react-paypal-js"
 import { verifyPayPalPayment } from "../api/payments"
+import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
@@ -228,39 +228,6 @@ function AddPage({ t }: Props) {
                 const imageUrl = await getDownloadURL(imageRef)
                 imageUrls.push(imageUrl)
             }
-            let pinFields: Partial<Ad> = {}
-
-            if ((promotion === 'top3' || promotion === 'top6') && city) {
-                const info = await checkPinAvailability(city)
-
-                if (promotion === 'top3') {
-                    pinFields = info.canTop3
-                        ? {
-                            pinType: 'top3',
-                            pinnedAt: timestamp,
-                            pinnedUntil: timestamp + 3 * 24 * 60 * 60 * 1000,
-                        }
-                        : {
-                            pinType: 'top3',
-                            pinQueueAt: timestamp,
-                        }
-                }
-
-                if (promotion === 'top6') {
-                    pinFields = info.canTop6
-                        ? {
-                            pinType: 'top6',
-                            pinnedAt: timestamp,
-                            pinnedUntil: timestamp + 3 * 24 * 60 * 60 * 1000,
-                        }
-                        : {
-                            pinType: 'top6',
-                            pinQueueAt: timestamp,
-                        }
-                }
-            }
-
-
             const adData: Omit<Ad, "id"> = {
                 title: title.trim(),
                 description: description.trim(),
@@ -276,20 +243,7 @@ function AddPage({ t }: Props) {
 
                 ...(location ? { location } : {}),
 
-                // ===== платные опции (если выбраны) =====
-                ...(promotion === 'bump'
-                    ? { bumpAt: timestamp }
-                    : {}),
-
-
-
-                ...(promotion === 'highlight-gold'
-                    ? {
-                        highlightType: 'gold',
-                        highlightUntil: timestamp + 7 * 24 * 60 * 60 * 1000,
-                    }
-                    : {}),
-                ...pinFields,
+                // Paid promotion fields are applied only after backend capture.
             }
 
 
@@ -311,8 +265,7 @@ function AddPage({ t }: Props) {
                     orderId: paypalOrderId,
                     targetType: "ad",
                     targetId: docRef.id,
-                    promotionType:
-                        promotion === "highlight-gold" ? "gold" : promotion,
+                    promotionType: promotion,
                 })
             }
 
@@ -563,37 +516,19 @@ function AddPage({ t }: Props) {
                                         </strong>
                                     </div>
 
-                                    <PayPalButtons
-                                        style={{ layout: "vertical" }}
-                                        createOrder={(_, actions) => {
-                                            return actions.order.create({
-                                                intent: "CAPTURE",
-
-                                                application_context: {
-                                                    shipping_preference: "NO_SHIPPING",
-                                                    user_action: "PAY_NOW",
-                                                },
-
-                                                purchase_units: [
-                                                    {
-                                                        amount: {
-                                                            value:
-                                                                promotion === "highlight-gold"
-                                                                    ? PRICES.ad.gold
-                                                                    : PRICES.ad[promotion],
-                                                            currency_code: "PLN",
-                                                        },
-                                                    },
-                                                ],
-                                            })
-                                        }}
-                                        onApprove={async (data) => {
-                                            setPaypalOrderId(data.orderID!)
+                                    <PayPalCheckoutButton
+                                        amountPLN={
+                                            promotion === "highlight-gold"
+                                                ? PRICES.ad.gold
+                                                : PRICES.ad[promotion]
+                                        }
+                                        description="Ozen Board - ad promotion"
+                                        onApprove={(orderId) => {
+                                            setPaypalOrderId(orderId)
                                             setPaymentCompleted(true)
                                         }}
-                                        onError={(err) => {
-                                            console.error(err)
-                                            setError("PayPal payment error")
+                                        onError={(message) => {
+                                            setError(message)
                                         }}
                                     />
                                 </>

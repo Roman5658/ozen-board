@@ -48,7 +48,7 @@ export default function PayTestPage() {
             <PayPalCheckoutButton
                 amountPLN={5}
                 description="Ozen Board — test payment"
-                onSuccess={async (id) => {
+                onApprove={async (id) => {
                     try {
                         setOrderId(id)
 
