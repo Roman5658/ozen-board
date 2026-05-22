@@ -87,6 +87,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
             }}>{a.reviews}: {stats.count}</div>
             <div style={{fontSize: 13, color: "#6b7280", marginTop: 2}}>{a.profileKarma}: {user.karma}</div>
         </div>
+
         {!hideActions && !isMe && currentUser && <div style={{display: "flex", gap: 8, flexWrap: "wrap"}}>
             <button className="btn-primary"
                     onClick={async () => navigate(`/chat/${await getOrCreateChat(currentUser.id, userId)}`)}>{a.write}</button>
