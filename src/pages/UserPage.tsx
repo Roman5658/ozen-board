@@ -161,7 +161,7 @@ function UserPage() {
             <div style={{marginTop: 12}}>
                 <div><b>{t.userPage.nickname}:</b>
                     {user.nickname}</div>
-                <div style={{marginTop: 6}}><b>{t.userPage.karma}:</b> {user.karma}</div>
+
                 <div style={{marginTop: 6}}>
                     <b>Відгуків:</b> {reviews.length} · <b>Репутація:</b> {reviews.reduce((sum, r) => sum + (r.karmaValue ?? 0), 0)}
                 </div>

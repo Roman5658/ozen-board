@@ -44,7 +44,8 @@ type ChatListRow = {
 
 function AccountPage({ t }: Props) {
     const a = t.account
-
+    const containsCyrillic = (value: string) => /[А-Яа-яЁёІіЇїЄєҐґ]/.test(value)
+    const isLatinNickname = (value: string) => /^[A-Za-z0-9._-]+$/.test(value.trim())
     const navigate = useNavigate()
     const [now] = useState(() => Date.now())
     type AuthMode = "login" | "register"
@@ -410,7 +411,6 @@ function AccountPage({ t }: Props) {
                     className="btn-primary"
                     disabled={
                         authLoading ||
-                        !email.includes("@") ||
                         password.length < 4 ||
                         (mode === "register" && !nickname.trim())
                     }
@@ -430,6 +430,24 @@ function AccountPage({ t }: Props) {
                         try {
                             const cleanEmail = email.trim().toLowerCase()
                             // ===== LOGIN =====
+                            if (!cleanEmail) {
+                                setAuthError("Введите email.")
+                                return
+                            }
+                            if (!cleanEmail.includes("@")) {
+                                setAuthError("Email должен содержать символ @.")
+                                return
+                            }
+                            if (containsCyrillic(cleanEmail)) {
+                                setAuthError("Email должен быть введён латиницей.")
+                                return
+                            }
+                            if (mode === "register") {
+                                if (containsCyrillic(nickname) || !isLatinNickname(nickname)) {
+                                    setAuthError("Никнейм должен содержать только латинские буквы, цифры и символы . _ -")
+                                    return
+                                }
+                            }
                             if (mode === "login") {
                                 const authRes = await signInWithEmailAndPassword(auth, cleanEmail, password)
                                 const profile = await getUserByEmail(cleanEmail)
@@ -557,7 +575,7 @@ function AccountPage({ t }: Props) {
             <div className="card stack8">
                 <h2 className="h2">{user.nickname}</h2>
                 <div style={{fontSize: 14, color: "#6b7280"}}>{user.email}</div>
-                <div>{a.profile.karma}: {user.karma}</div>
+
                 <div className="card stack12">
                     <h3 className="h3">{a.profile.contactsTitle}</h3>
 

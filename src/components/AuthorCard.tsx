@@ -27,6 +27,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
     const [karmaValue, setKarmaValue] = useState<-1 | 1>(1)
     const [role, setRole] = useState<'seller' | 'buyer'>('seller')
     const [loading, setLoading] = useState(true)
+    const [showReviewsList, setShowReviewsList] = useState(false)
     const navigate = useNavigate()
     const currentUser = getLocalUser()
     const isMe = currentUser?.id === userId
@@ -85,7 +86,15 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
                 color: "#6b7280",
                 marginTop: 2
             }}>{a.reviews}: {stats.count}</div>
-            <div style={{fontSize: 13, color: "#6b7280", marginTop: 2}}>{a.profileKarma}: {user.karma}</div>
+            {reviews.length > 0 && (
+                <button
+                    className="btn-secondary"
+                    style={{ marginTop: 8 }}
+                    onClick={() => setShowReviewsList(prev => !prev)}
+                >
+                    {showReviewsList ? "Скрыть отзывы" : "Открыть отзывы"}
+                </button>
+            )}
         </div>
 
         {!hideActions && !isMe && currentUser && <div style={{display: "flex", gap: 8, flexWrap: "wrap"}}>
@@ -110,6 +119,20 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
             </select>
             <button className='btn-primary' onClick={submitReview}>{a.saveReview}</button>
         </div>}
+        {showReviewsList && reviews.length > 0 && (
+            <div className="card stack12" style={{ width: "100%" }}>
+                {reviews
+                    .sort((x, y) => (y.createdAt ?? 0) - (x.createdAt ?? 0))
+                    .map(r => (
+                        <div key={r.id} style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: 8 }}>
+                            <div style={{ fontWeight: 600 }}>{r.authorUserName ?? r.authorUserId}</div>
+                            <div style={{ fontSize: 13, color: "#6b7280" }}>{new Date(r.createdAt).toLocaleDateString()}</div>
+                            <div>Репутация: {r.karmaValue > 0 ? "+1" : "-1"}</div>
+                            {r.comment ? <div>{r.comment}</div> : null}
+                        </div>
+                    ))}
+            </div>
+        )}
     </div>
 }
 
