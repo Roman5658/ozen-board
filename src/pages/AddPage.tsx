@@ -564,10 +564,16 @@ function AddPage({ t }: Props) {
                                     </div>
 
                                     <PayPalButtons
-                                        style={{layout: "vertical"}}
+                                        style={{ layout: "vertical" }}
                                         createOrder={(_, actions) => {
                                             return actions.order.create({
                                                 intent: "CAPTURE",
+
+                                                application_context: {
+                                                    shipping_preference: "NO_SHIPPING",
+                                                    user_action: "PAY_NOW",
+                                                },
+
                                                 purchase_units: [
                                                     {
                                                         amount: {
@@ -583,10 +589,15 @@ function AddPage({ t }: Props) {
                                         }}
                                         onApprove={async (_, actions) => {
                                             if (!actions.order) return
+
                                             const details = await actions.order.capture()
 
                                             setPaypalOrderId(details.id!)
                                             setPaymentCompleted(true)
+                                        }}
+                                        onError={(err) => {
+                                            console.error(err)
+                                            setError("PayPal payment error")
                                         }}
                                     />
                                 </>
