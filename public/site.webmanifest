@@ -1,6 +1,6 @@
 {
-  "name": "Xoven",
-  "short_name": "Xoven",
+  "name": "xoven",
+  "short_name": "xoven",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -15,7 +15,7 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#2563eb",
-  "background_color": "#0f172a",
+  "theme_color": "#6e6c6c",
+  "background_color": "#1e4484",
   "display": "standalone"
 }
