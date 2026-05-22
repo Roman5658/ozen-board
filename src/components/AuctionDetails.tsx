@@ -279,6 +279,7 @@ function AuctionDetails({
                     adId={auctionId}
                     adTitle={title}
                     onReport={() => setIsReportOpen(true)}
+                    t={t}
                 />
             )}
 

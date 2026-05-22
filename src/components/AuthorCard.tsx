@@ -5,6 +5,7 @@ import { db } from "../app/firebase"
 import type { UserReview } from "../types/userReview"
 import { getLocalUser } from "../data/localUser"
 import { getOrCreateChat } from "../data/chats"
+import type { translations } from "../app/i18n"
 
 type Props = {
     userId: string
@@ -12,11 +13,13 @@ type Props = {
     adId?: string
     adTitle?: string
     onReport?: () => void
+    t: (typeof translations)[keyof typeof translations]
 }
 
 type PublicUser = { nickname: string; karma: number; phone?: string | null; telegram?: string | null }
 
-function AuthorCard({ userId, hideActions, adId, adTitle, onReport }: Props) {
+function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) {
+    const a = t.authorCard
     const [user, setUser] = useState<PublicUser | null>(null)
     const [reviews, setReviews] = useState<UserReview[]>([])
     const [showReview, setShowReview] = useState(false)
@@ -34,7 +37,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport }: Props) {
             const snap = await getDoc(doc(db, "users", userId))
             if (snap.exists()) {
                 const data = snap.data()
-                setUser({ nickname: data.nickname ?? "Користувач", karma: typeof data.karma === "number" ? data.karma : 0, phone: data.phone ?? null, telegram: data.telegram ?? null })
+                setUser({ nickname: data.nickname ?? a.userFallback, karma: typeof data.karma === "number" ? data.karma : 0, phone: data.phone ?? null, telegram: data.telegram ?? null })
             }
             const rs = await getDocs(query(collection(db, 'userReviews'), where('targetUserId', '==', userId)))
             setReviews(rs.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
@@ -51,8 +54,8 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport }: Props) {
     async function submitReview() {
         if (!currentUser || !adId || !adTitle || isMe) return
         const text = comment.trim()
-        if (!text) return alert('Комментарий обязателен')
-        if (!rating && !karmaValue) return alert('Оценка обязательна')
+        if (!text) return alert(a.commentRequired)
+        if (!rating && !karmaValue) return alert(a.ratingRequired)
         const q = query(collection(db, 'userReviews'), where('targetUserId', '==', userId), where('authorUserId', '==', currentUser.id), where('adId', '==', adId))
         const existing = await getDocs(q)
         const payload = { targetUserId: userId, targetUserName: user?.nickname ?? '', authorUserId: currentUser.id, authorUserName: currentUser.nickname ?? '', adId, adTitle, rating, karmaValue, comment: text, role, createdAt: Date.now(), updatedAt: serverTimestamp() }
@@ -62,29 +65,53 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport }: Props) {
         setShowReview(false); setComment('')
     }
 
-    if (loading || !user) return <div style={{ fontSize: 13, color: "#6b7280" }}>{loading ? 'Завантаження продавця…' : 'Користувача не знайдено'}</div>
+    if (loading || !user) return <div style={{ fontSize: 13, color: "#6b7280" }}>{loading ? a.loading : a.notFound}</div>
 
     return <div style={{ padding: 12, borderRadius: 12, background: "#f9fafb", border: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
-            <div style={{ fontSize: 13, color: "#6b7280" }}>Продавець</div>
-            <Link to={`/user/${userId}`} style={{ fontWeight: 700, color: "#1976d2", textDecoration: "none", display: "inline-block", marginTop: 2 }}>{user.nickname}</Link>
-            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Репутація: {stats.karma >= 0 ? `+${stats.karma}` : stats.karma}</div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Відгуки: {stats.count} · Рейтинг: {stats.avg.toFixed(1)}</div>
-            <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>Карма профілю: {user.karma}</div>
+            <div style={{fontSize: 13, color: "#6b7280"}}>{a.seller}</div>
+            <Link to={`/user/${userId}`} style={{
+                fontWeight: 700,
+                color: "#1976d2",
+                textDecoration: "none",
+                display: "inline-block",
+                marginTop: 2
+            }}>{user.nickname}</Link>
+            <div style={{
+                fontSize: 13,
+                color: "#6b7280",
+                marginTop: 2
+            }}>{a.reputation}: {stats.karma >= 0 ? `+${stats.karma}` : stats.karma}</div>
+            <div style={{
+                fontSize: 13,
+                color: "#6b7280",
+                marginTop: 2
+            }}>{a.reviews}: {stats.count} · {a.rating}: {stats.avg.toFixed(1)}</div>
+            <div style={{fontSize: 13, color: "#6b7280", marginTop: 2}}>{a.profileKarma}: {user.karma}</div>
         </div>
-        {!hideActions && !isMe && currentUser && <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn-primary" onClick={async () => navigate(`/chat/${await getOrCreateChat(currentUser.id, userId)}`)}>Написати</button>
-            <button className="btn-secondary" onClick={() => setShowReview(true)} disabled={!adId}>Оставить отзыв</button>
-            <button className="btn-secondary" onClick={onReport}>Пожаловаться</button>
-            <Link to={`/user/${userId}`} className="btn-secondary">Профіль</Link>
+        {!hideActions && !isMe && currentUser && <div style={{display: "flex", gap: 8, flexWrap: "wrap"}}>
+            <button className="btn-primary"
+                    onClick={async () => navigate(`/chat/${await getOrCreateChat(currentUser.id, userId)}`)}>{a.write}</button>
+            <button className="btn-secondary" onClick={() => setShowReview(true)}
+                    disabled={!adId}>{a.leaveReview}</button>
+            <button className="btn-secondary" onClick={onReport}>{a.report}</button>
+            <Link to={`/user/${userId}`} className="btn-secondary">{a.profile}</Link>
         </div>}
-        {showReview && <div className="card stack12" style={{ width: '100%' }}>
-            <h4>Відгук</h4>
-            <textarea className='input' value={comment} onChange={e => setComment(e.target.value)} placeholder='Комментарий обязателен' rows={3} />
-            <input className='input' type='number' min={1} max={5} value={rating} onChange={e => setRating(Number(e.target.value))} />
-            <div style={{ display: 'flex', gap: 8 }}><button className='btn-secondary' onClick={() => setKarmaValue(1)}>+1</button><button className='btn-secondary' onClick={() => setKarmaValue(-1)}>-1</button></div>
-            <select className='input' value={role} onChange={e => setRole(e.target.value as 'seller' | 'buyer')}><option value='seller'>seller</option><option value='buyer'>buyer</option></select>
-            <button className='btn-primary' onClick={submitReview}>Сохранить отзыв</button>
+        {showReview && <div className="card stack12" style={{width: '100%'}}>
+            <h4>{a.reviewTitle}</h4>
+            <textarea className='input' value={comment} onChange={e => setComment(e.target.value)}
+                      placeholder={a.commentRequired} rows={3}/>
+            <input className='input' type='number' min={1} max={5} value={rating}
+                   onChange={e => setRating(Number(e.target.value))}/>
+            <div style={{display: 'flex', gap: 8}}>
+                <button className='btn-secondary' onClick={() => setKarmaValue(1)}>+1</button>
+                <button className='btn-secondary' onClick={() => setKarmaValue(-1)}>-1</button>
+            </div>
+            <select className='input' value={role} onChange={e => setRole(e.target.value as 'seller' | 'buyer')}>
+                <option value='seller'>{a.roleSeller}</option>
+                <option value='buyer'>{a.roleBuyer}</option>
+            </select>
+            <button className='btn-primary' onClick={submitReview}>{a.saveReview}</button>
         </div>}
     </div>
 }

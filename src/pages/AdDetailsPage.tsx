@@ -249,6 +249,7 @@ function AdDetailsPage({ t }: Props) {
                     adId={ad.id}
                     adTitle={ad.title}
                     onReport={() => setIsReportOpen(true)}
+                    t={t}
                 />
                 {isOwner && (
                     <div className="ad-owner-panel card stack12">
