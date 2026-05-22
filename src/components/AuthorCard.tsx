@@ -42,7 +42,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
             const rs = await getDocs(query(collection(db, 'userReviews'), where('targetUserId', '==', userId)))
             setReviews(rs.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
         } finally { setLoading(false) }
-    })() }, [userId])
+    })() }, [userId, a.userFallback])
 
     const stats = useMemo(() => {
         const count = reviews.length
