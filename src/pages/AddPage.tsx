@@ -73,7 +73,8 @@ function AddPage({ t }: Props) {
     const [pinLoading, setPinLoading] = useState(false)
     const [paymentCompleted, setPaymentCompleted] = useState(false)
     const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
-    const paymentSuccessMessage = "Оплата успешно подтверждена. Теперь нажмите «Создать объявление», чтобы завершить публикацию."
+    const paymentSuccessTitle = "✅ Оплата успешно подтверждена"
+    const paymentSuccessMessage = "Теперь нажмите «Создать объявление», чтобы завершить публикацию."
 
     useEffect(() => {
         setPaymentCompleted(false)
@@ -536,7 +537,10 @@ function AddPage({ t }: Props) {
                                             color: "#166534",
                                             fontSize: 14,
                                         }}>
-                                            {paymentSuccessMessage}
+                                            <div style={{fontWeight: 600, marginBottom: 4}}>
+                                                {paymentSuccessTitle}
+                                            </div>
+                                            <div>{paymentSuccessMessage}</div>
                                         </div>
                                     ) : (
                                         <PayPalCheckoutButton
@@ -566,6 +570,7 @@ function AddPage({ t }: Props) {
 
                                                     setPaypalOrderId(orderId)
                                                     setPaymentCompleted(true)
+                                                    setError(null)
                                                 } finally {
                                                     setIsPaying(false)
                                                 }
@@ -678,6 +683,7 @@ function AddPage({ t }: Props) {
 
 
                 <button
+                    type="submit"
                     className="btn-primary"
                     disabled={
                         isSubmitting ||

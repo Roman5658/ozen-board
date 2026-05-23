@@ -76,7 +76,7 @@ export default function PayPalCheckoutButton({
                     return
                 }
 
-                onError("Payment was canceled before approval")
+                console.warn("PayPal payment window was closed before approval")
             }}
             onError={(err) => {
                 console.error(err)
