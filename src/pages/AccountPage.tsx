@@ -303,7 +303,7 @@ function AccountPage({ t }: Props) {
         return <div className="card">{a.loading}</div>
 
     }
-
+// починил
     // ============================
     // AUTH (LOGIN / REGISTER)
     // ============================
