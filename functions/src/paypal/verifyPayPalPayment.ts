@@ -247,7 +247,12 @@ function optionalString(value: unknown): string | null {
         return null;
     }
 
-    return requireString(value, "targetId");
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        return trimmed ? trimmed : null;
+    }
+
+    throw new Error("Missing targetId");
 }
 
 function requireTargetType(value: unknown): TargetType {
