@@ -12,15 +12,12 @@ createRoot(document.getElementById('root')!).render(
         <PayPalScriptProvider
             options={{
                 clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
-
-                components: "buttons,payment-fields,marks,funding-eligibility",
+                components: "buttons,marks",
                 currency: "PLN",
                 intent: "capture",
                 commit: true,
                 vault: false,
-
                 locale: "pl_PL",
-
                 enableFunding: "blik,p24",
             }}
         >
