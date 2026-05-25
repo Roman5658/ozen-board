@@ -99,6 +99,7 @@ export const cleanupEndedAuctions = onSchedule(
     }
 );
 export { verifyPayPalPayment } from "./paypal/verifyPayPalPayment";
+export { sendPaymentReceipt } from "./paypal/sendPaymentReceipt";
 
 /* ======================================================
    ADS — автоматическая ротация PIN (TOP3 / TOP6)
