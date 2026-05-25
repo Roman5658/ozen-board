@@ -63,7 +63,7 @@ export const cleanupHiddenChats = onSchedule(
 );
 
 /* ======================================================
-   АУКЦИОНЫ — автоудаление через 5 дней
+   АУКЦИОНЫ — архивирование через 5 дней
 ====================================================== */
 const AUCTION_TTL = 5 * DAY;
 
@@ -80,21 +80,31 @@ export const cleanupEndedAuctions = onSchedule(
             const auction = auctionDoc.data();
             const endsAt =
                 typeof auction.endsAt === "number" ? auction.endsAt : 0;
+            const status =
+                typeof auction.status === "string" ? auction.status : "active";
 
             if (!endsAt) continue;
             if (now < endsAt + AUCTION_TTL) continue;
+            if (status === "expired") continue;
+            if (status === "hidden" || status === "removed" || status === "deleted") {
+                continue;
+            }
 
-            // чистка ставок
-            const bidsSnap = await auctionDoc.ref
-                .collection("bids")
-                .get();
+            const winnerId =
+                typeof auction.winnerId === "string"
+                    ? auction.winnerId
+                    : typeof auction.currentBidderId === "string"
+                        ? auction.currentBidderId
+                        : null;
 
-            const batch = db.batch();
-            bidsSnap.docs.forEach(bid => batch.delete(bid.ref));
-            batch.delete(auctionDoc.ref);
+            await auctionDoc.ref.update({
+                status: "expired",
+                winnerId,
+                expiredAt: now,
+                cleanupProcessedAt: now,
+            });
 
-            await batch.commit();
-            console.log(`Auction ${auctionDoc.id} deleted`);
+            console.log(`Auction ${auctionDoc.id} archived as expired`);
         }
     }
 );

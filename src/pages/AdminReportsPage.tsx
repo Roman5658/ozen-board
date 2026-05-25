@@ -333,16 +333,31 @@ export default function AdminReportsPage({ t }: Props) {
                     const target = targets[key]
                     const reporter = reporters[r.reporterId]
                     const targetMissing = target && !target.exists
+                    const isNewReport = r.status === 'new'
 
                     return (
-                        <div key={r.id} className='card stack8'>
+                        <div
+                            key={r.id}
+                            className='card stack8'
+                            style={{
+                                border: isNewReport ? '2px solid #f59e0b' : '1px solid #e5e7eb',
+                                background: isNewReport ? '#fffbeb' : '#fff',
+                            }}
+                        >
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                                 <div>
                                     <b>{text.status[r.status] ?? r.status}</b>
                                     {' · '}
                                     {new Date(r.createdAt).toLocaleString(text.locale)}
                                 </div>
-                                <div style={{ color: '#6b7280', fontSize: 13 }}>{r.id}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    {isNewReport && (
+                                        <span className='ad-badge' style={{ background: '#f59e0b', color: '#111827' }}>
+                                            {text.status.new}
+                                        </span>
+                                    )}
+                                    <div style={{ color: '#6b7280', fontSize: 13 }}>{r.id}</div>
+                                </div>
                             </div>
 
                             <div className='stack8' style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>

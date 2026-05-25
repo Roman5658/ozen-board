@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { auth, db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import type { AppUser } from "../types/user"
@@ -40,6 +40,12 @@ type ModeratedOwnerItem = {
     ownerNotificationMessage?: string | null
     moderatedAt?: number | null
     restoredAt?: number | null
+    deletedAt?: number | null
+    removedAt?: number | null
+    endsAt?: number | null
+    title?: string
+    city?: string
+    voivodeship?: string
 }
 
 
@@ -55,47 +61,130 @@ function AccountPage({ t }: Props) {
 
     function getOwnerStatusLabel(status?: string): string {
         if (status === "hidden") return a.moderation.statusHidden
-        if (status === "deleted") return a.moderation.statusDeleted
+        if (status === "deleted") return a.moderation.statusDeletedByUser
         if (status === "removed") return a.moderation.statusRemoved
+        if (status === "expired") return a.moderation.statusExpired
+        if (status === "ended") return a.moderation.statusEnded
         if (status === "pending_payment") return a.moderation.statusPendingPayment
         return a.moderation.statusActive
     }
 
-    function renderModerationNotice(item: ModeratedOwnerItem) {
-        const hasModerationStatus = ["hidden", "deleted", "removed"].includes(item.status ?? "")
-        const hasNotice = hasModerationStatus || !!item.ownerNotificationMessage || !!item.moderationReason || !!item.restoredAt
-        if (!hasNotice) return null
+    function formatOwnerDate(ts?: number | null) {
+        return ts ? new Date(ts).toLocaleString(a.chats.timeLocale) : null
+    }
 
-        const isUnread = item.ownerNotificationStatus === "unread"
+    function getOwnerStatusDate(item: ModeratedOwnerItem, status: string) {
+        if (status === "deleted") return item.deletedAt
+        if (status === "removed") return item.removedAt ?? item.moderatedAt
+        if (status === "hidden") return item.moderatedAt
+        if (status === "ended" || status === "expired") return item.endsAt
+        return null
+    }
+
+    function getOwnerDateLabel(status: string) {
+        if (status === "deleted") return a.moderation.dateDeleted
+        if (status === "removed") return a.moderation.dateRemoved
+        if (status === "hidden") return a.moderation.dateModerated
+        if (status === "expired") return a.moderation.dateExpired
+        if (status === "ended") return a.moderation.dateEnded
+        return a.moderation.date
+    }
+
+    function renderLongText(value?: string | null) {
+        const text = value?.trim()
+        if (!text) return null
+        if (text.length <= 140) return <div>{text}</div>
+
+        return (
+            <details>
+                <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                    {a.moderation.showDetails}
+                </summary>
+                <div style={{ marginTop: 6 }}>{text}</div>
+            </details>
+        )
+    }
+
+    function renderCompactOwnerItem(
+        item: ModeratedOwnerItem,
+        status: string,
+        to: string
+    ) {
+        const date = formatOwnerDate(getOwnerStatusDate(item, status))
+        const showSupport = status === "hidden" || status === "removed"
+        const reason = item.moderationReason || item.ownerNotificationMessage
 
         return (
             <div
-                className="card stack8"
+                key={to}
+                className="stack8"
                 style={{
-                    border: isUnread ? "2px solid #f59e0b" : "1px solid #fde68a",
-                    background: isUnread ? "#fffbeb" : "#fff7ed",
-                    color: "#78350f",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: 12,
+                    background: "#fff",
                     fontSize: 14,
                 }}
             >
-                <div>
-                    <b>{isUnread ? a.moderation.unreadNotice : a.moderation.notice}</b>
-                    {" · "}
-                    {getOwnerStatusLabel(item.status)}
+                <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <Link to={to} style={{ color: "inherit", fontWeight: 700 }}>
+                        {item.title}
+                    </Link>
+                    <span className="ad-badge">{getOwnerStatusLabel(status)}</span>
                 </div>
-                {item.ownerNotificationMessage && <div>{item.ownerNotificationMessage}</div>}
-                {item.moderationReason && (
-                    <div>
-                        <b>{a.moderation.reason}:</b> {item.moderationReason}
+
+                {(item.city || item.voivodeship) && (
+                    <div style={{ color: "#6b7280" }}>
+                        {[item.city, item.voivodeship].filter(Boolean).join(" · ")}
                     </div>
                 )}
-                {item.restoredAt && (
-                    <div>
-                        <b>{a.moderation.restored}:</b> {new Date(item.restoredAt).toLocaleString(a.chats.timeLocale)}
+
+                {date && (
+                    <div style={{ color: "#6b7280" }}>
+                        {getOwnerDateLabel(status)}: {date}
                     </div>
                 )}
-                <div>{a.moderation.contactSupport}</div>
+
+                {status !== "deleted" && reason && (
+                    <div className="stack8">
+                        <b>{a.moderation.reason}:</b>
+                        {renderLongText(reason)}
+                    </div>
+                )}
+
+                {showSupport && (
+                    <div style={{ color: "#78350f" }}>
+                        {a.moderation.contactSupport}
+                    </div>
+                )}
             </div>
+        )
+    }
+
+    function renderArchiveSection(
+        title: string,
+        count: number,
+        children: ReactNode
+    ) {
+        if (count === 0) return null
+
+        return (
+            <details
+                className="stack8"
+                style={{
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: 12,
+                    background: "#f9fafb",
+                }}
+            >
+                <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                    {title} ({count})
+                </summary>
+                <div className="stack8" style={{ marginTop: 10 }}>
+                    {children}
+                </div>
+            </details>
         )
     }
 
@@ -640,6 +729,25 @@ function AccountPage({ t }: Props) {
             })
         : []
 
+    const getAdOwnerStatus = (ad: Ad) => ad.status ?? "active"
+    const getAuctionOwnerStatus = (auction: Auction) => {
+        const status = auction.status ?? "active"
+        if (status === "active" && auction.endsAt <= now) return "ended"
+        return status
+    }
+
+    const activeAds = myAds.filter(ad => getAdOwnerStatus(ad) === "active")
+    const hiddenAds = myAds.filter(ad => getAdOwnerStatus(ad) === "hidden")
+    const deletedAds = myAds.filter(ad => getAdOwnerStatus(ad) === "deleted")
+    const removedAds = myAds.filter(ad => getAdOwnerStatus(ad) === "removed")
+    const expiredAds = myAds.filter(ad => getAdOwnerStatus(ad) === "expired")
+
+    const activeAuctions = myAuctions.filter(auction => (auction.status ?? "active") === "active" && auction.endsAt > now)
+    const hiddenAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "hidden")
+    const deletedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "deleted")
+    const removedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "removed")
+    const archivedAuctions = myAuctions.filter(auction => ["ended", "expired"].includes(getAuctionOwnerStatus(auction)))
+
 
     // ============================
     // PROFILE
@@ -845,16 +953,15 @@ function AccountPage({ t }: Props) {
             <div className="card stack12">
                 <h3 className="h3">{a.myAds.title}</h3>
 
-                {myAds.length === 0 ? (
+                {activeAds.length === 0 ? (
                     <div style={{color: "#6b7280", fontSize: 14}}>
-                        {a.myAds.empty}
+                        {myAds.length === 0 ? a.myAds.empty : a.myAds.emptyActive}
                     </div>
 
                 ) : (
                     <div className="ads-grid">
-                    {myAds.map(ad => (
+                    {activeAds.map(ad => (
                             <div key={ad.id} className="stack8">
-                                {renderModerationNotice(ad)}
                                 <Link to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: "none", color: "inherit", display: "block",}}>
                                     <AdCard
                                         ad={ad}
@@ -875,26 +982,46 @@ function AccountPage({ t }: Props) {
 
                     </div>
                 )}
+
+                {renderArchiveSection(
+                    a.moderation.sections.hidden,
+                    hiddenAds.length,
+                    hiddenAds.map(ad => renderCompactOwnerItem(ad, "hidden", buildAdPath(ad.title, ad.city, ad.id)))
+                )}
+                {renderArchiveSection(
+                    a.moderation.sections.deleted,
+                    deletedAds.length,
+                    deletedAds.map(ad => renderCompactOwnerItem(ad, "deleted", buildAdPath(ad.title, ad.city, ad.id)))
+                )}
+                {renderArchiveSection(
+                    a.moderation.sections.removed,
+                    removedAds.length,
+                    removedAds.map(ad => renderCompactOwnerItem(ad, "removed", buildAdPath(ad.title, ad.city, ad.id)))
+                )}
+                {renderArchiveSection(
+                    a.moderation.sections.archivedAds,
+                    expiredAds.length,
+                    expiredAds.map(ad => renderCompactOwnerItem(ad, "expired", buildAdPath(ad.title, ad.city, ad.id)))
+                )}
             </div>
 
             {/* MY AUCTIONS */}
             <div className="card stack12">
                 <h3 className="h3">{a.myAuctions.title}</h3>
 
-                {myAuctions.length === 0 ? (
+                {activeAuctions.length === 0 ? (
                     <div style={{color: "#6b7280", fontSize: 14}}>
-                        {a.myAds.empty}
+                        {myAuctions.length === 0 ? a.myAuctions.empty : a.myAuctions.emptyActive}
                     </div>
 
                 ) : (
                     <div className="stack12">
-                    {myAuctions.map((auction: Auction) => {
+                    {activeAuctions.map((auction: Auction) => {
 
                             const isEnded = auction.endsAt <= now
 
                             return (
                                 <div key={auction.id} className="stack8">
-                                    {renderModerationNotice(auction)}
                                     <AuctionCard
                                         t={t}
 
@@ -952,6 +1079,30 @@ function AccountPage({ t }: Props) {
                             )
                         })}
                     </div>
+                )}
+
+                {renderArchiveSection(
+                    a.moderation.sections.hidden,
+                    hiddenAuctions.length,
+                    hiddenAuctions.map(auction => renderCompactOwnerItem(auction, "hidden", buildAuctionPath(auction.title, auction.city, auction.id)))
+                )}
+                {renderArchiveSection(
+                    a.moderation.sections.deleted,
+                    deletedAuctions.length,
+                    deletedAuctions.map(auction => renderCompactOwnerItem(auction, "deleted", buildAuctionPath(auction.title, auction.city, auction.id)))
+                )}
+                {renderArchiveSection(
+                    a.moderation.sections.removed,
+                    removedAuctions.length,
+                    removedAuctions.map(auction => renderCompactOwnerItem(auction, "removed", buildAuctionPath(auction.title, auction.city, auction.id)))
+                )}
+                {renderArchiveSection(
+                    a.moderation.sections.archivedAuctions,
+                    archivedAuctions.length,
+                    archivedAuctions.map(auction => {
+                        const status = getAuctionOwnerStatus(auction)
+                        return renderCompactOwnerItem(auction, status, buildAuctionPath(auction.title, auction.city, auction.id))
+                    })
                 )}
             </div>
         </div>

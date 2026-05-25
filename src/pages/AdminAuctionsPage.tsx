@@ -12,6 +12,7 @@ import type { Auction } from "../types/auction"
 import { getLocalUser } from "../data/localUser"
 
 const DAY = 24 * 60 * 60 * 1000
+const ADMIN_READ_AUCTIONS_KEY = "xoven_admin_read_auctions_v1"
 
 function getAdminActorId() {
     const user = getLocalUser()
@@ -21,6 +22,15 @@ function getAdminActorId() {
 function AdminAuctionsPage() {
     const [auctions, setAuctions] = useState<Auction[]>([])
     const [loading, setLoading] = useState(true)
+    const [readAuctionIds, setReadAuctionIds] = useState<string[]>(() => {
+        try {
+            const raw = localStorage.getItem(ADMIN_READ_AUCTIONS_KEY)
+            const parsed = raw ? JSON.parse(raw) : []
+            return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []
+        } catch {
+            return []
+        }
+    })
 
     // =========================
     // LOAD AUCTIONS
@@ -40,6 +50,24 @@ function AdminAuctionsPage() {
 
         loadAuctions()
     }, [])
+
+    function isAuctionRead(auctionId: string) {
+        return readAuctionIds.includes(auctionId)
+    }
+
+    function saveReadAuctionIds(ids: string[]) {
+        localStorage.setItem(ADMIN_READ_AUCTIONS_KEY, JSON.stringify(ids))
+        setReadAuctionIds(ids)
+    }
+
+    function markAuctionRead(auctionId: string) {
+        if (isAuctionRead(auctionId)) return
+        saveReadAuctionIds([...readAuctionIds, auctionId])
+    }
+
+    function markAllAuctionsRead() {
+        saveReadAuctionIds(Array.from(new Set([...readAuctionIds, ...auctions.map(a => a.id)])))
+    }
 
     // =========================
     // ADMIN ACTIONS
@@ -190,21 +218,48 @@ function AdminAuctionsPage() {
         <div className="stack12">
             <h2 className="h2">Адмін · Аукціони</h2>
 
+            {auctions.length > 0 && (
+                <button className="btn-secondary" onClick={markAllAuctionsRead}>
+                    Позначити всі прочитаними
+                </button>
+            )}
+
             {auctions.length === 0 && (
                 <div className="card">Аукціонів немає</div>
             )}
 
-            {auctions.map(a => {
+            {[...auctions].sort((a, b) => {
+                const aNew = !isAuctionRead(a.id)
+                const bNew = !isAuctionRead(b.id)
+                if (aNew && !bNew) return -1
+                if (!aNew && bNew) return 1
+                return (b.createdAt ?? 0) - (a.createdAt ?? 0)
+            }).map(a => {
                 const isEnded = a.status === "ended"
                 const isRemoved = a.status === "removed" || a.status === "deleted"
+                const isNew = !isAuctionRead(a.id)
                 const hasPromo =
                     a.promotionType !== "none" &&
                     a.promotionUntil &&
                     a.promotionUntil > Date.now()
 
                 return (
-                    <div key={a.id} className="card stack8">
-                        <div style={{ fontWeight: 700 }}>{a.title}</div>
+                    <div
+                        key={a.id}
+                        className="card stack8"
+                        style={{
+                            border: isNew ? "2px solid #f59e0b" : "1px solid #e5e7eb",
+                            background: isNew ? "#fffbeb" : "#fff",
+                        }}
+                    >
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                            <div style={{ fontWeight: 700 }}>{a.title}</div>
+                            {isNew && (
+                                <span className="ad-badge" style={{ background: "#f59e0b", color: "#111827" }}>
+                                    Нове
+                                </span>
+                            )}
+                        </div>
 
                         <div style={{ fontSize: 12, color: "#6b7280" }}>
                             {a.city} · {a.voivodeship}
@@ -226,6 +281,14 @@ function AdminAuctionsPage() {
                         )}
 
                         <div style={{display: "flex", gap: 8, flexWrap: "wrap"}}>
+                            {isNew && (
+                                <button
+                                    className="btn-secondary"
+                                    onClick={() => markAuctionRead(a.id)}
+                                >
+                                    Позначити прочитаним
+                                </button>
+                            )}
                             <button
                                 className="btn-secondary"
                                 onClick={() => setTop(a.id)}
