@@ -128,11 +128,17 @@ function AddPage({ t }: Props) {
     }, [title, description, category, voivodeship, city, price, sellerContact])
 
     useEffect(() => {
+        const savedPayment = sessionStorage.getItem(PAYMENT_STORAGE_KEY)
+
+        if (savedPayment) {
+            return
+        }
+
         if (!paymentCompleted) {
             setPaypalOrderId(null)
             setIsPaying(false)
         }
-    }, [promotion])
+    }, [promotion, paymentCompleted])
 
     useEffect(() => {
         let cancelled = false
