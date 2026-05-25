@@ -4,6 +4,7 @@ type Props = {
     t: {
         privacy: string
         terms: string
+        safety: string
         cookies: string
         contact: string
     }
@@ -24,6 +25,7 @@ function Footer({ t }: Props) {
         }}>
             <Link to="/privacy">{t.privacy}</Link>
             <Link to="/terms">{t.terms}</Link>
+            <Link to="/safety">{t.safety}</Link>
             <Link to="/cookies">{t.cookies}</Link>
             <Link to="/contact">{t.contact}</Link>
 

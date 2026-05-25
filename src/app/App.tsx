@@ -7,6 +7,7 @@ import ChatPage from "../pages/ChatPage"
 // import PayTestPage from "../pages/PayTestPage"
 import PrivacyPage from '../pages/PrivacyPage'
 import TermsPage from '../pages/TermsPage'
+import SafetyPage from '../pages/SafetyPage'
 import CookiesPage from '../pages/CookiesPage'
 import ContactPage from '../pages/ContactPage'
 import PromotionInfoPage from '../pages/PromotionInfoPage'
@@ -125,6 +126,9 @@ function App() {
                 <Route path="/terms" element={<TermsPage t={t} />} />
                 <Route path="/cookies" element={<CookiesPage t={t} />} />
                 <Route path="/contact" element={<ContactPage t={t} />} />
+                <Route path="/safety" element={<SafetyPage t={t} />} />
+                <Route path="/pl/bezpieczenstwo" element={<SafetyPage t={translations.pl} />} />
+                <Route path="/uk/bezpeka" element={<SafetyPage t={translations.uk} />} />
                 <Route path="/promotion-info" element={<PromotionInfoPage t={t} />} />
                 <Route path="/edit/:id" element={<EditAdPage />} />
                 <Route path="/edit-auction/:id" element={<EditAuctionPage />} />

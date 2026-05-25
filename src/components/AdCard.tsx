@@ -119,10 +119,14 @@ function AdCard(props: Props) {
 
                 boxShadow:
                     isTop3
-                        ? '0 0 12px rgba(239, 68, 68, 0.75)'
+                        ? 'rgb(141 94 94 / 85%) 0px 20px 20px'
                         : isTop6
-                            ? '0 0 12px rgba(34, 197, 94, 0.75)'
-                            : undefined,
+                            ? 'rgba(34, 197, 94, 0.45) 0px 20px 20px'
+                            : highlightType === 'gold'
+                                ? 'rgba(245, 158, 11, 0.45) 0px 20px 20px'
+                                : highlightType === 'blue'
+                                    ? 'rgba(59, 130, 246, 0.45) 0px 20px 20px'
+                                    : undefined,
 
                 background:
                     highlightType === 'gold'

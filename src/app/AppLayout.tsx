@@ -18,6 +18,7 @@ type Props = {
         footer: {
             privacy: string
             terms: string
+            safety: string
             cookies: string
             contact: string
         }

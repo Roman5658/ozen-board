@@ -41,8 +41,26 @@ function PrivacyPage({ t }: Props) {
                 ))}
             </ul>
 
+            <h3>{p.sections.authTitle}</h3>
+            <p>{p.sections.authText}</p>
+
+            <h3>{p.sections.contentTitle}</h3>
+            <p>{p.sections.contentText}</p>
+
+            <h3>{p.sections.chatsTitle}</h3>
+            <p>{p.sections.chatsText}</p>
+
             <h3>{p.sections.paymentsTitle}</h3>
             <p>{p.sections.paymentsText}</p>
+
+            <h3>{p.sections.logsTitle}</h3>
+            <p>{p.sections.logsText}</p>
+
+            <h3>{p.sections.receiptsTitle}</h3>
+            <p>{p.sections.receiptsText}</p>
+
+            <h3>{p.sections.localStorageTitle}</h3>
+            <p>{p.sections.localStorageText}</p>
 
             <h3>{p.sections.usageTitle}</h3>
             <p>{p.sections.usageText}</p>
@@ -55,6 +73,9 @@ function PrivacyPage({ t }: Props) {
 
             <h3>{p.sections.rightsTitle}</h3>
             <p>{p.sections.rightsText}</p>
+
+            <h3>{p.sections.deletionTitle}</h3>
+            <p>{p.sections.deletionText}</p>
 
             <h3>{p.sections.contactsTitle}</h3>
             <p style={{ whiteSpace: 'pre-line' }}>

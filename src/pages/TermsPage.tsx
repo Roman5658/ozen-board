@@ -40,8 +40,25 @@ function TermsPage({ t }: Props) {
             <h3>{p.sections.usersTitle}</h3>
             <p>{p.sections.usersText}</p>
 
+            <h3>{p.sections.auctionsTitle}</h3>
+            <p>{p.sections.auctionsText}</p>
+
             <h3>{p.sections.paidTitle}</h3>
             <p>{p.sections.paidText}</p>
+
+            <h3>{p.sections.refundsTitle}</h3>
+            <p>{p.sections.refundsText}</p>
+
+            <h3>{p.sections.moderationTitle}</h3>
+            <p>{p.sections.moderationText}</p>
+
+            <h3>{p.sections.prohibitedTitle}</h3>
+            <p>{p.sections.prohibitedText}</p>
+            <ul>
+                {p.sections.prohibitedList.map(item => (
+                    <li key={item}>{item}</li>
+                ))}
+            </ul>
 
             <h3>{p.sections.removalTitle}</h3>
             <p>{p.sections.removalText}</p>

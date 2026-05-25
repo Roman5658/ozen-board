@@ -87,63 +87,111 @@ export const translations = {
         privacy: {
             back: '← Назад',
             title: 'Політика конфіденційності',
-            intro: 'це онлайн-платформа оголошень та аукціонів.',
+            intro: 'це онлайн-платформа оголошень та аукціонів. Нижче пояснюємо, які дані потрібні для роботи сервісу.',
             sections: {
                 generalTitle: '1. Загальні положення',
-                generalText: 'Ми поважаємо вашу конфіденційність і зобов’язуємося захищати персональні дані.',
+                generalText: 'Ми поважаємо вашу приватність і використовуємо дані лише для роботи платформи, безпеки, платежів, підтримки користувачів і виконання законних обов’язків.',
 
                 dataTitle: '2. Які дані ми збираємо',
                 dataList: [
                     'адресу електронної пошти',
-                    'дані оголошень та аукціонів',
-                    'технічну інформацію (cookies, мова)',
-                    'інформацію про платежі (без зберігання карток)',
+                    'Firebase Auth UID та дані входу в акаунт',
+                    'нікнейм, публічний профіль, контакти, рейтинг і відгуки',
+                    'дані оголошень та аукціонів: назва, опис, ціна, категорія, місто, фото, строки аукціону',
+                    'повідомлення в чатах, учасників чату, час створення і статус прочитання',
+                    'технічні налаштування: мова, режим перегляду, відновлення форми, localStorage і cookies',
+                    'інформацію про платежі PayPal: orderId, captureId, сума, валюта, статус, payerEmail, тип просування',
                 ],
 
-                paymentsTitle: '3. Платежі',
-                paymentsText: 'Усі платежі здійснюються через PayPal. Ми не зберігаємо платіжні реквізити.',
+                authTitle: '3. Firebase/Auth',
+                authText: 'Для реєстрації та входу використовується Firebase Authentication. Ми зберігаємо email, UID і базові дані профілю, щоб ви могли керувати оголошеннями, аукціонами, чатами та платежами.',
 
-                usageTitle: '4. Використання даних',
-                usageText: 'Дані використовуються для роботи платформи та платних послуг.',
+                contentTitle: '4. Профілі, оголошення та аукціони',
+                contentText: 'Публічні дані профілю, оголошень та аукціонів можуть бути видимі іншим користувачам. Не додавайте у текст або фото документи, паролі, банківські дані чи іншу чутливу інформацію.',
 
-                transferTitle: '5. Передача даних',
-                transferText: 'Передача здійснюється лише необхідним сервісам (PayPal, Firebase).',
+                chatsTitle: '5. Чати',
+                chatsText: 'Чати потрібні для зв’язку між користувачами. Ми зберігаємо повідомлення, учасників чату і технічні мітки часу, щоб чат працював коректно та щоб можна було реагувати на скарги.',
 
-                storageTitle: '6. Зберігання',
-                storageText: 'Дані зберігаються у Firebase (Google).',
+                paymentsTitle: '6. PayPal payments',
+                paymentsText: 'Платежі за просування здійснюються через PayPal. Xoven не зберігає дані карток або банківські реквізити. PayPal може передати нам статус платежу, email платника, orderId, captureId, суму та валюту.',
 
-                rightsTitle: '7. Права користувача',
-                rightsText: 'Користувач може видалити акаунт або оголошення.',
+                logsTitle: '7. Payment logs',
+                logsText: 'Ми зберігаємо записи платежів у Firestore payments, щоб показувати історію оплат, підтверджувати походження платежу, підтримувати користувачів і розглядати технічні спори.',
 
-                contactsTitle: '8. Контакти',
+                receiptsTitle: '8. Email receipts',
+                receiptsText: 'Після підтвердженої оплати ми можемо надіслати email-підтвердження на email акаунта або payerEmail з PayPal. Для відправки використовується email-сервіс, наприклад Resend.',
+
+                localStorageTitle: '9. Cookies та localStorage',
+                localStorageText: 'Ми використовуємо технічні cookies і localStorage для мови, входу, чернеток форм, відновлення оплати після випадкового закриття сторінки та налаштувань перегляду. Ви можете очистити ці дані у браузері, але частина функцій може працювати гірше.',
+
+                usageTitle: '10. Використання даних',
+                usageText: 'Дані використовуються для створення та показу оголошень, аукціонів, чатів, профілів, платежів, receipt-листів, підтримки, безпеки та модерації.',
+
+                transferTitle: '11. Передача даних',
+                transferText: 'Дані передаються лише сервісам, потрібним для роботи Xoven: Firebase/Google, PayPal, email-провайдеру для receipt-листів та іншим технічним сервісам, якщо вони необхідні для підтримки або безпеки.',
+
+                storageTitle: '12. Зберігання',
+                storageText: 'Основні дані зберігаються у Firebase/Google. Платіжні записи, скарги та службові логи можуть зберігатися довше, якщо це потрібно для безпеки, спорів, обліку або захисту від зловживань.',
+
+                rightsTitle: '13. Права користувача',
+                rightsText: 'Ви можете просити доступ до своїх даних, виправлення помилок, видалення даних або акаунта, якщо це не суперечить обов’язковому зберіганню платіжних, безпекових чи спірних записів.',
+
+                deletionTitle: '14. Видалення даних та акаунта',
+                deletionText: 'Для видалення акаунта або персональних даних зв’яжіться з нами. Після перевірки ми видалимо або анонімізуємо дані, які більше не потрібні для платежів, безпеки, скарг або юридичних обов’язків.',
+
+                contactsTitle: '15. Запити щодо приватності',
                 contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
         terms: {
             back: '← Назад',
             title: 'Умови користування',
-            intro: 'це онлайн-платформа оголошень та аукціонів.',
+            intro: 'це онлайн-платформа оголошень, аукціонів і платних просувань. Ці правила пояснюють, як безпечно користуватися сервісом.',
             sections: {
                 generalTitle: '1. Загальні положення',
-                generalText: 'Користуючись платформою, ви погоджуєтеся з цими умовами.',
+                generalText: 'Користуючись Xoven, ви погоджуєтеся діяти чесно, дотримуватися законів, не вводити інших користувачів в оману та не використовувати сервіс для шахрайства, спаму або небезпечних пропозицій.',
 
                 platformTitle: '2. Відповідальність платформи',
-                platformText: 'Xoven не є стороною угод між користувачами.',
+                platformText: 'Xoven не є стороною угоди між користувачами, не приймає оплату за товар між покупцем і продавцем, не гарантує якість товару, доставку, оплату, ставку або завершення угоди.',
 
                 usersTitle: '3. Відповідальність користувачів',
-                usersText: 'Користувачі самі відповідають за свої дії та оголошення.',
+                usersText: 'Користувач сам відповідає за правдивість оголошення, право продавати товар або послугу, фото, опис, ціну, контакти, виконання домовленостей і дотримання законів.',
 
-                paidTitle: '4. Платні послуги',
-                paidText: 'Після активації платних послуг кошти не повертаються.',
+                auctionsTitle: '4. Правила аукціонів',
+                auctionsText: 'Ставки мають бути реальними. Заборонено накручувати ціну, робити фейкові ставки, маніпулювати аукціоном або відмовлятися від домовленості без поважної причини. Продавець відповідає за опис лота і контакт з переможцем.',
 
-                removalTitle: '5. Видалення контенту',
-                removalText: 'Адміністрація може видаляти контент, що порушує правила.',
+                paidTitle: '5. Платні просування',
+                paidText: 'Платні просування збільшують видимість оголошення або аукціону, але не гарантують продаж, ставку чи контакт від покупця. Оплата списується після підтвердження в PayPal або банку. Після оплати потрібно завершити публікацію.',
 
-                changesTitle: '6. Зміни умов',
+                refundsTitle: '6. Refunds, chargebacks та спори',
+                refundsText: 'Повернення можливе лише у випадку технічної помилки сервісу, через яку оплачене просування не може бути активоване. Помилка користувача, відсутність продажу, неправильний текст оголошення або випадкове закриття сторінки не є підставою для автоматичного повернення. Перед chargeback або dispute напишіть нам, щоб ми могли перевірити платіж.',
+
+                moderationTitle: '7. Модерація та блокування',
+                moderationText: 'Ми можемо перевіряти скарги, приховувати або видаляти контент, знімати просування, обмежувати доступ до акаунта або блокувати користувача, якщо є ризик шахрайства, спаму, небезпеки або порушення правил.',
+
+                prohibitedTitle: '8. Заборонені та обмежені товари/послуги',
+                prohibitedText: 'На Xoven заборонено публікувати або просувати пропозиції, які є незаконними, небезпечними або вводять користувачів в оману. Зокрема заборонені:',
+                prohibitedList: [
+                    'зброя, боєприпаси, вибухові речовини та небезпечні предмети',
+                    'наркотики, психоактивні речовини та товари для їх виготовлення',
+                    'ліки, рецептурні препарати та медичні товари без належних дозволів',
+                    'алкоголь, тютюн, нікотинові товари та вейпи',
+                    'adult/sexual services та сексуальний контент',
+                    'документи, акаунти, доступи, паролі, SIM-карти або способи обходу безпеки',
+                    'фінансові піраміди, інвестиційні сками, обіцянки гарантованого заробітку',
+                    'crypto scams, фейкові токени, підозрілі біржі або схеми з передоплатою',
+                    'небезпечні послуги, незаконна робота, підробки, крадені товари',
+                    'будь-які інші незаконні товари або послуги',
+                ],
+
+                removalTitle: '9. Видалення або приховування контенту',
+                removalText: 'Контент, що порушує правила, може бути прихований або видалений без попередження. Якщо платне просування використано для забороненої пропозиції, кошти можуть не повертатися.',
+
+                changesTitle: '10. Зміни умов',
                 changesText:
                     'Умови користування можуть оновлюватися у разі змін у роботі сервісу. Актуальна версія завжди доступна на цій сторінці.',
 
-                contactsTitle: '7. Контакти',
+                contactsTitle: '11. Контакти',
                 contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
@@ -184,6 +232,89 @@ export const translations = {
             intro: 'Якщо у вас виникли питання або проблеми з роботою сервісу, зв’яжіться з розробником:',
             emailLabel: 'Email',
             telegramLabel: 'Telegram',
+        },
+        safety: {
+            back: '← Назад',
+            title: 'Безпека угод',
+            intro: 'Xoven допомагає людям знаходити оголошення та аукціони, але безпека угоди залежить від уважності користувачів. Будь ласка, перевіряйте пропозиції до оплати або передачі товару.',
+            sections: [
+                {
+                    title: 'Не надсилайте передоплату незнайомим людям',
+                    text: 'Передоплата є одним із найчастіших ризиків у приватних угодах. Якщо продавець тисне, квапить або просить оплатити поза зрозумілим процесом, краще відмовитися.',
+                    items: [
+                        'не переказуйте гроші за товар, який не бачили',
+                        'не оплачуйте “бронь”, “доставку” або “комісію”, якщо пропозиція виглядає підозріло',
+                        'зберігайте листування та підтвердження платежів',
+                    ],
+                },
+                {
+                    title: 'Перевіряйте товар особисто',
+                    text: 'Домовляйтеся про зустріч у безпечному місці, перевіряйте стан товару, серійні номери, документи та комплектність до передачі грошей.',
+                    items: [
+                        'зустрічайтеся у публічних місцях',
+                        'для дорогих товарів беріть із собою знайому людину',
+                        'не погоджуйтеся на угоду, якщо деталі постійно змінюються',
+                    ],
+                },
+                {
+                    title: 'Не переходьте за підозрілими посиланнями',
+                    text: 'Шахраї можуть надсилати фейкові сторінки доставки, банку або оплати. Перевіряйте адресу сайту і не вводьте дані на сторінках, які вам надіслали незнайомі люди.',
+                    items: [
+                        'не відкривайте скорочені або дивні посилання',
+                        'не встановлюйте додатки для “підтвердження угоди”',
+                        'не вводьте дані картки на сторонніх сторінках з чату',
+                    ],
+                },
+                {
+                    title: 'Не повідомляйте коди, паролі та дані картки',
+                    text: 'Ніхто з Xoven не буде просити ваш пароль, SMS-код, CVV, повний номер картки або код підтвердження входу.',
+                    items: [
+                        'не передавайте коди з SMS або банківських додатків',
+                        'не надсилайте фото документів або карток',
+                        'не давайте доступ до акаунтів, пошти або месенджерів',
+                    ],
+                },
+                {
+                    title: 'Використовуйте чат обережно',
+                    text: 'Залишайте важливі домовленості у чаті або в іншому місці, де їх можна зберегти. Не переходьте в сторонні канали, якщо це виглядає як спроба приховати сліди.',
+                    items: [
+                        'порівнюйте дані профілю, оголошення і повідомлення',
+                        'обережно ставтеся до термінових прохань',
+                        'припиніть спілкування, якщо вас змушують діяти швидко',
+                    ],
+                },
+                {
+                    title: 'Як поскаржитися',
+                    text: 'Якщо оголошення, аукціон, користувач або повідомлення виглядають підозріло, скористайтеся кнопкою скарги на сторінці оголошення/профілю або напишіть нам напряму.',
+                    items: [
+                        'додайте короткий опис проблеми',
+                        'збережіть orderId або посилання на оголошення, якщо проблема пов’язана з оплатою просування',
+                        'не видаляйте листування до завершення перевірки',
+                    ],
+                },
+                {
+                    title: 'Що робити при підозрі на шахрайство',
+                    text: 'Зупиніть угоду, не переказуйте гроші, зробіть скріншоти, поскаржтеся на користувача і зверніться до банку або PayPal, якщо платіж уже був здійснений.',
+                    items: [
+                        'змініть пароль, якщо повідомили його випадково',
+                        'заблокуйте картку, якщо розкрили її дані',
+                        'у разі реальної шкоди зверніться до відповідних органів',
+                    ],
+                },
+            ],
+            prohibitedTitle: 'Заборонені та обмежені категорії',
+            prohibitedText: 'Такі пропозиції можуть бути видалені або передані на модерацію. Не публікуйте:',
+            prohibitedList: [
+                'зброю, боєприпаси, вибухові речовини',
+                'наркотики та психоактивні речовини',
+                'ліки та рецептурні препарати без дозволів',
+                'алкоголь, тютюн, нікотинові товари та вейпи',
+                'adult/sexual services',
+                'документи, акаунти, доступи, паролі, SIM-карти',
+                'фінансові піраміди, інвестиційні сками та “гарантований прибуток”',
+                'crypto scams, фейкові токени або підозрілі інвестиційні схеми',
+                'небезпечні послуги, незаконні товари або будь-які пропозиції, що порушують закон',
+            ],
         },
         promotionInfo: {
             title: 'Як працює просування?',
@@ -246,6 +377,7 @@ export const translations = {
         footer: {
             privacy: 'Політика конфіденційності',
             terms: 'Умови користування',
+            safety: 'Безпека',
             cookies: 'Cookies',
             contact: 'Контакти',
         },
@@ -738,63 +870,111 @@ export const translations = {
         privacy: {
             back: '← Wstecz',
             title: 'Polityka prywatności',
-            intro: 'to internetowa platforma ogłoszeń i aukcji działająca na terenie Polski.',
+            intro: 'to internetowa platforma ogłoszeń i aukcji. Poniżej wyjaśniamy, jakie dane są potrzebne do działania serwisu.',
             sections: {
                 generalTitle: '1. Postanowienia ogólne',
-                generalText: 'Szanujemy Twoją prywatność i chronimy dane osobowe użytkowników.',
+                generalText: 'Szanujemy Twoją prywatność i używamy danych tylko do działania platformy, bezpieczeństwa, płatności, obsługi użytkowników oraz wymaganych obowiązków.',
 
                 dataTitle: '2. Jakie dane zbieramy',
                 dataList: [
                     'adres e-mail',
-                    'dane ogłoszeń i aukcji',
-                    'informacje techniczne (cookies, język)',
-                    'informacje o płatnościach (bez danych kart)',
+                    'Firebase Auth UID oraz dane logowania do konta',
+                    'nick, profil publiczny, kontakty, karma i opinie',
+                    'dane ogłoszeń i aukcji: tytuł, opis, cena, kategoria, miasto, zdjęcia, czas zakończenia aukcji',
+                    'wiadomości w czatach, uczestników czatu, czas utworzenia i status odczytu',
+                    'ustawienia techniczne: język, widok listy, przywracanie formularza, localStorage i cookies',
+                    'informacje o płatnościach PayPal: orderId, captureId, kwota, waluta, status, payerEmail, typ promowania',
                 ],
 
-                paymentsTitle: '3. Płatności',
-                paymentsText: 'Wszystkie płatności realizowane są przez PayPal.',
+                authTitle: '3. Firebase/Auth',
+                authText: 'Do rejestracji i logowania używamy Firebase Authentication. Przechowujemy email, UID i podstawowe dane profilu, aby można było zarządzać ogłoszeniami, aukcjami, czatami i płatnościami.',
 
-                usageTitle: '4. Wykorzystanie danych',
-                usageText: 'Dane są wykorzystywane do działania platformy i usług płatnych.',
+                contentTitle: '4. Profile, ogłoszenia i aukcje',
+                contentText: 'Publiczne dane profilu, ogłoszeń i aukcji mogą być widoczne dla innych użytkowników. Nie dodawaj w treści ani zdjęciach dokumentów, haseł, danych bankowych ani innych wrażliwych informacji.',
 
-                transferTitle: '5. Przekazywanie danych',
-                transferText: 'Dane są przekazywane wyłącznie niezbędnym usługom (PayPal, Firebase).',
+                chatsTitle: '5. Czaty',
+                chatsText: 'Czaty służą do kontaktu między użytkownikami. Przechowujemy wiadomości, uczestników czatu i techniczne znaczniki czasu, aby czat działał poprawnie i aby można było reagować na zgłoszenia.',
 
-                storageTitle: '6. Przechowywanie',
-                storageText: 'Dane są przechowywane w Firebase (Google).',
+                paymentsTitle: '6. PayPal payments',
+                paymentsText: 'Płatności za promowanie realizowane są przez PayPal. Xoven nie przechowuje danych kart ani danych bankowych. PayPal może przekazać nam status płatności, email płatnika, orderId, captureId, kwotę i walutę.',
 
-                rightsTitle: '7. Prawa użytkownika',
-                rightsText: 'Użytkownik może usunąć konto lub ogłoszenia.',
+                logsTitle: '7. Payment logs',
+                logsText: 'Przechowujemy rekordy płatności w Firestore payments, aby pokazywać historię płatności, potwierdzać pochodzenie płatności, pomagać użytkownikom i rozpatrywać techniczne spory.',
 
-                contactsTitle: '8. Kontakt',
+                receiptsTitle: '8. Email receipts',
+                receiptsText: 'Po potwierdzonej płatności możemy wysłać email z potwierdzeniem na email konta lub payerEmail z PayPal. Do wysyłki używany jest dostawca email, na przykład Resend.',
+
+                localStorageTitle: '9. Cookies i localStorage',
+                localStorageText: 'Używamy technicznych cookies i localStorage do języka, logowania, szkiców formularzy, przywracania płatności po przypadkowym zamknięciu strony oraz ustawień widoku. Możesz wyczyścić te dane w przeglądarce, ale część funkcji może działać gorzej.',
+
+                usageTitle: '10. Wykorzystanie danych',
+                usageText: 'Dane są używane do tworzenia i wyświetlania ogłoszeń, aukcji, czatów, profili, płatności, email receipts, obsługi, bezpieczeństwa i moderacji.',
+
+                transferTitle: '11. Przekazywanie danych',
+                transferText: 'Dane przekazujemy tylko usługom potrzebnym do działania Xoven: Firebase/Google, PayPal, dostawcy email do receiptów oraz innym technicznym usługom, jeśli są potrzebne do obsługi lub bezpieczeństwa.',
+
+                storageTitle: '12. Przechowywanie',
+                storageText: 'Główne dane są przechowywane w Firebase/Google. Rekordy płatności, zgłoszenia i logi techniczne mogą być przechowywane dłużej, jeśli jest to potrzebne dla bezpieczeństwa, sporów, rozliczeń lub ochrony przed nadużyciami.',
+
+                rightsTitle: '13. Prawa użytkownika',
+                rightsText: 'Możesz poprosić o dostęp do swoich danych, poprawienie błędów, usunięcie danych lub konta, o ile nie koliduje to z koniecznym przechowywaniem rekordów płatności, bezpieczeństwa lub sporów.',
+
+                deletionTitle: '14. Usuwanie danych i konta',
+                deletionText: 'Aby usunąć konto lub dane osobowe, skontaktuj się z nami. Po weryfikacji usuniemy lub zanonimizujemy dane, które nie są już potrzebne do płatności, bezpieczeństwa, zgłoszeń lub obowiązków prawnych.',
+
+                contactsTitle: '15. Kontakt w sprawach prywatności',
                 contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
         terms: {
             back: '← Wstecz',
             title: 'Warunki korzystania',
-            intro: 'to internetowa platforma ogłoszeń i aukcji działająca na terenie Polski.',
+            intro: 'to internetowa platforma ogłoszeń, aukcji i płatnych promowań. Te zasady wyjaśniają, jak bezpiecznie korzystać z serwisu.',
             sections: {
                 generalTitle: '1. Postanowienia ogólne',
-                generalText: 'Korzystając z platformy, akceptujesz niniejsze warunki.',
+                generalText: 'Korzystając z Xoven, zgadzasz się działać uczciwie, przestrzegać prawa, nie wprowadzać innych użytkowników w błąd i nie używać serwisu do oszustw, spamu ani niebezpiecznych ofert.',
 
                 platformTitle: '2. Odpowiedzialność platformy',
-                platformText: 'Xoven nie jest stroną umów zawieranych między użytkownikami.',
+                platformText: 'Xoven nie jest stroną transakcji między użytkownikami, nie przyjmuje płatności za towar między kupującym i sprzedającym, nie gwarantuje jakości towaru, dostawy, zapłaty, oferty ani finalizacji umowy.',
 
                 usersTitle: '3. Odpowiedzialność użytkowników',
-                usersText: 'Użytkownicy ponoszą odpowiedzialność za swoje działania i ogłoszenia.',
+                usersText: 'Użytkownik odpowiada za prawdziwość ogłoszenia, prawo do sprzedaży towaru lub usługi, zdjęcia, opis, cenę, kontakty, wykonanie ustaleń i przestrzeganie prawa.',
 
-                paidTitle: '4. Usługi płatne',
-                paidText: 'Po aktywacji usług płatnych środki nie podlegają zwrotowi.',
+                auctionsTitle: '4. Zasady aukcji',
+                auctionsText: 'Oferty w aukcji powinny być realne. Zabronione jest sztuczne podbijanie ceny, fałszywe licytacje, manipulowanie aukcją lub wycofywanie się z ustaleń bez ważnego powodu. Sprzedawca odpowiada za opis przedmiotu i kontakt ze zwycięzcą.',
 
-                removalTitle: '5. Usuwanie treści',
-                removalText: 'Administracja może usuwać treści naruszające regulamin.',
+                paidTitle: '5. Płatne promowania',
+                paidText: 'Płatne promowania zwiększają widoczność ogłoszenia lub aukcji, ale nie gwarantują sprzedaży, oferty ani kontaktu od kupującego. Płatność jest pobierana po potwierdzeniu w PayPal lub banku. Po opłaceniu trzeba zakończyć publikację.',
 
-                changesTitle: '6. Zmiany warunków',
+                refundsTitle: '6. Refunds, chargebacks i spory',
+                refundsText: 'Zwrot jest możliwy tylko w przypadku technicznej awarii serwisu, przez którą opłacone promowanie nie może zostać aktywowane. Błąd użytkownika, brak sprzedaży, błędna treść ogłoszenia lub przypadkowe zamknięcie strony nie są podstawą automatycznego zwrotu. Przed chargebackiem lub disputem napisz do nas, abyśmy mogli sprawdzić płatność.',
+
+                moderationTitle: '7. Moderacja i blokady',
+                moderationText: 'Możemy sprawdzać zgłoszenia, ukrywać lub usuwać treści, zdejmować promowanie, ograniczać dostęp do konta albo blokować użytkownika, jeśli istnieje ryzyko oszustwa, spamu, zagrożenia lub naruszenia zasad.',
+
+                prohibitedTitle: '8. Towary i usługi zabronione lub ograniczone',
+                prohibitedText: 'Na Xoven nie wolno publikować ani promować ofert, które są nielegalne, niebezpieczne albo wprowadzają użytkowników w błąd. W szczególności zabronione są:',
+                prohibitedList: [
+                    'broń, amunicja, materiały wybuchowe i niebezpieczne przedmioty',
+                    'narkotyki, substancje psychoaktywne i produkty do ich wytwarzania',
+                    'leki, produkty na receptę i wyroby medyczne bez wymaganych zezwoleń',
+                    'alkohol, tytoń, produkty nikotynowe i vape',
+                    'adult/sexual services i treści seksualne',
+                    'dokumenty, konta, dostępy, hasła, karty SIM lub sposoby obchodzenia zabezpieczeń',
+                    'piramidy finansowe, scamy inwestycyjne, obietnice gwarantowanego zysku',
+                    'crypto scams, fałszywe tokeny, podejrzane giełdy lub schematy z przedpłatą',
+                    'niebezpieczne usługi, nielegalna praca, podróbki, kradzione towary',
+                    'wszelkie inne nielegalne towary lub usługi',
+                ],
+
+                removalTitle: '9. Usuwanie lub ukrywanie treści',
+                removalText: 'Treści naruszające zasady mogą zostać ukryte albo usunięte bez wcześniejszego ostrzeżenia. Jeśli płatne promowanie zostało użyte do zakazanej oferty, środki mogą nie zostać zwrócone.',
+
+                changesTitle: '10. Zmiany warunków',
                 changesText:
                     'Warunki korzystania mogą ulec zmianie w przypadku zmian w działaniu serwisu. Aktualna wersja jest zawsze dostępna na tej stronie.',
 
-                contactsTitle: '7. Kontakt',
+                contactsTitle: '11. Kontakt',
                 contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
             },
         },
@@ -835,6 +1015,89 @@ export const translations = {
             intro: 'Jeśli masz pytania lub problemy z działaniem serwisu, skontaktuj się z twórcą:',
             emailLabel: 'Email',
             telegramLabel: 'Telegram',
+        },
+        safety: {
+            back: '← Wstecz',
+            title: 'Bezpieczeństwo transakcji',
+            intro: 'Xoven pomaga znajdować ogłoszenia i aukcje, ale bezpieczeństwo transakcji zależy od ostrożności użytkowników. Sprawdzaj oferty przed zapłatą lub przekazaniem przedmiotu.',
+            sections: [
+                {
+                    title: 'Nie wysyłaj przedpłaty nieznanym osobom',
+                    text: 'Przedpłata jest jednym z najczęstszych ryzyk w prywatnych transakcjach. Jeśli sprzedający naciska, spieszy się albo prosi o płatność poza zrozumiałym procesem, lepiej zrezygnować.',
+                    items: [
+                        'nie przelewaj pieniędzy za przedmiot, którego nie widziałeś',
+                        'nie opłacaj “rezerwacji”, “dostawy” lub “prowizji”, jeśli oferta wygląda podejrzanie',
+                        'zachowuj korespondencję i potwierdzenia płatności',
+                    ],
+                },
+                {
+                    title: 'Sprawdzaj przedmiot osobiście',
+                    text: 'Umawiaj się w bezpiecznym miejscu, sprawdzaj stan przedmiotu, numery seryjne, dokumenty i kompletność przed przekazaniem pieniędzy.',
+                    items: [
+                        'spotykaj się w miejscach publicznych',
+                        'przy droższych rzeczach zabierz ze sobą zaufaną osobę',
+                        'nie zgadzaj się na transakcję, jeśli szczegóły ciągle się zmieniają',
+                    ],
+                },
+                {
+                    title: 'Nie klikaj podejrzanych linków',
+                    text: 'Oszuści mogą wysyłać fałszywe strony dostawy, banku lub płatności. Sprawdzaj adres strony i nie wpisuj danych na stronach przesłanych przez nieznane osoby.',
+                    items: [
+                        'nie otwieraj skróconych lub dziwnych linków',
+                        'nie instaluj aplikacji do “potwierdzenia transakcji”',
+                        'nie wpisuj danych karty na zewnętrznych stronach z czatu',
+                    ],
+                },
+                {
+                    title: 'Nie podawaj kodów, haseł ani danych karty',
+                    text: 'Nikt z Xoven nie będzie prosił o Twoje hasło, kod SMS, CVV, pełny numer karty ani kod potwierdzający logowanie.',
+                    items: [
+                        'nie przekazuj kodów z SMS lub aplikacji bankowych',
+                        'nie wysyłaj zdjęć dokumentów ani kart',
+                        'nie dawaj dostępu do kont, poczty ani komunikatorów',
+                    ],
+                },
+                {
+                    title: 'Korzystaj z czatu ostrożnie',
+                    text: 'Zostawiaj ważne ustalenia w czacie lub w miejscu, które można zachować. Nie przechodź do zewnętrznych kanałów, jeśli wygląda to jak próba ukrycia śladów.',
+                    items: [
+                        'porównuj dane profilu, ogłoszenia i wiadomości',
+                        'ostrożnie traktuj pilne prośby',
+                        'przerwij rozmowę, jeśli ktoś zmusza Cię do szybkiego działania',
+                    ],
+                },
+                {
+                    title: 'Jak zgłosić problem',
+                    text: 'Jeśli ogłoszenie, aukcja, użytkownik albo wiadomość wyglądają podejrzanie, użyj przycisku zgłoszenia na stronie ogłoszenia/profilu albo napisz do nas bezpośrednio.',
+                    items: [
+                        'dodaj krótki opis problemu',
+                        'zachowaj orderId lub link do ogłoszenia, jeśli problem dotyczy płatnego promowania',
+                        'nie usuwaj korespondencji do czasu zakończenia sprawdzenia',
+                    ],
+                },
+                {
+                    title: 'Co zrobić przy podejrzeniu oszustwa',
+                    text: 'Zatrzymaj transakcję, nie przelewaj pieniędzy, zrób zrzuty ekranu, zgłoś użytkownika i skontaktuj się z bankiem lub PayPal, jeśli płatność została już wykonana.',
+                    items: [
+                        'zmień hasło, jeśli przypadkowo je podałeś',
+                        'zablokuj kartę, jeśli ujawniłeś jej dane',
+                        'w przypadku realnej szkody skontaktuj się z odpowiednimi służbami',
+                    ],
+                },
+            ],
+            prohibitedTitle: 'Kategorie zabronione i ograniczone',
+            prohibitedText: 'Takie oferty mogą zostać usunięte albo skierowane do moderacji. Nie publikuj:',
+            prohibitedList: [
+                'broni, amunicji i materiałów wybuchowych',
+                'narkotyków i substancji psychoaktywnych',
+                'leków i produktów na receptę bez zezwoleń',
+                'alkoholu, tytoniu, produktów nikotynowych i vape',
+                'adult/sexual services',
+                'dokumentów, kont, dostępów, haseł, kart SIM',
+                'piramid finansowych, scamów inwestycyjnych i “gwarantowanego zysku”',
+                'crypto scams, fałszywych tokenów albo podejrzanych schematów inwestycyjnych',
+                'niebezpiecznych usług, nielegalnych towarów lub ofert naruszających prawo',
+            ],
         },
         promotionInfo: {
             title: 'Jak działa promowanie?',
@@ -897,6 +1160,7 @@ export const translations = {
         footer: {
             privacy: 'Polityka prywatności',
             terms: 'Regulamin',
+            safety: 'Bezpieczeństwo',
             cookies: 'Cookies',
             contact: 'Kontakt',
         },

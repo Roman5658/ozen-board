@@ -57,11 +57,11 @@ function AuctionCard({
                     isSoftPinned
                         ? 'none'
                         : promotionType === 'top-auction'
-                            ? '0 6px 16px rgba(239, 68, 68, 0.25)'
+                            ? 'rgb(15 14 14 / 85%) 0px 20px 20px'
                             : promotionType === 'featured'
-                                ? '0 4px 12px rgba(245, 158, 11, 0.25)'
+                                ? 'rgba(245, 158, 11, 0.45) 0px 20px 20px'
                                 : promotionType === 'highlight-gold'
-                                    ? '0 3px 10px rgba(250, 204, 21, 0.35)'
+                                    ? 'rgba(250, 204, 21, 0.45) 0px 20px 20px'
                                     : 'none',
 
 
