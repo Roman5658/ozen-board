@@ -139,7 +139,20 @@ function AddPage({ t }: Props) {
             setIsPaying(false)
         }
     }, [promotion, paymentCompleted])
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (paymentCompleted) {
+                e.preventDefault()
+                e.returnValue = ""
+            }
+        }
 
+        window.addEventListener("beforeunload", handleBeforeUnload)
+
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload)
+        }
+    }, [paymentCompleted])
     useEffect(() => {
         let cancelled = false
 
