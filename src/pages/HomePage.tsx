@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/purity */
-
 import type { Ad } from '../types/ad'
 
 import AdCard from '../components/AdCard'
@@ -131,6 +129,14 @@ function prioritizeCityDiversity<T extends { id: string; city: string }>(ads: T[
     return selected
 }
 
+function sortTopAds(ads: Ad[]): Ad[] {
+    return [...ads].sort((a, b) => {
+        const timeDiff = (a.pinnedAt ?? a.createdAt) - (b.pinnedAt ?? b.createdAt)
+        if (timeDiff !== 0) return timeDiff
+        return a.id.localeCompare(b.id)
+    })
+}
+
 function HomePage({ t }: Props) {
     const location = useLocation()
     const lang = location.pathname.startsWith('/pl') ? 'pl' : 'uk'
@@ -170,7 +176,7 @@ function HomePage({ t }: Props) {
     const PAGE_SIZE = 30
     const [page, setPage] = useState(1)
     const [isSeoTextVisible, setIsSeoTextVisible] = useState(false)
-    const now = Date.now()
+    const [now, setNow] = useState(() => Date.now())
     const localUser = getLocalUser()
     const currentUserId = localUser?.id
 
@@ -183,6 +189,7 @@ function HomePage({ t }: Props) {
                 ...(doc.data() as Omit<Ad, 'id'>),
             }))
             setFireAds(data)
+            setNow(Date.now())
         }
 
         loadAds()
@@ -204,9 +211,6 @@ function HomePage({ t }: Props) {
     function getAdUserNickname(ad: Ad): string | undefined {
         return ad.userNickname?.trim() || ad.userName?.trim() || usersById[ad.userId]
     }
-    useEffect(() => {
-        setPage(1)
-    }, [category, voivodeship, city, query])
     useEffect(() => {
         localStorage.setItem('adsViewMode', view)
     }, [view])
@@ -233,33 +237,47 @@ function HomePage({ t }: Props) {
 
                 return b.createdAt - a.createdAt
             })
-    }, [fireAds, category, voivodeship, city, query])
+    }, [fireAds, category, voivodeship, city, query, now])
 
-    const activePinnedAds = filteredAndSortedAds.filter(
-        ad => isActivePin(ad, now)
+    const activePinnedAds = useMemo(
+        () => filteredAndSortedAds.filter(ad => isActivePin(ad, now)),
+        [filteredAndSortedAds, now]
     )
 
-    const allTop3 = activePinnedAds.filter(ad => ad.pinType === "top3")
-    const allTop6 = activePinnedAds.filter(ad => ad.pinType === "top6")
-
-
-    const top3Ads =
-        city === ""
-            ? prioritizeCityDiversity(shuffle(allTop3)).slice(0, 3)
-            : allTop3.filter(ad => ad.city === city).slice(0, 3)
-
-    const top6Ads =
-        city === ""
-            ? shuffle(allTop6).slice(0, 6)
-            : allTop6.filter(ad => ad.city === city).slice(0, 6)
-    const bumpAds = filteredAndSortedAds.filter(
-        ad =>
-            ad.status === "active" &&
-            !ad.pinType &&
-            ad.bumpAt
+    const allTop3 = useMemo(
+        () => sortTopAds(activePinnedAds.filter(ad => ad.pinType === "top3")),
+        [activePinnedAds]
+    )
+    const allTop6 = useMemo(
+        () => sortTopAds(activePinnedAds.filter(ad => ad.pinType === "top6")),
+        [activePinnedAds]
     )
 
-    const regularAds = filteredAndSortedAds.filter(ad => {
+
+    const top3Ads = useMemo(
+        () => city === ""
+            ? prioritizeCityDiversity(allTop3).slice(0, 3)
+            : allTop3.filter(ad => ad.city === city).slice(0, 3),
+        [allTop3, city]
+    )
+
+    const top6Ads = useMemo(
+        () => city === ""
+            ? allTop6.slice(0, 6)
+            : allTop6.filter(ad => ad.city === city).slice(0, 6),
+        [allTop6, city]
+    )
+    const bumpAds = useMemo(
+        () => filteredAndSortedAds.filter(
+            ad =>
+                ad.status === "active" &&
+                !ad.pinType &&
+                ad.bumpAt
+        ),
+        [filteredAndSortedAds]
+    )
+
+    const regularAds = useMemo(() => filteredAndSortedAds.filter(ad => {
         if (ad.status !== 'active') return false
         if (ad.bumpAt) return false
 
@@ -274,19 +292,22 @@ function HomePage({ t }: Props) {
         // • обычные
         // • в очереди
         return true
-    })
+    }), [filteredAndSortedAds, now])
 
 
 
-    const totalPages = Math.ceil(regularAds.length / PAGE_SIZE)
-
-    const pagedRegularAds = regularAds.slice(
-        (page - 1) * PAGE_SIZE,
-        page * PAGE_SIZE
+    const totalPages = useMemo(
+        () => Math.ceil(regularAds.length / PAGE_SIZE),
+        [regularAds.length]
     )
-    function shuffle<T>(arr: T[]): T[] {
-        return [...arr].sort(() => Math.random() - 0.5)
-    }
+
+    const pagedRegularAds = useMemo(
+        () => regularAds.slice(
+            (page - 1) * PAGE_SIZE,
+            page * PAGE_SIZE
+        ),
+        [page, regularAds]
+    )
 
     return (
         <div>
@@ -318,7 +339,10 @@ function HomePage({ t }: Props) {
                     placeholder={t.home.searchPlaceholder}
 
                     value={query}
-                    onChange={e => setQuery(e.target.value)}
+                    onChange={e => {
+                        setQuery(e.target.value)
+                        setPage(1)
+                    }}
                 />
 
                 <div style={{display: 'flex', gap: 8}}>
@@ -342,6 +366,7 @@ function HomePage({ t }: Props) {
                     onChange={v => {
                         setVoivodeship(v)
                         setCity('')
+                        setPage(1)
                     }}
                     t={t}
                 />
@@ -349,12 +374,22 @@ function HomePage({ t }: Props) {
                 <CityByVoivodeshipFilter
                     voivodeship={voivodeship}
                     value={city}
-                    onChange={setCity}
+                    onChange={value => {
+                        setCity(value)
+                        setPage(1)
+                    }}
                     t={{allCities: t.home.allCities}}
                 />
 
 
-                <CategoryFilter value={category} onChange={setCategory} t={t}/>
+                <CategoryFilter
+                    value={category}
+                    onChange={value => {
+                        setCategory(value)
+                        setPage(1)
+                    }}
+                    t={t}
+                />
             </div>
 
             <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>

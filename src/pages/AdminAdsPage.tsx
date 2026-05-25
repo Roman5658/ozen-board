@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { collection, doc, getDocs, updateDoc } from "firebase/firestore"
 import { Link } from "react-router-dom"
 
@@ -196,6 +196,7 @@ function AdminAdsPage() {
     const [cityFilter, setCityFilter] = useState("all")
     const [voivodeshipFilter, setVoivodeshipFilter] = useState("all")
     const [promotionFilter, setPromotionFilter] = useState<PromotionFilter>("all")
+    const [now, setNow] = useState(() => Date.now())
 
     // -------------------------
     // загрузка объявлений
@@ -210,6 +211,7 @@ function AdminAdsPage() {
             }))
 
             setAds(data)
+            setNow(Date.now())
             setLoading(false)
         }
 
@@ -221,14 +223,14 @@ function AdminAdsPage() {
     // -------------------------
 
     async function setTop(ad: Ad) {
-        const now = Date.now()
-        const pinnedUntil = now + ADMIN_TOP_DURATION
+        const actionNow = now
+        const pinnedUntil = actionNow + ADMIN_TOP_DURATION
 
         try {
             await updateDoc(doc(db, "ads", ad.id), {
                 status: "active",
                 pinType: "top3",
-                pinnedAt: now,
+                pinnedAt: actionNow,
                 pinnedUntil,
                 pinQueueAt: null,
             })
@@ -240,7 +242,7 @@ function AdminAdsPage() {
                             ...item,
                             status: "active",
                             pinType: "top3",
-                            pinnedAt: now,
+                            pinnedAt: actionNow,
                             pinnedUntil,
                             pinQueueAt: undefined,
                         }
@@ -255,7 +257,7 @@ function AdminAdsPage() {
     }
 
     async function setQueue(ad: Ad) {
-        const now = Date.now()
+        const actionNow = now
 
         try {
             await updateDoc(doc(db, "ads", ad.id), {
@@ -263,7 +265,7 @@ function AdminAdsPage() {
                 pinType: "top3",
                 pinnedAt: null,
                 pinnedUntil: null,
-                pinQueueAt: now,
+                pinQueueAt: actionNow,
             })
 
             setAds(prev =>
@@ -275,7 +277,7 @@ function AdminAdsPage() {
                             pinType: "top3",
                             pinnedAt: undefined,
                             pinnedUntil: undefined,
-                            pinQueueAt: now,
+                            pinQueueAt: actionNow,
                         }
                         : item
                 )
@@ -355,68 +357,97 @@ function AdminAdsPage() {
     // UI
     // -------------------------
 
-    if (loading) {
-        return <div className="card">Завантаження…</div>
-    }
-    const now = Date.now()
+    const cityOptions = useMemo(
+        () => Array.from(new Set(ads.map(ad => ad.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [ads]
+    )
 
-    const cityOptions = Array.from(new Set(ads.map(ad => ad.city).filter(Boolean))).sort((a, b) => a.localeCompare(b))
-    const voivodeshipOptions = Array.from(new Set(ads.map(ad => ad.voivodeship).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    const voivodeshipOptions = useMemo(
+        () => Array.from(new Set(ads.map(ad => ad.voivodeship).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [ads]
+    )
 
-    function matchesLocationFilters(ad: Ad) {
-        if (cityFilter !== "all" && ad.city !== cityFilter) return false
-        if (voivodeshipFilter !== "all" && ad.voivodeship !== voivodeshipFilter) return false
-        return true
-    }
+    const activePromotedAds = useMemo(() => {
+        function matchesLocationFilters(ad: Ad) {
+            if (cityFilter !== "all" && ad.city !== cityFilter) return false
+            if (voivodeshipFilter !== "all" && ad.voivodeship !== voivodeshipFilter) return false
+            return true
+        }
 
-    function matchesPromotionFilter(ad: Ad, section: AdminAdSection) {
-        if (promotionFilter === "all") return true
-        if (promotionFilter === "queue") return section === "queueTop"
-        if (promotionFilter === "top3") return ad.pinType === "top3"
-        if (promotionFilter === "top6") return ad.pinType === "top6"
-        if (promotionFilter === "highlight") return section === "activePromoted" && isHighlightedAd(ad, now)
-        if (promotionFilter === "bump") return section === "activePromoted" && isBumpedAd(ad)
-        return true
-    }
+        function matchesPromotionFilter(ad: Ad, section: AdminAdSection) {
+            if (promotionFilter === "all") return true
+            if (promotionFilter === "queue") return section === "queueTop"
+            if (promotionFilter === "top3") return ad.pinType === "top3"
+            if (promotionFilter === "top6") return ad.pinType === "top6"
+            if (promotionFilter === "highlight") return section === "activePromoted" && isHighlightedAd(ad, now)
+            if (promotionFilter === "bump") return section === "activePromoted" && isBumpedAd(ad)
+            return true
+        }
 
-    function getActivePromotionRank(ad: Ad) {
-        if (ad.pinType === "top3" && isActiveTopAd(ad, now)) return 0
-        if (ad.pinType === "top6" && isActiveTopAd(ad, now)) return 1
-        if (isHighlightedAd(ad, now)) return 2
-        if (isBumpedAd(ad)) return 3
-        return 4
-    }
+        function getActivePromotionRank(ad: Ad) {
+            if (ad.pinType === "top3" && isActiveTopAd(ad, now)) return 0
+            if (ad.pinType === "top6" && isActiveTopAd(ad, now)) return 1
+            if (isHighlightedAd(ad, now)) return 2
+            if (isBumpedAd(ad)) return 3
+            return 4
+        }
 
-    function getActivePromotionDate(ad: Ad) {
-        if (isActiveTopAd(ad, now)) return ad.pinnedUntil ?? 0
-        if (isHighlightedAd(ad, now)) return ad.highlightUntil ?? 0
-        return ad.bumpAt ?? 0
-    }
+        function getActivePromotionDate(ad: Ad) {
+            if (isActiveTopAd(ad, now)) return ad.pinnedUntil ?? 0
+            if (isHighlightedAd(ad, now)) return ad.highlightUntil ?? 0
+            return ad.bumpAt ?? 0
+        }
 
-    const activePromotedAds = ads
-        .filter(ad => isActivePromotedAd(ad, now))
-        .filter(matchesLocationFilters)
-        .filter(ad => matchesPromotionFilter(ad, "activePromoted"))
-        .sort((a, b) => {
-            const rankDiff = getActivePromotionRank(a) - getActivePromotionRank(b)
-            if (rankDiff !== 0) return rankDiff
-            return getActivePromotionDate(a) - getActivePromotionDate(b)
-        })
+        return ads
+            .filter(ad => isActivePromotedAd(ad, now))
+            .filter(matchesLocationFilters)
+            .filter(ad => matchesPromotionFilter(ad, "activePromoted"))
+            .sort((a, b) => {
+                const rankDiff = getActivePromotionRank(a) - getActivePromotionRank(b)
+                if (rankDiff !== 0) return rankDiff
+                return getActivePromotionDate(a) - getActivePromotionDate(b)
+            })
+    }, [ads, cityFilter, now, promotionFilter, voivodeshipFilter])
 
-    const activePromotedIds = new Set(activePromotedAds.map(ad => ad.id))
+    const activePromotedIds = useMemo(
+        () => new Set(activePromotedAds.map(ad => ad.id)),
+        [activePromotedAds]
+    )
 
-    const queuedTopAds = ads
-        .filter(ad => isQueuedTopAd(ad, now))
-        .filter(ad => !activePromotedIds.has(ad.id))
-        .filter(matchesLocationFilters)
-        .filter(ad => matchesPromotionFilter(ad, "queueTop"))
-        .sort((a, b) => (a.pinQueueAt ?? 0) - (b.pinQueueAt ?? 0))
+    const queuedTopAds = useMemo(() => {
+        function matchesLocationFilters(ad: Ad) {
+            if (cityFilter !== "all" && ad.city !== cityFilter) return false
+            if (voivodeshipFilter !== "all" && ad.voivodeship !== voivodeshipFilter) return false
+            return true
+        }
+
+        function matchesPromotionFilter(ad: Ad, section: AdminAdSection) {
+            if (promotionFilter === "all") return true
+            if (promotionFilter === "queue") return section === "queueTop"
+            if (promotionFilter === "top3") return ad.pinType === "top3"
+            if (promotionFilter === "top6") return ad.pinType === "top6"
+            if (promotionFilter === "highlight") return section === "activePromoted" && isHighlightedAd(ad, now)
+            if (promotionFilter === "bump") return section === "activePromoted" && isBumpedAd(ad)
+            return true
+        }
+
+        return ads
+            .filter(ad => isQueuedTopAd(ad, now))
+            .filter(ad => !activePromotedIds.has(ad.id))
+            .filter(matchesLocationFilters)
+            .filter(ad => matchesPromotionFilter(ad, "queueTop"))
+            .sort((a, b) => (a.pinQueueAt ?? 0) - (b.pinQueueAt ?? 0))
+    }, [activePromotedIds, ads, cityFilter, now, promotionFilter, voivodeshipFilter])
 
     const adminAdActions: AdminAdActions = {
         setTop,
         setQueue,
         clearTop,
         clearQueue,
+    }
+
+    if (loading) {
+        return <div className="card">Завантаження…</div>
     }
 
     return (
