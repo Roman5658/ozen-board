@@ -13,12 +13,12 @@ const DAY = 24 * 60 * 60 * 1000;
 const PRICE_MAP = {
     ad: {
         bump: "7.00",
-        top3: "0.10",
+        top3: "14.99",
         top6: "9.99",
         gold: "5.00",
     },
     auction: {
-        top: "0.10",
+        top: "14.99",
         featured: "8.00",
         gold: "5.00",
     },
