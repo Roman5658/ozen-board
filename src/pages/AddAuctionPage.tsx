@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { collection, addDoc } from "firebase/firestore"
 import { PRICES } from "../config/prices"
@@ -328,6 +328,12 @@ function AddAuctionPage({ t }: Props) {
                 {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
                 <div className="card stack12">
                     <strong>{t.addAuction.promotion.title}</strong>
+                    <Link
+                        to="/promotion-info"
+                        style={{fontSize: 13, color: "#2563eb", width: "fit-content"}}
+                    >
+                        {t.promotionInfo.linkLabel}
+                    </Link>
                     {isPaidPromotion && (
                         <div className="card stack12">
                             <strong>{t.addAuction.payment.title}</strong>

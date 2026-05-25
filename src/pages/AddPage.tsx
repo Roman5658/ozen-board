@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
     addDoc,
     collection,
@@ -576,6 +576,12 @@ function AddPage({ t }: Props) {
                 )}
                 <div className="card stack12">
                     <strong>{a.promotion.title}</strong>
+                    <Link
+                        to="/promotion-info"
+                        style={{fontSize: 13, color: "#2563eb", width: "fit-content"}}
+                    >
+                        {t.promotionInfo.linkLabel}
+                    </Link>
 
                     {promotion !== 'none' && (
                         <div className="card stack12">

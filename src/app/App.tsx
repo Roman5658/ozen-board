@@ -9,6 +9,7 @@ import PrivacyPage from '../pages/PrivacyPage'
 import TermsPage from '../pages/TermsPage'
 import CookiesPage from '../pages/CookiesPage'
 import ContactPage from '../pages/ContactPage'
+import PromotionInfoPage from '../pages/PromotionInfoPage'
 import AdminLayout from "../admin/AdminLayout"
 import AdminAdsPage from "../pages/AdminAdsPage"
 import AdminAdsListPage from "../pages/AdminAdsListPage"
@@ -123,6 +124,7 @@ function App() {
                 <Route path="/terms" element={<TermsPage t={t} />} />
                 <Route path="/cookies" element={<CookiesPage t={t} />} />
                 <Route path="/contact" element={<ContactPage t={t} />} />
+                <Route path="/promotion-info" element={<PromotionInfoPage t={t} />} />
                 <Route path="/edit/:id" element={<EditAdPage />} />
                 <Route path="/edit-auction/:id" element={<EditAuctionPage />} />
                 <Route path="/privacy" element={<PrivacyPage t={t} />} />
