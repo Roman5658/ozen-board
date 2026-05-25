@@ -14,15 +14,22 @@ import {
     updateDoc,
     arrayUnion,
     arrayRemove,
+    increment,
+    type QueryDocumentSnapshot,
+    type Unsubscribe,
 } from "firebase/firestore"
 
 export type ChatItem = {
     id: string
     users: string[]
     lastMessage: string
+    lastMessageAt?: number
+    lastMessageSenderId?: string
     lastSenderType?: "user" | "system"
     lastSenderName?: string
+    unreadCounts?: Record<string, number>
     unreadFor?: string[]
+    hidden?: boolean
     hiddenFor?: string[]
     hiddenForAt?: Record<string, unknown>
     updatedAt?: number
@@ -42,6 +49,91 @@ export type ChatMessage = {
     moderationStatus?: "hidden" | "restored"
     moderationReason?: string | null
     createdAt?: unknown
+}
+
+function getUserKey(value: string): string {
+    return value.replace(/[^A-Za-z0-9_-]/g, char => `_${char.charCodeAt(0).toString(16)}_`)
+}
+
+function toMillis(value: unknown): number | undefined {
+    if (value && typeof value === "object" && "toMillis" in value) {
+        const timestamp = value as { toMillis?: () => number }
+        return timestamp.toMillis?.()
+    }
+
+    return undefined
+}
+
+function parseChatDoc(d: QueryDocumentSnapshot): ChatItem {
+    const data = d.data() as {
+        users?: unknown
+        lastMessage?: unknown
+        lastMessageAt?: unknown
+        lastMessageSenderId?: unknown
+        lastSenderType?: unknown
+        lastSenderName?: unknown
+        unreadCounts?: unknown
+        unreadFor?: unknown
+        hiddenFor?: unknown
+        hiddenForAt?: Record<string, unknown>
+        hidden?: unknown
+        updatedAt?: unknown
+        createdAt?: unknown
+    }
+
+    const lastSenderType: ChatItem["lastSenderType"] =
+        data.lastSenderType === "system" || data.lastSenderType === "user"
+            ? data.lastSenderType
+            : undefined
+
+    const unreadCounts = typeof data.unreadCounts === "object" && data.unreadCounts !== null
+        ? Object.fromEntries(
+            Object.entries(data.unreadCounts as Record<string, unknown>)
+                .filter(([, value]) => typeof value === "number")
+        ) as Record<string, number>
+        : {}
+
+    return {
+        id: d.id,
+        users: Array.isArray(data.users) ? data.users : [],
+        lastMessage:
+            typeof data.lastMessage === "string"
+                ? data.lastMessage
+                : "",
+        lastMessageAt: toMillis(data.lastMessageAt),
+        lastMessageSenderId:
+            typeof data.lastMessageSenderId === "string"
+                ? data.lastMessageSenderId
+                : undefined,
+        lastSenderType,
+        lastSenderName:
+            typeof data.lastSenderName === "string"
+                ? data.lastSenderName
+                : undefined,
+        unreadCounts,
+        unreadFor: Array.isArray(data.unreadFor)
+            ? data.unreadFor
+            : [],
+        hidden: data.hidden === true,
+        hiddenFor: Array.isArray(data.hiddenFor)
+            ? data.hiddenFor
+            : [],
+        hiddenForAt:
+            typeof data.hiddenForAt === "object"
+                ? data.hiddenForAt
+                : {},
+
+        updatedAt: toMillis(data.updatedAt),
+        createdAt: toMillis(data.createdAt),
+    }
+}
+
+export function getUnreadCountForUser(chat: ChatItem, userIds: string[]): number {
+    const ids = Array.from(new Set(userIds.filter(Boolean)))
+    const unreadCount = ids.reduce((sum, id) => sum + (chat.unreadCounts?.[getUserKey(id)] ?? 0), 0)
+    if (unreadCount > 0) return unreadCount
+
+    return ids.some(id => chat.unreadFor?.includes(id)) ? 1 : 0
 }
 
 /**
@@ -77,6 +169,10 @@ export async function getOrCreateChat(
     const newChatRef = await addDoc(chatsRef, {
         users: [userAId, userBId],
         lastMessage: "",
+        lastMessageSenderId: null,
+        lastSenderType: null,
+        lastSenderName: null,
+        unreadCounts: {},
         unreadFor: [],
         hidden: true,
         hiddenFor: [],
@@ -112,10 +208,13 @@ export async function sendMessage(
 
     await updateDoc(doc(db, "chats", chatId), {
         lastMessage: clean,
+        lastMessageAt: serverTimestamp(),
+        lastMessageSenderId: senderId,
         lastSenderType: "user",
         lastSenderName: senderName?.trim() || null,
         updatedAt: serverTimestamp(),
         unreadFor: arrayUnion(otherUserId),
+        [`unreadCounts.${getUserKey(otherUserId)}`]: increment(1),
         hidden: false,
         hiddenFor: arrayRemove(otherUserId),
         [`hiddenForAt.${otherUserId}`]: null,
@@ -152,10 +251,13 @@ export async function sendAdminSystemMessage(params: {
 
     await updateDoc(doc(db, "chats", chatId), {
         lastMessage: params.text,
+        lastMessageAt: serverTimestamp(),
+        lastMessageSenderId: params.adminId,
         lastSenderType: "system",
         lastSenderName: "Xoven Admin",
         updatedAt: serverTimestamp(),
         unreadFor: arrayUnion(params.ownerId),
+        [`unreadCounts.${getUserKey(params.ownerId)}`]: increment(1),
         hidden: false,
         hiddenFor: arrayRemove(params.ownerId),
         [`hiddenForAt.${params.ownerId}`]: null,
@@ -165,10 +267,17 @@ export async function sendAdminSystemMessage(params: {
 /**
  * Пометить чат как прочитанный
  */
-export async function markChatAsRead(chatId: string, userId: string) {
-    await updateDoc(doc(db, "chats", chatId), {
-        unreadFor: arrayRemove(userId),
+export async function markChatAsRead(chatId: string, userId: string, userUid?: string, userEmail?: string) {
+    const ids = Array.from(new Set([userId, userUid, userEmail].filter(Boolean))) as string[]
+    const patch: Record<string, unknown> = {
+        unreadFor: arrayRemove(...ids),
+    }
+
+    ids.forEach(id => {
+        patch[`unreadCounts.${getUserKey(id)}`] = 0
     })
+
+    await updateDoc(doc(db, "chats", chatId), patch)
 }
 
 /**
@@ -216,61 +325,41 @@ export async function getUserChats(userId: string, userUid?: string): Promise<Ch
     }
 
     return Array.from(allDocs.values())
-        .map(d => {
-            const data = d.data() as {
-                users?: unknown
-                lastMessage?: unknown
-                lastSenderType?: unknown
-                lastSenderName?: unknown
-                unreadFor?: unknown
-                hiddenFor?: unknown
-                hiddenForAt?: Record<string, unknown>
-                hidden?: unknown
-                updatedAt?: { toMillis?: () => number }
-                createdAt?: { toMillis?: () => number }
-            }
-
-            const lastSenderType: ChatItem["lastSenderType"] =
-                data.lastSenderType === "system" || data.lastSenderType === "user"
-                    ? data.lastSenderType
-                    : undefined
-
-
-            return {
-                id: d.id,
-                users: Array.isArray(data.users) ? data.users : [],
-                lastMessage:
-                    typeof data.lastMessage === "string"
-                        ? data.lastMessage
-                        : "",
-                lastSenderType,
-                lastSenderName:
-                    typeof data.lastSenderName === "string"
-                        ? data.lastSenderName
-                        : undefined,
-                unreadFor: Array.isArray(data.unreadFor)
-                    ? data.unreadFor
-                    : [],
-                hidden: data.hidden === true,
-                hiddenFor: Array.isArray(data.hiddenFor)
-                    ? data.hiddenFor
-                    : [],
-                hiddenForAt:
-                    typeof data.hiddenForAt === "object"
-                        ? data.hiddenForAt
-                        : {},
-
-                updatedAt: data.updatedAt?.toMillis?.(),
-                createdAt: data.createdAt?.toMillis?.(),
-            }
-
-
-        })
+        .map(parseChatDoc)
         .filter(chat => !chat.hidden)
         .filter(chat => !(chat.hiddenFor?.includes(userId)))
         .filter(chat => !(userUid && chat.hiddenFor?.includes(userUid)))
         .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
 
+}
+
+export function subscribeToUserChats(
+    userId: string,
+    userUid: string | undefined,
+    cb: (chats: ChatItem[]) => void
+): Unsubscribe {
+    const ids = Array.from(new Set([userId, userUid].filter(Boolean))) as string[]
+    const docs = new Map<string, ChatItem>()
+    const unsubscribers = ids.map(id => {
+        const q = query(
+            collection(db, "chats"),
+            where("users", "array-contains", id),
+            orderBy("updatedAt", "desc")
+        )
+
+        return onSnapshot(q, (snap) => {
+            snap.docs.forEach(d => docs.set(d.id, parseChatDoc(d)))
+
+            cb(
+                Array.from(docs.values())
+                    .filter(chat => !chat.hidden)
+                    .filter(chat => !(chat.hiddenFor?.some(hiddenId => ids.includes(hiddenId))))
+                    .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+            )
+        })
+    })
+
+    return () => unsubscribers.forEach(unsubscribe => unsubscribe())
 }
 
 

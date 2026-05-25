@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 type Props = {
     title: string
@@ -9,13 +10,17 @@ type Props = {
         uk: string
         pl: string
     }
+    chatUnreadCount: number
+    chatLabel: string
     onLangChange: (lang: 'uk' | 'pl') => void
 }
 
 
 
-function Header({ title, subtitle,warning, lang, languages, onLangChange }: Props) {
+function Header({ title, subtitle,warning, lang, languages, chatUnreadCount, chatLabel, onLangChange }: Props) {
     const [flash, setFlash] = useState<'uk' | 'pl' | null>(null)
+    const navigate = useNavigate()
+    const badgeText = chatUnreadCount > 99 ? '99+' : String(chatUnreadCount)
 
     return (
         <header
@@ -39,7 +44,49 @@ function Header({ title, subtitle,warning, lang, languages, onLangChange }: Prop
                     }}>{subtitle}</p>
                 </div>
 
-                <div style={{display: 'flex', gap: '10px',}}>
+                <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/account#account-chats')}
+                        title={chatLabel}
+                        aria-label={chatLabel}
+                        style={{
+                            width: 40,
+                            height: 36,
+                            borderRadius: 10,
+                            border: '1px solid #bfdbfe',
+                            background: chatUnreadCount > 0 ? '#eff6ff' : '#fff',
+                            color: '#1d4ed8',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            position: 'relative',
+                        }}
+                    >
+                        💬
+                        {chatUnreadCount > 0 && (
+                            <span
+                                style={{
+                                    position: 'absolute',
+                                    top: -7,
+                                    right: -8,
+                                    minWidth: 20,
+                                    height: 20,
+                                    padding: '0 5px',
+                                    borderRadius: 999,
+                                    background: '#dc2626',
+                                    color: '#fff',
+                                    fontSize: 11,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '2px solid #fff',
+                                }}
+                            >
+                                {badgeText}
+                            </span>
+                        )}
+                    </button>
+
                     <button
                         onClick={() => {
                             setFlash('uk')

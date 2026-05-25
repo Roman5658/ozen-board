@@ -291,12 +291,17 @@ width: 80%;
     justify-content: space-between;
     align-items: flex-start;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .ad-title {
+    flex: 1 1 220px;
+    min-width: 0;
     font-size: 15px;
     margin: 0;
     font-weight: 600;
+    overflow-wrap: anywhere;
+    word-break: normal;
 }
 
 .ad-badge {
@@ -319,8 +324,8 @@ width: 80%;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    overflow-wrap: break-word;
-    word-break: break-word;
+    overflow-wrap: anywhere;
+    word-break: normal;
     white-space: normal;
 }
 
@@ -754,12 +759,20 @@ h1, h2, h3, h4, h5, h6 {
     gap: 14px;
 }
 .ads-grid--list .ad-card {
-    display: flex;
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    grid-template-areas:
+        "image header"
+        "image description"
+        "image footer"
+        "image meta"
+        "image actions";
     gap: 14px;
     align-items: flex-start;
 }
 
 .ads-grid--list .ad-image {
+    grid-area: image;
     width: 180px;
     min-width: 180px;
     height: 140px;
@@ -777,15 +790,45 @@ h1, h2, h3, h4, h5, h6 {
 .ads-grid--list .ad-footer,
 .ads-grid--list .ad-meta {
     width: 100%;
+    min-width: 0;
+}
+
+.ads-grid--list .ad-header {
+    grid-area: header;
+}
+
+.ads-grid--list .ad-desc {
+    grid-area: description;
+    margin: 0;
+}
+
+.ads-grid--list .ad-footer {
+    grid-area: footer;
+    justify-content: flex-start;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.ads-grid--list .ad-meta {
+    grid-area: meta;
+    flex-wrap: wrap;
+}
+
+.ads-grid--list .ad-card > .btn-danger {
+    grid-area: actions;
+    width: auto;
+    justify-self: start;
 }
 
 @media (max-width: 768px) {
     .ads-grid--list .ad-card {
+        display: flex;
         flex-direction: column;
     }
 
     .ads-grid--list .ad-image {
         width: 100%;
+        min-width: 0;
         height: 180px;
     }
 }

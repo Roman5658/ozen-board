@@ -110,6 +110,7 @@ export async function finalizeAuction(auctionId: string) {
         chatId,
         owner.id,
         winner.id,
-        `Аукцион "${auctionTitle}" завершён. Победитель: ${winner.nickname} (${winner.email}).`
+        `Аукцион "${auctionTitle}" завершён. Победитель: ${winner.nickname} (${winner.email}).`,
+        owner.nickname
     )
 }

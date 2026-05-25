@@ -67,7 +67,7 @@ function ChatPage() {
     // ===== пометить чат прочитанным =====
     useEffect(() => {
         if (!chatId || !currentUser) return
-        markChatAsRead(chatId, currentUser.id)
+        markChatAsRead(chatId, currentUser.id, currentUser.uid, currentUser.email)
     }, [chatId, currentUser])
 
     // ===== определить собеседника =====

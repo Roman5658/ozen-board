@@ -61,10 +61,10 @@ function formatDate(
 function AdCard(props: Props) {
     const ad = props.ad
 
-    const title = ad?.title ?? props.title ?? ''
-    const price = ad?.price ?? props.price
-    const city = ad?.city ?? props.city
-    const description = ad?.description ?? props.description
+    const title = props.title ?? ad?.title ?? ''
+    const price = props.price ?? ad?.price
+    const city = props.city ?? ad?.city
+    const description = props.description ?? ad?.description
     const createdAt = ad?.createdAt ?? props.createdAt
 
     const now = useMemo(() => Date.now(), [])

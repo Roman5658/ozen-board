@@ -7,6 +7,7 @@ type Props = {
     children: ReactNode
     header: ReactNode
     activePath: string
+    chatUnreadCount: number
     t: {
         bottomNav: {
             home: string
@@ -26,7 +27,7 @@ type Props = {
 }
 
 
-function AppLayout({ children, header, activePath, t }: Props) {
+function AppLayout({ children, header, activePath, chatUnreadCount, t }: Props) {
 
     return (
         <div className="app-root">
@@ -39,6 +40,7 @@ function AppLayout({ children, header, activePath, t }: Props) {
 
             <BottomNav
                 activePath={activePath}
+                chatUnreadCount={chatUnreadCount}
                 t={t.bottomNav}
             />
         </div>

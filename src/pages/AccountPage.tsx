@@ -16,21 +16,12 @@ import { getLocalUser, setLocalUser, clearLocalUser } from "../data/localUser"
 import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
-import { getUserChats } from "../data/chats"
+import { getUnreadCountForUser, getUserChats } from "../data/chats"
+import type { ChatItem } from "../data/chats"
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
 type Props = {
     t: (typeof translations)[keyof typeof translations]
 }
-type ChatItem = {
-    id: string
-    users: string[]
-    lastMessage: string
-    lastSenderType?: "user" | "system"
-    lastSenderName?: string
-    unreadFor?: string[]
-    updatedAt?: number
-}
-
 type ChatListRow = {
     id: string
     otherUserId: string
@@ -39,6 +30,7 @@ type ChatListRow = {
     updatedAt?: number
     isUnread: boolean
     isNewChat: boolean
+    unreadCount: number
 }
 
 type ModeratedOwnerItem = {
@@ -594,7 +586,8 @@ function AccountPage({ t }: Props) {
         ? chats
             .map(chat => {
                 const otherUserId = chat.users.find(id => id !== user.id) || ""
-                const isUnread = chat.unreadFor?.includes(user.id) ?? false
+                const unreadCount = getUnreadCountForUser(chat, [user.id, user.uid, user.email].filter(Boolean))
+                const isUnread = unreadCount > 0
                 const isNewChat = chat.lastMessage === ""
 
 
@@ -611,6 +604,7 @@ function AccountPage({ t }: Props) {
                     updatedAt: chat.updatedAt,
                     isUnread,
                     isNewChat,
+                    unreadCount,
                 }
             })
             .filter(row => !!row.otherUserId)
@@ -714,7 +708,7 @@ function AccountPage({ t }: Props) {
                     {a.profile.logout}
                 </button>
             </div>
-            <div className="card stack12">
+            <div className="card stack12" id="account-chats">
                 <h3 className="h3">{a.chats.title}</h3>
 
 
@@ -769,7 +763,7 @@ function AccountPage({ t }: Props) {
                                                     borderRadius: 999,
                                                 }}
                                             >
-            new
+            {row.unreadCount > 99 ? "99+" : row.unreadCount}
         </span>
                                         )}
                                     </div>

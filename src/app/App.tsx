@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
 import AdminReportsPage from "../pages/AdminReportsPage"
 import AddAuctionPage from '../pages/AddAuctionPage'
@@ -17,6 +17,8 @@ import AdminAdsListPage from "../pages/AdminAdsListPage"
 import AdminAdDetailsPage from "../pages/AdminAdDetailsPage"
 
 import { translations, detectInitialLang } from './i18n'
+import { getLocalUser, LOCAL_USER_CHANGED_EVENT } from '../data/localUser'
+import { getUnreadCountForUser, subscribeToUserChats } from '../data/chats'
 
 
 import type { Lang } from './i18n'
@@ -40,6 +42,8 @@ import AdminAuctionsPage from "../pages/AdminAuctionsPage"
 
 function App() {
     const [lang, setLang] = useState<Lang>(() => detectInitialLang())
+    const [currentUser, setCurrentUser] = useState(() => getLocalUser())
+    const [chatUnreadCount, setChatUnreadCount] = useState(0)
 
 
     const t = translations[lang]
@@ -88,6 +92,34 @@ function App() {
         navigate(`/${next}/`)
     }
 
+    useEffect(() => {
+        function syncLocalUser() {
+            setCurrentUser(getLocalUser())
+        }
+
+        window.addEventListener(LOCAL_USER_CHANGED_EVENT, syncLocalUser)
+        window.addEventListener('storage', syncLocalUser)
+
+        return () => {
+            window.removeEventListener(LOCAL_USER_CHANGED_EVENT, syncLocalUser)
+            window.removeEventListener('storage', syncLocalUser)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (!currentUser) {
+            setChatUnreadCount(0)
+            return
+        }
+
+        const userIds = [currentUser.id, currentUser.uid, currentUser.email].filter(Boolean)
+        return subscribeToUserChats(currentUser.id, currentUser.uid, (chats) => {
+            setChatUnreadCount(
+                chats.reduce((sum, chat) => sum + getUnreadCountForUser(chat, userIds), 0)
+            )
+        })
+    }, [currentUser])
+
     return (
         <AppLayout
             activePath={location.pathname}
@@ -98,12 +130,15 @@ function App() {
                     warning={t.warning}
                     lang={lang}
                     languages={t.languages}
+                    chatUnreadCount={chatUnreadCount}
+                    chatLabel={t.chatIndicator.label}
                     onLangChange={changeLang}
 
                 />
 
             }
             t={t}
+            chatUnreadCount={chatUnreadCount}
         >
             <Routes>
                 <Route path="/" element={<Navigate to={`/${lang}/`} replace />} />

@@ -3,6 +3,7 @@ import auctionIcon from "../img/3366116.png"
 
 type Props = {
     activePath: string
+    chatUnreadCount: number
     t: {
         home: string
         nearby: string
@@ -13,8 +14,9 @@ type Props = {
 }
 
 
-function BottomNav({ activePath, t }: Props) {
+function BottomNav({ activePath, chatUnreadCount, t }: Props) {
     const navigate = useNavigate()
+    const badgeText = chatUnreadCount > 99 ? "99+" : String(chatUnreadCount)
 
     const items = [
         { path: "/", label: t.home, icon: "📋", type: "emoji" },
@@ -37,7 +39,31 @@ function BottomNav({ activePath, t }: Props) {
                         className={`nav-button ${activePath === item.path ? "active" : ""}`}
                     >
                         {item.type === "emoji" ? (
-                            <span className="nav-icon">{item.icon}</span>
+                            <span className="nav-icon" style={{ position: "relative" }}>
+                                {item.icon}
+                                {item.path === "/account" && chatUnreadCount > 0 && (
+                                    <span
+                                        style={{
+                                            position: "absolute",
+                                            top: -8,
+                                            right: -12,
+                                            minWidth: 18,
+                                            height: 18,
+                                            padding: "0 4px",
+                                            borderRadius: 999,
+                                            background: "#dc2626",
+                                            color: "#fff",
+                                            fontSize: 10,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            border: "2px solid #fff",
+                                        }}
+                                    >
+                                        {badgeText}
+                                    </span>
+                                )}
+                            </span>
                         ) : (
                             <img src={item.icon} alt={item.label} className="nav-icon-img"/>
                         )}

@@ -9,6 +9,9 @@ export const translations = {
             uk: 'UA',
             pl: 'PL',
         },
+        chatIndicator: {
+            label: 'Нові повідомлення',
+        },
 
         homeTitle: 'Оголошення',
         nearbyTitle: 'Оголошення поруч',
@@ -886,6 +889,9 @@ export const translations = {
         languages: {
             uk: 'UA',
             pl: 'PL',
+        },
+        chatIndicator: {
+            label: 'Nowe wiadomości',
         },
 
         homeTitle: 'Ogłoszenia',

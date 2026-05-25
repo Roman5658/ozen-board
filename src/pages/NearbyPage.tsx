@@ -6,7 +6,6 @@ import { getDistanceKm } from '../utils/distance'
 import { Link } from 'react-router-dom'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../app/firebase'
-import { getAdImages } from '../utils/getAdImages'
 import { buildAdPath } from '../utils/slug'
 import { getUserPublicNicknames } from '../data/usersPublic'
 
@@ -195,16 +194,10 @@ function NearbyPage({ t }: Props) {
                     {nearbyAds.map((ad) => (
                         <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{ textDecoration: 'none', color: 'inherit' }}>
                             <AdCard
-                                title={ad.title}
+                                ad={ad}
                                 description={ad.distance !== undefined ? `${ad.distance.toFixed(1)} ${t.nearby.distanceFromYou}` : `${t.nearby.cityLabel}: ${ad.city}`}
-                                city={ad.city}
-                                price={ad.price}
-                                images={getAdImages(ad)}
-                                userId={ad.userId}
                                 userNickname={getAdUserNickname(ad)}
                                 labels={t.adCard}
-
-                                isPremium={ad.isPremium}
                             />
 
                         </Link>
