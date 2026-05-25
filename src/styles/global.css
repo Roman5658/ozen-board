@@ -753,3 +753,39 @@ h1, h2, h3, h4, h5, h6 {
 .ads-grid--list {
     gap: 14px;
 }
+.ads-grid--list .ad-card {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+}
+
+.ads-grid--list .ad-image {
+    width: 180px;
+    min-width: 180px;
+    height: 140px;
+    margin-bottom: 0;
+}
+
+.ads-grid--list .ad-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ads-grid--list .ad-header,
+.ads-grid--list .ad-desc,
+.ads-grid--list .ad-footer,
+.ads-grid--list .ad-meta {
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .ads-grid--list .ad-card {
+        flex-direction: column;
+    }
+
+    .ads-grid--list .ad-image {
+        width: 100%;
+        height: 180px;
+    }
+}
