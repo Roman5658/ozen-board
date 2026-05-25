@@ -12,7 +12,14 @@ export type Ad = {
     image?: string
     isPremium?: boolean
     isPinned?: boolean
-    status?: "active" | "pending_payment" | "deleted" | "expired"
+    status?: "active" | "pending_payment" | "deleted" | "expired" | "hidden" | "removed"
+    moderationReason?: string | null
+    moderatedAt?: number | null
+    moderatedBy?: string | null
+    restoredAt?: number | null
+    restoredBy?: string | null
+    ownerNotificationStatus?: "unread" | "read" | null
+    ownerNotificationMessage?: string | null
     // оплата и продвижение
     paidAt?: number
     paymentId?: string
@@ -23,6 +30,8 @@ export type Ad = {
 
     createdAt: number
     userId: string
+    userName?: string | null
+    userNickname?: string | null
     sellerContact?: string
 
     location?: {

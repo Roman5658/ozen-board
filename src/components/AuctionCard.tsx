@@ -12,6 +12,7 @@ type Props = {
     isEnded?: boolean
     promotionType?: "top-auction" | "featured" | "highlight-gold" | "none"
     isSoftPinned?: boolean
+    ownerName?: string
 }
 
 
@@ -27,6 +28,7 @@ function AuctionCard({
                          view = 'list',
                          promotionType,
                          isSoftPinned,
+                         ownerName,
                      }: Props) {
     const isGrid = view === 'grid'
 
@@ -57,7 +59,7 @@ function AuctionCard({
                     isSoftPinned
                         ? 'none'
                         : promotionType === 'top-auction'
-                            ? 'rgb(15 14 14 / 85%) 0px 20px 20px'
+                            ? 'rgb(128 14 14 / 85%) 0px 20px 20px'
                             : promotionType === 'featured'
                                 ? 'rgba(245, 158, 11, 0.45) 0px 20px 20px'
                                 : promotionType === 'highlight-gold'
@@ -156,6 +158,11 @@ function AuctionCard({
                     <div style={{fontSize: '14px', marginTop: '6px', color: '#555'}}>
                         {city}
                     </div>
+                    {ownerName && (
+                        <div style={{fontSize: '13px', marginTop: '4px', color: '#1976d2', fontWeight: 600}}>
+                            {ownerName}
+                        </div>
+                    )}
                 </div>
 
                 <div>

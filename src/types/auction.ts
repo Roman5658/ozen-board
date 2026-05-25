@@ -1,4 +1,4 @@
-export type AuctionStatus = "active" | "pending_payment" | "ended"
+export type AuctionStatus = "active" | "pending_payment" | "ended" | "hidden" | "deleted" | "removed"
 export type AuctionPromotionType =
     | "none"
     | "top-auction"
@@ -31,10 +31,18 @@ export type Auction = {
 
     ownerId: string          // вместо userId (понятнее кто владелец)
     ownerName: string
+    ownerNickname?: string | null
 
     bidsCount: number         // чтобы быстро показывать в списке
     winnerId?: string | null  // появится после завершения
     status: AuctionStatus
+    moderationReason?: string | null
+    moderatedAt?: number | null
+    moderatedBy?: string | null
+    restoredAt?: number | null
+    restoredBy?: string | null
+    ownerNotificationStatus?: "unread" | "read" | null
+    ownerNotificationMessage?: string | null
 
     createdAt: number
     endsAt: number

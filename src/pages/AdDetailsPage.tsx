@@ -9,7 +9,7 @@ import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
 import { useSeo, BASE_URL } from '../utils/seo'
 import { addDoc, collection } from "firebase/firestore"
-import { getLocalUser } from "../data/localUser"
+import { getLocalUser, isAdmin } from "../data/localUser"
 import AuthorCard from "../components/AuthorCard"
 import { getAdImages } from "../utils/getAdImages";
 import { buildAdPath, extractIdFromSlug } from "../utils/slug";
@@ -160,14 +160,18 @@ function AdDetailsPage({ t }: Props) {
             navigate(canonicalPath, { replace: true })
         }
     }, [ad, slugOrId, navigate])
+    const isOwner = !!currentUser && !!ad && String(currentUser.id) === String(ad.userId)
+    const isRestrictedAd = ['hidden', 'deleted', 'removed'].includes(ad?.status ?? '')
+    const canViewRestrictedAd = isOwner || isAdmin()
+    const visibleAd = ad && (!isRestrictedAd || canViewRestrictedAd) ? ad : null
     const lang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
-    const seoTitle = ad
-        ? (lang === 'pl' ? `${ad.title} ${ad.city} | Xoven` : `Купити ${ad.title} ${ad.city} | Xoven`)
+    const seoTitle = visibleAd
+        ? (lang === 'pl' ? `${visibleAd.title} ${visibleAd.city} | Xoven` : `Купити ${visibleAd.title} ${visibleAd.city} | Xoven`)
         : (lang === 'pl' ? 'Ogłoszenie | Xoven' : 'Оголошення | Xoven')
-    const seoDescription = ad
+    const seoDescription = visibleAd
         ? (lang === 'pl'
-            ? `Kupuj i sprzedawaj lokalnie. Zobacz ogłoszenie: ${ad.title} w ${ad.city}.`
-            : `Купуй та продавай локально. Переглянь оголошення: ${ad.title} у ${ad.city}.`)
+            ? `Kupuj i sprzedawaj lokalnie. Zobacz ogłoszenie: ${visibleAd.title} w ${visibleAd.city}.`
+            : `Купуй та продавай локально. Переглянь оголошення: ${visibleAd.title} у ${visibleAd.city}.`)
         : (lang === 'pl' ? 'Darmowe ogłoszenia.' : 'Безкоштовні оголошення.')
 
     useSeo({
@@ -180,12 +184,12 @@ function AdDetailsPage({ t }: Props) {
             { hreflang: 'uk-UA', href: `${BASE_URL}/uk/ogoloshennya` },
             { hreflang: 'x-default', href: `${BASE_URL}/pl/ogloszenia` },
         ],
-        jsonLd: ad ? {
+        jsonLd: visibleAd ? {
             '@context': 'https://schema.org',
             '@type': 'Offer',
-            name: ad.title,
-            description: ad.description,
-            price: ad.price ?? 0,
+            name: visibleAd.title,
+            description: visibleAd.description,
+            price: visibleAd.price ?? 0,
             priceCurrency: 'PLN',
             areaServed: 'PL',
         } : undefined,
@@ -195,11 +199,10 @@ function AdDetailsPage({ t }: Props) {
         return <div className="card">{a.loading}</div>
     }
 
-    if (!ad) {
+    if (!ad || (isRestrictedAd && !canViewRestrictedAd)) {
         return <div className="card">{a.notFound}</div>
     }
 
-    const isOwner = !!currentUser && String(currentUser.id) === String(ad.userId)
     const now = Date.now()
 
     const isHighlightActive =

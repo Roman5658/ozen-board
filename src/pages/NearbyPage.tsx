@@ -8,6 +8,7 @@ import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { getAdImages } from '../utils/getAdImages'
 import { buildAdPath } from '../utils/slug'
+import { getUserPublicNicknames } from '../data/usersPublic'
 
 
 
@@ -27,6 +28,19 @@ type Props = {
             cityLabel: string
             distanceFromYou: string
         }
+        adCard: {
+            today: string
+            yesterday: string
+            noPhoto: string
+            user: string
+            top3: string
+            top6: string
+            inQueue: string
+            gold: string
+            mine: string
+            safeDeal: string
+            delete: string
+        }
     }
 }
 type GeoStatus = 'loading' | 'ready' | 'denied'
@@ -38,6 +52,7 @@ function NearbyPage({ t }: Props) {
     const [geoStatus, setGeoStatus] = useState<GeoStatus>('loading')
     const [selectedCity, setSelectedCity] = useState('')
     const [ads, setAds] = useState<Ad[]>([])
+    const [usersById, setUsersById] = useState<Record<string, string>>({})
     const [view, setView] = useState<'list' | 'grid'>(() => {
         const saved = localStorage.getItem('nearbyAdsViewMode')
         return saved === 'list' ? 'list' : 'grid'
@@ -73,11 +88,28 @@ function NearbyPage({ t }: Props) {
 
 
 
-            setAds(data)
+            setAds(data.filter((ad) => (ad.status ?? 'active') === 'active'))
         }
 
         loadAds()
     }, [])
+
+    useEffect(() => {
+        const missingUserIds = ads
+            .filter(ad => !ad.userNickname && !ad.userName)
+            .map(ad => ad.userId)
+            .filter((id): id is string => !!id && !usersById[id])
+
+        if (missingUserIds.length === 0) return
+
+        getUserPublicNicknames(missingUserIds, t.adCard.user)
+            .then(names => setUsersById(prev => ({ ...prev, ...names })))
+            .catch(error => console.warn('[nearby] failed to load user nicknames', error))
+    }, [ads, t.adCard.user, usersById])
+
+    function getAdUserNickname(ad: Ad): string | undefined {
+        return ad.userNickname?.trim() || ad.userName?.trim() || usersById[ad.userId]
+    }
 
     const cityOptions = useMemo(
         () => Array.from(new Set(ads.map((ad) => ad.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
@@ -168,6 +200,9 @@ function NearbyPage({ t }: Props) {
                                 city={ad.city}
                                 price={ad.price}
                                 images={getAdImages(ad)}
+                                userId={ad.userId}
+                                userNickname={getAdUserNickname(ad)}
+                                labels={t.adCard}
 
                                 isPremium={ad.isPremium}
                             />

@@ -14,7 +14,7 @@ import AuctionCard from '../components/AuctionCard'
 import AuctionDetails from '../components/AuctionDetails'
 
 import { db } from '../app/firebase'
-import { getLocalUser } from '../data/localUser'
+import { getLocalUser, isAdmin } from '../data/localUser'
 
 import { getTimeLeft } from '../utils/time'
 import { translations, DEFAULT_LANG } from '../app/i18n'
@@ -22,6 +22,7 @@ import type { Lang } from '../app/i18n'
 import type { Auction } from '../types/auction'
 import { buildAuctionPath, extractIdFromSlug } from '../utils/slug'
 import { useSeo, BASE_URL } from '../utils/seo'
+import { getUserPublicNicknames } from '../data/usersPublic'
 
 type AuctionBid = {
     id: string
@@ -47,6 +48,7 @@ function AuctionPage() {
 
     // DATA
     const [auctions, setAuctions] = useState<Auction[]>([])
+    const [ownerNamesById, setOwnerNamesById] = useState<Record<string, string>>({})
     const [activeAuction, setActiveAuction] = useState<Auction | null>(null)
     const [bids, setBids] = useState<AuctionBid[]>([])
     const [loading, setLoading] = useState(true)
@@ -79,7 +81,8 @@ function AuctionPage() {
                         currentBid: raw.currentBid,
                         images: raw.images ?? [],
                         ownerId: raw.ownerId,
-                        ownerName: raw.ownerName,
+                        ownerName: raw.ownerName ?? '',
+                        ownerNickname: raw.ownerNickname ?? null,
                         bidsCount: raw.bidsCount ?? 0,
                         status: raw.status ?? 'active',
                         createdAt: raw.createdAt,
@@ -126,7 +129,8 @@ function AuctionPage() {
             currentBid: raw.currentBid,
             images: raw.images ?? [],
             ownerId: raw.ownerId,
-            ownerName: raw.ownerName,
+            ownerName: raw.ownerName ?? '',
+            ownerNickname: raw.ownerNickname ?? null,
             bidsCount: raw.bidsCount ?? 0,
             status: raw.status ?? 'active',
             createdAt: raw.createdAt,
@@ -191,48 +195,77 @@ function AuctionPage() {
     }, [slugOrId])
 
     useEffect(() => {
-        if (!slugOrId || !activeAuction) return
-        const canonicalPath = buildAuctionPath(activeAuction.title, activeAuction.city, activeAuction.id)
+        const missingOwnerIds = auctions
+            .filter(auction => !auction.ownerNickname && !auction.ownerName)
+            .map(auction => auction.ownerId)
+            .filter((id): id is string => !!id && !ownerNamesById[id])
+
+        if (activeAuction && !activeAuction.ownerNickname && !activeAuction.ownerName && !ownerNamesById[activeAuction.ownerId]) {
+            missingOwnerIds.push(activeAuction.ownerId)
+        }
+
+        if (missingOwnerIds.length === 0) return
+
+        getUserPublicNicknames(missingOwnerIds, t.common.user)
+            .then(names => setOwnerNamesById(prev => ({ ...prev, ...names })))
+            .catch(error => console.warn('[auctions] failed to load owner nicknames', error))
+    }, [activeAuction, auctions, ownerNamesById, t.common.user])
+
+    function getAuctionOwnerName(auction: Auction): string {
+        return auction.ownerNickname?.trim()
+            || auction.ownerName?.trim()
+            || ownerNamesById[auction.ownerId]
+            || t.common.user
+    }
+
+    const user = getLocalUser()
+    const isAuthenticated = !!user
+    const isRestrictedActiveAuction = ['hidden', 'deleted', 'removed'].includes(activeAuction?.status ?? '')
+    const canViewRestrictedAuction = !!activeAuction && (
+        String(user?.id ?? '') === String(activeAuction.ownerId) ||
+        isAdmin()
+    )
+    const visibleActiveAuction = activeAuction && (!isRestrictedActiveAuction || canViewRestrictedAuction)
+        ? activeAuction
+        : null
+
+    useEffect(() => {
+        if (!slugOrId || !visibleActiveAuction) return
+        const canonicalPath = buildAuctionPath(visibleActiveAuction.title, visibleActiveAuction.city, visibleActiveAuction.id)
         if (`/auction/${slugOrId}` !== canonicalPath) {
             navigate(canonicalPath, { replace: true })
         }
-    }, [slugOrId, activeAuction, navigate])
+    }, [slugOrId, visibleActiveAuction, navigate])
     const seoLang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
     useSeo({
-        title: activeAuction
-            ? (seoLang === 'pl' ? `${activeAuction.title} ${activeAuction.city} | Xoven` : `Купити ${activeAuction.title} ${activeAuction.city} | Xoven`)
+        title: visibleActiveAuction
+            ? (seoLang === 'pl' ? `${visibleActiveAuction.title} ${visibleActiveAuction.city} | Xoven` : `Купити ${visibleActiveAuction.title} ${visibleActiveAuction.city} | Xoven`)
             : (seoLang === 'pl' ? 'Aukcje | Xoven' : 'Аукціони | Xoven'),
-        description: activeAuction
+        description: visibleActiveAuction
             ? (seoLang === 'pl'
-                ? `Licytuj lokalnie. Zobacz aukcję: ${activeAuction.title} w ${activeAuction.city}.`
-                : `Бери участь в локальних аукціонах. Переглянь лот: ${activeAuction.title} у ${activeAuction.city}.`)
+                ? `Licytuj lokalnie. Zobacz aukcję: ${visibleActiveAuction.title} w ${visibleActiveAuction.city}.`
+                : `Бери участь в локальних аукціонах. Переглянь лот: ${visibleActiveAuction.title} у ${visibleActiveAuction.city}.`)
             : (seoLang === 'pl' ? 'Aukcje lokalne.' : 'Локальні аукціони.'),
-        path: activeAuction ? `/auction/${slugOrId ?? activeAuction.id}` : '/auctions',
+        path: visibleActiveAuction ? `/auction/${slugOrId ?? visibleActiveAuction.id}` : '/auctions',
         lang: seoLang,
         alternates: [
             { hreflang: 'pl-PL', href: `${BASE_URL}/pl/aukcje` },
             { hreflang: 'uk-UA', href: `${BASE_URL}/uk/auktsiony` },
             { hreflang: 'x-default', href: `${BASE_URL}/pl/aukcje` },
         ],
-        jsonLd: activeAuction ? {
+        jsonLd: visibleActiveAuction ? {
             '@context': 'https://schema.org',
             '@type': 'Product',
-            name: activeAuction.title,
-            description: activeAuction.description,
+            name: visibleActiveAuction.title,
+            description: visibleActiveAuction.description,
             offers: {
                 '@type': 'Offer',
                 priceCurrency: 'PLN',
-                price: activeAuction.currentBid,
+                price: visibleActiveAuction.currentBid,
                 availability: 'https://schema.org/InStock',
             },
         } : undefined,
     })
-
-    // =========================
-    // AUTH
-    // =========================
-    const user = getLocalUser()
-    const isAuthenticated = !!user
 
     // =========================
     // FILTERED LIST
@@ -318,6 +351,10 @@ function AuctionPage() {
         return <div className="card">{t.auctions.loading}</div>
     }
 
+    if (slugOrId && activeAuction && isRestrictedActiveAuction && !canViewRestrictedAuction) {
+        return <div className="card">{t.auctions.notFound}</div>
+    }
+
 
 
 
@@ -328,34 +365,34 @@ function AuctionPage() {
         <div>
             <h2>{t.auctionTitle}</h2>
 
-            {activeAuction ? (
+            {visibleActiveAuction ? (
                 <AuctionDetails
                     t={t}
-                    auctionId={activeAuction.id}
-                    title={activeAuction.title}
-                    city={activeAuction.city}
-                    description={activeAuction.description}
-                    images={activeAuction.images}
-                    currentBid={activeAuction.currentBid}
-                    promotionType={activeAuction.promotionType}
-                    promotionUntil={activeAuction.promotionUntil ?? null}
-                    promotionQueueAt={activeAuction.promotionQueueAt ?? null}
-                    timeLeft={getTimeLeft(activeAuction.endsAt)}
+                    auctionId={visibleActiveAuction.id}
+                    title={visibleActiveAuction.title}
+                    city={visibleActiveAuction.city}
+                    description={visibleActiveAuction.description}
+                    images={visibleActiveAuction.images}
+                    currentBid={visibleActiveAuction.currentBid}
+                    promotionType={visibleActiveAuction.promotionType}
+                    promotionUntil={visibleActiveAuction.promotionUntil ?? null}
+                    promotionQueueAt={visibleActiveAuction.promotionQueueAt ?? null}
+                    timeLeft={getTimeLeft(visibleActiveAuction.endsAt)}
                     bids={bids}
                     isAuthenticated={isAuthenticated}
                     onBack={() => navigate('/auctions')}
                     seller={{
-                        id: activeAuction.ownerId,
-                        name: activeAuction.ownerName,
+                        id: visibleActiveAuction.ownerId,
+                        name: getAuctionOwnerName(visibleActiveAuction),
                         karma: 0,
                     }}
                     currentUserId={user?.id ?? null}
                     onBidSuccess={() => {
-                        loadAuctionById(activeAuction.id)
-                        loadBids(activeAuction.id)
+                        loadAuctionById(visibleActiveAuction.id)
+                        loadBids(visibleActiveAuction.id)
                     }}
                     onPromotionSuccess={() => {
-                        loadAuctionById(activeAuction.id)
+                        loadAuctionById(visibleActiveAuction.id)
                     }}
                 />
 
@@ -411,6 +448,7 @@ function AuctionPage() {
                                     currentBid={item.currentBid}
                                     timeLeft={getTimeLeft(item.endsAt)}
                                     image={item.images[0]}
+                                    ownerName={getAuctionOwnerName(item)}
                                     isEnded={item.endsAt <= now}
                                     promotionType={item.promotionType}
                                     isSoftPinned={
@@ -437,6 +475,7 @@ function AuctionPage() {
                                     currentBid={item.currentBid}
                                     timeLeft={getTimeLeft(item.endsAt)}
                                     image={item.images[0]}
+                                    ownerName={getAuctionOwnerName(item)}
                                     isEnded={item.endsAt <= now}
                                     promotionType={item.promotionType}
                                     isSoftPinned={
@@ -464,6 +503,7 @@ function AuctionPage() {
                                     currentBid={item.currentBid}
                                     timeLeft={getTimeLeft(item.endsAt)}
                                     image={item.images[0]}
+                                    ownerName={getAuctionOwnerName(item)}
                                     isEnded={item.endsAt <= now}
                                     promotionType={item.promotionType}
                                     isSoftPinned={

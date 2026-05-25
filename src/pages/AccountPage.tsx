@@ -7,7 +7,7 @@ import { collection, getDocs, query, where, deleteDoc, doc, getDoc, } from "fire
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth"
 import { Link, useNavigate } from "react-router-dom"
 
-import { getUserPublicNickname } from "../data/usersPublic"
+import { getUserPublicNicknames } from "../data/usersPublic"
 
 import { updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore"
 import type { translations } from '../app/i18n'
@@ -25,6 +25,8 @@ type ChatItem = {
     id: string
     users: string[]
     lastMessage: string
+    lastSenderType?: "user" | "system"
+    lastSenderName?: string
     unreadFor?: string[]
     updatedAt?: number
 }
@@ -39,6 +41,15 @@ type ChatListRow = {
     isNewChat: boolean
 }
 
+type ModeratedOwnerItem = {
+    status?: string
+    moderationReason?: string | null
+    ownerNotificationStatus?: "unread" | "read" | null
+    ownerNotificationMessage?: string | null
+    moderatedAt?: number | null
+    restoredAt?: number | null
+}
+
 
 
 
@@ -49,6 +60,52 @@ function AccountPage({ t }: Props) {
     const navigate = useNavigate()
     const [now] = useState(() => Date.now())
     type AuthMode = "login" | "register"
+
+    function getOwnerStatusLabel(status?: string): string {
+        if (status === "hidden") return a.moderation.statusHidden
+        if (status === "deleted") return a.moderation.statusDeleted
+        if (status === "removed") return a.moderation.statusRemoved
+        if (status === "pending_payment") return a.moderation.statusPendingPayment
+        return a.moderation.statusActive
+    }
+
+    function renderModerationNotice(item: ModeratedOwnerItem) {
+        const hasModerationStatus = ["hidden", "deleted", "removed"].includes(item.status ?? "")
+        const hasNotice = hasModerationStatus || !!item.ownerNotificationMessage || !!item.moderationReason || !!item.restoredAt
+        if (!hasNotice) return null
+
+        const isUnread = item.ownerNotificationStatus === "unread"
+
+        return (
+            <div
+                className="card stack8"
+                style={{
+                    border: isUnread ? "2px solid #f59e0b" : "1px solid #fde68a",
+                    background: isUnread ? "#fffbeb" : "#fff7ed",
+                    color: "#78350f",
+                    fontSize: 14,
+                }}
+            >
+                <div>
+                    <b>{isUnread ? a.moderation.unreadNotice : a.moderation.notice}</b>
+                    {" · "}
+                    {getOwnerStatusLabel(item.status)}
+                </div>
+                {item.ownerNotificationMessage && <div>{item.ownerNotificationMessage}</div>}
+                {item.moderationReason && (
+                    <div>
+                        <b>{a.moderation.reason}:</b> {item.moderationReason}
+                    </div>
+                )}
+                {item.restoredAt && (
+                    <div>
+                        <b>{a.moderation.restored}:</b> {new Date(item.restoredAt).toLocaleString(a.chats.timeLocale)}
+                    </div>
+                )}
+                <div>{a.moderation.contactSupport}</div>
+            </div>
+        )
+    }
 
     const [mode, setMode] = useState<AuthMode>("login")
 
@@ -100,12 +157,8 @@ function AccountPage({ t }: Props) {
         if (missing.length === 0) return
 
             ;(async () => {
-            const pairs = await Promise.all(
-                missing.map(async (id) => {
-                    const nick = await getUserPublicNickname(id)
-                    return [id, nick || "Користувач"] as const
-                })
-            )
+            const names = await getUserPublicNicknames(missing, a.chats.userFallback)
+            const pairs = Object.entries(names)
 
             setNickCache(prev => {
                 const next = { ...prev }
@@ -548,9 +601,11 @@ function AccountPage({ t }: Props) {
                 return {
                     id: chat.id,
                     otherUserId,
-                    otherNickname: otherUserId
-                        ? (nickCache[otherUserId] || "…")
-                        : "Користувач",
+                    otherNickname: chat.lastSenderType === "system" && chat.lastSenderName
+                        ? chat.lastSenderName
+                        : otherUserId
+                            ? (nickCache[otherUserId] || "…")
+                            : a.chats.userFallback,
                     lastMessage: chat.lastMessage || a.chats.noMessages,
 
                     updatedAt: chat.updatedAt,
@@ -780,9 +835,11 @@ function AccountPage({ t }: Props) {
                     <div className="ads-grid">
                     {myAds.map(ad => (
                             <div key={ad.id} className="stack8">
+                                {renderModerationNotice(ad)}
                                 <Link to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: "none", color: "inherit", display: "block",}}>
                                     <AdCard
                                         ad={ad}
+                                        userNickname={user.nickname}
                                         isMine={true}
 
                                         labels={t.adCard}
@@ -818,6 +875,7 @@ function AccountPage({ t }: Props) {
 
                             return (
                                 <div key={auction.id} className="stack8">
+                                    {renderModerationNotice(auction)}
                                     <AuctionCard
                                         t={t}
 
@@ -831,6 +889,7 @@ function AccountPage({ t }: Props) {
                                         }
 
                                         image={auction.images?.[0]}
+                                        ownerName={auction.ownerNickname?.trim() || auction.ownerName?.trim() || user.nickname}
                                         isEnded={isEnded}
                                     />
                                     {isEnded && (

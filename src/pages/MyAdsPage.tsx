@@ -5,11 +5,15 @@ import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { getLocalUser } from '../data/localUser'
 import type { Ad } from '../types/ad'
+import { DEFAULT_LANG, translations } from '../app/i18n'
+import type { Lang } from '../app/i18n'
 import { buildAdPath } from '../utils/slug'
 
 function MyAdsPage() {
     const navigate = useNavigate()
     const user = getLocalUser()
+    const lang = (localStorage.getItem('lang') as Lang) || DEFAULT_LANG
+    const moderation = translations[lang].account.moderation
 
     const [ads, setAds] = useState<Ad[]>([])
     const [loading, setLoading] = useState(true)
@@ -46,6 +50,14 @@ function MyAdsPage() {
 
         await deleteDoc(doc(db, 'ads', adId))
         setAds(prev => prev.filter(ad => ad.id !== adId))
+    }
+
+    function getStatusLabel(status?: string): string {
+        if (status === 'hidden') return moderation.statusHidden
+        if (status === 'deleted') return moderation.statusDeleted
+        if (status === 'removed') return moderation.statusRemoved
+        if (status === 'pending_payment') return moderation.statusPendingPayment
+        return moderation.statusActive
     }
 
     if (!user) {
@@ -93,7 +105,7 @@ function MyAdsPage() {
 
                             {/* СТАТУСИ */}
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <span className="ad-badge">Активне</span>
+                                <span className="ad-badge">{getStatusLabel(ad.status)}</span>
 
                                 {isPinActive && (
                                     <span
@@ -125,6 +137,23 @@ function MyAdsPage() {
                                     </span>
                                 )}
                             </div>
+
+                            {(ad.status === 'hidden' || ad.status === 'deleted' || ad.status === 'removed' || ad.moderationReason || ad.ownerNotificationMessage) && (
+                                <div
+                                    className="card stack8"
+                                    style={{
+                                        border: ad.ownerNotificationStatus === 'unread' ? '2px solid #f59e0b' : '1px solid #fde68a',
+                                        background: ad.ownerNotificationStatus === 'unread' ? '#fffbeb' : '#fff7ed',
+                                        color: '#78350f',
+                                        fontSize: 14,
+                                    }}
+                                >
+                                    <div><b>{ad.ownerNotificationStatus === 'unread' ? moderation.unreadNotice : moderation.notice}</b></div>
+                                    {ad.ownerNotificationMessage && <div>{ad.ownerNotificationMessage}</div>}
+                                    {ad.moderationReason && <div><b>{moderation.reason}:</b> {ad.moderationReason}</div>}
+                                    <div>{moderation.contactSupport}</div>
+                                </div>
+                            )}
 
                             {/* ДАТИ */}
                             <div style={{ fontSize: 12, color: '#6b7280' }}>

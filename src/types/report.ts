@@ -12,4 +12,8 @@ export type Report = {
     status: ReportStatus
     reviewedAt?: number | null
     reviewedBy?: string | null
+    resolutionNote?: string | null
+    notificationNeeded?: boolean | null
+    ownerNotified?: boolean | null
+    reporterNotified?: boolean | null
 }

@@ -7,13 +7,17 @@ import {
     markChatAsRead,
     getChatUsers,
 } from "../data/chats"
-import { getUserPublicNickname } from "../data/usersPublic"
+import { getUserPublicNickname, getUserPublicNicknames } from "../data/usersPublic"
+import { DEFAULT_LANG, translations } from "../app/i18n"
+import type { Lang } from "../app/i18n"
 import { useCallback, useEffect, useState } from "react"
 
 type ChatMessage = {
     id: string
     senderId: string
     text: string
+    senderType?: "user" | "system"
+    senderName?: string
     createdAt?: unknown
 }
 
@@ -21,8 +25,11 @@ function ChatPage() {
     const { id: chatId } = useParams<{ id: string }>()
     const navigate = useNavigate()
     const currentUser = getLocalUser()
+    const lang = (localStorage.getItem("lang") as Lang) || DEFAULT_LANG
+    const t = translations[lang]
 
     const [messages, setMessages] = useState<ChatMessage[]>([])
+    const [senderNamesById, setSenderNamesById] = useState<Record<string, string>>({})
     const [text, setText] = useState("")
     const [loading, setLoading] = useState(true)
     const [sending, setSending] = useState(false)
@@ -75,13 +82,27 @@ function ChatPage() {
 
                 if (!otherId) return
 
-                const nick = await getUserPublicNickname(otherId)
-                setOtherNickname(nick || "Користувач")
+                const nick = await getUserPublicNickname(otherId, t.common.user)
+                setOtherNickname(nick || t.common.user)
             } catch (e) {
                 console.error("[chat] failed to resolve other user", e)
             }
         })()
-    }, [chatId, currentUser, isCurrentUserId])
+    }, [chatId, currentUser, isCurrentUserId, t.common.user])
+
+    useEffect(() => {
+        const missingSenderIds = messages
+            .filter(message => message.senderType !== "system")
+            .filter(message => !message.senderName)
+            .map(message => message.senderId)
+            .filter(id => id && !isCurrentUserId(id) && !senderNamesById[id])
+
+        if (missingSenderIds.length === 0) return
+
+        getUserPublicNicknames(missingSenderIds, t.common.user)
+            .then(names => setSenderNamesById(prev => ({ ...prev, ...names })))
+            .catch(error => console.warn("[chat] failed to load sender names", error))
+    }, [isCurrentUserId, messages, senderNamesById, t.common.user])
 
     // ===== guards =====
     if (!currentUser) {
@@ -140,13 +161,19 @@ function ChatPage() {
 
                     {messages.map(m => {
                         const isMine = currentIds.includes(m.senderId)
+                        const isSystem = m.senderType === "system"
+                        const senderName = isSystem
+                            ? (m.senderName || "Xoven Admin")
+                            : isMine
+                                ? currentUser.nickname
+                                : (m.senderName || senderNamesById[m.senderId] || t.common.user)
 
                         return (
                             <div
                                 key={m.id}
                                 style={{
                                     display: "flex",
-                                    justifyContent: isMine ? "flex-end" : "flex-start",
+                                    justifyContent: isSystem ? "center" : isMine ? "flex-end" : "flex-start",
                                     marginBottom: 6,
                                 }}
                             >
@@ -155,11 +182,14 @@ function ChatPage() {
                                         padding: "8px 12px",
                                         borderRadius: 12,
                                         maxWidth: "70%",
-                                        background: isMine ? "#1976d2" : "#e5e7eb",
-                                        color: isMine ? "#fff" : "#111827",
+                                        background: isSystem ? "#fef3c7" : isMine ? "#1976d2" : "#e5e7eb",
+                                        color: isSystem ? "#78350f" : isMine ? "#fff" : "#111827",
                                         fontSize: 14,
                                     }}
                                 >
+                                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                                        {senderName}
+                                    </div>
                                     {m.text}
                                 </div>
                             </div>
@@ -185,7 +215,8 @@ function ChatPage() {
                                 chatId,
                                 currentUser.id,
                                 otherUserId,
-                                text
+                                text,
+                                currentUser.nickname
                             )
 
                             setText("")

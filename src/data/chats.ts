@@ -20,6 +20,8 @@ export type ChatItem = {
     id: string
     users: string[]
     lastMessage: string
+    lastSenderType?: "user" | "system"
+    lastSenderName?: string
     unreadFor?: string[]
     hiddenFor?: string[]
     hiddenForAt?: Record<string, unknown>
@@ -32,6 +34,13 @@ export type ChatMessage = {
     id: string
     senderId: string
     text: string
+    senderType?: "user" | "system"
+    senderName?: string
+    targetType?: "ad" | "auction"
+    targetId?: string
+    targetTitle?: string
+    moderationStatus?: "hidden" | "restored"
+    moderationReason?: string | null
     createdAt?: unknown
 }
 
@@ -87,19 +96,24 @@ export async function sendMessage(
     chatId: string,
     senderId: string,
     otherUserId: string,
-    text: string
+    text: string,
+    senderName?: string
 ) {
     const clean = text.trim()
     if (!clean) return
 
     await addDoc(collection(db, "chats", chatId, "messages"), {
         senderId,
+        senderName: senderName?.trim() || null,
+        senderType: "user",
         text: clean,
         createdAt: serverTimestamp(),
     })
 
     await updateDoc(doc(db, "chats", chatId), {
         lastMessage: clean,
+        lastSenderType: "user",
+        lastSenderName: senderName?.trim() || null,
         updatedAt: serverTimestamp(),
         unreadFor: arrayUnion(otherUserId),
         hidden: false,
@@ -107,6 +121,45 @@ export async function sendMessage(
         [`hiddenForAt.${otherUserId}`]: null,
     })
 
+}
+
+export async function sendAdminSystemMessage(params: {
+    adminId: string
+    ownerId: string
+    text: string
+    targetType: "ad" | "auction"
+    targetId: string
+    targetTitle?: string
+    moderationStatus: "hidden" | "restored"
+    moderationReason?: string | null
+}) {
+    if (!params.adminId || !params.ownerId || params.adminId === params.ownerId) return
+
+    const chatId = await getOrCreateChat(params.adminId, params.ownerId)
+
+    await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: params.adminId,
+        senderType: "system",
+        senderName: "Xoven Admin",
+        text: params.text,
+        targetType: params.targetType,
+        targetId: params.targetId,
+        targetTitle: params.targetTitle ?? null,
+        moderationStatus: params.moderationStatus,
+        moderationReason: params.moderationReason ?? null,
+        createdAt: serverTimestamp(),
+    })
+
+    await updateDoc(doc(db, "chats", chatId), {
+        lastMessage: params.text,
+        lastSenderType: "system",
+        lastSenderName: "Xoven Admin",
+        updatedAt: serverTimestamp(),
+        unreadFor: arrayUnion(params.ownerId),
+        hidden: false,
+        hiddenFor: arrayRemove(params.ownerId),
+        [`hiddenForAt.${params.ownerId}`]: null,
+    })
 }
 
 /**
@@ -167,6 +220,8 @@ export async function getUserChats(userId: string, userUid?: string): Promise<Ch
             const data = d.data() as {
                 users?: unknown
                 lastMessage?: unknown
+                lastSenderType?: unknown
+                lastSenderName?: unknown
                 unreadFor?: unknown
                 hiddenFor?: unknown
                 hiddenForAt?: Record<string, unknown>
@@ -175,6 +230,10 @@ export async function getUserChats(userId: string, userUid?: string): Promise<Ch
                 createdAt?: { toMillis?: () => number }
             }
 
+            const lastSenderType: ChatItem["lastSenderType"] =
+                data.lastSenderType === "system" || data.lastSenderType === "user"
+                    ? data.lastSenderType
+                    : undefined
 
 
             return {
@@ -184,6 +243,11 @@ export async function getUserChats(userId: string, userUid?: string): Promise<Ch
                     typeof data.lastMessage === "string"
                         ? data.lastMessage
                         : "",
+                lastSenderType,
+                lastSenderName:
+                    typeof data.lastSenderName === "string"
+                        ? data.lastSenderName
+                        : undefined,
                 unreadFor: Array.isArray(data.unreadFor)
                     ? data.unreadFor
                     : [],

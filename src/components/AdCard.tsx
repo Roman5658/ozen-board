@@ -91,6 +91,7 @@ function AdCard(props: Props) {
             : undefined
 
     const userId = ad?.userId ?? props.userId
+    const userNickname = ad?.userNickname?.trim() || ad?.userName?.trim() || props.userNickname?.trim()
 
     const images = ad ? getAdImages(ad) : props.images
     const preview = images?.[0]
@@ -119,9 +120,9 @@ function AdCard(props: Props) {
 
                 boxShadow:
                     isTop3
-                        ? 'rgb(141 94 94 / 85%) 0px 20px 20px'
+                        ? 'rgb(128 14 14 / 85%) 0px 20px 20px'
                         : isTop6
-                            ? 'rgba(34, 197, 94, 0.45) 0px 20px 20px'
+                            ? 'rgba(7, 97, 39, 0.45) 4px 20px 20px'
                             : highlightType === 'gold'
                                 ? 'rgba(245, 158, 11, 0.45) 0px 20px 20px'
                                 : highlightType === 'blue'
@@ -162,7 +163,7 @@ function AdCard(props: Props) {
                                 cursor: 'pointer',
                             }}
                         >
-                            {props.userNickname ?? props.labels?.user ?? '—'}
+                            {userNickname ?? props.labels?.user ?? '—'}
                         </span>
                     </div>
                 )}

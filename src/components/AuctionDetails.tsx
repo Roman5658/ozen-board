@@ -555,7 +555,7 @@ function AuctionDetails({
                             style={{ color: '#1976d2', cursor: 'pointer', fontWeight: 600 }}
                             onClick={() => navigate(`/user/${bid.userId}`)}
                         >
-    {bid.nickname ?? t.common.user}
+    {bid.nickname ?? bid.userName ?? t.common.user}
 
 </span>
                         : {bid.amount} zł

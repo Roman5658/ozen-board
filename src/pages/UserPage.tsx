@@ -62,7 +62,7 @@ function UserPage() {
                     const data = snap.data()
 
                     setUser({
-                        nickname: data.nickname ?? 'Користувач',
+                        nickname: data.nickname ?? t.common.user,
                         createdAt: data.createdAt,
                         karma: typeof data.karma === 'number' ? data.karma : 0,
                         phone: (typeof data.phone === 'string' && data.phone.trim()) ? data.phone.trim() : null,
@@ -98,7 +98,7 @@ function UserPage() {
                     ...(d.data() as Omit<Ad, 'id'>),
                 }))
 
-                setAds(data)
+                setAds(data.filter((ad) => (ad.status ?? 'active') === 'active'))
             } finally {
                 setAdsLoading(false)
             }
@@ -126,7 +126,7 @@ function UserPage() {
                     ...(d.data() as Omit<Auction, 'id'>),
                 }))
 
-                setAuctions(data)
+                setAuctions(data.filter((auction) => !['hidden', 'deleted', 'removed', 'pending_payment'].includes(auction.status)))
             } finally {
                 setAuctionsLoading(false)
             }
@@ -250,7 +250,7 @@ function UserPage() {
                             to={buildAdPath(ad.title, ad.city, ad.id)}
                             style={{textDecoration: 'none', color: 'inherit'}}
                         >
-                            <AdCard {...ad} />
+                            <AdCard ad={ad} userNickname={user.nickname} labels={t.adCard} />
                         </Link>
                     ))}
                 </div>
@@ -293,6 +293,7 @@ function UserPage() {
 
                                     }
                                     image={auction.images?.[0]}
+                                    ownerName={auction.ownerNickname?.trim() || auction.ownerName?.trim() || user.nickname}
                                     isEnded={isEnded}
                                 />
                             </Link>

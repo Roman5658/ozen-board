@@ -154,7 +154,7 @@ function App() {
                     <Route path="ads/list" element={<AdminAdsListPage />} />
                     <Route path="ads" element={<AdminAdsPage />} />
                     <Route path="auctions" element={<AdminAuctionsPage />} />
-                    <Route path="reports" element={<AdminReportsPage />} />
+                    <Route path="reports" element={<AdminReportsPage t={t} />} />
                     <Route path="payments" element={<AdminPaymentsPage />} />
                 </Route>
             </Routes>
