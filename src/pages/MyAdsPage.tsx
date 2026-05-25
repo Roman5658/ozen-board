@@ -215,6 +215,7 @@ function MyAdsPage() {
                         ad.pinnedUntil > now
 
                     const isInQueue =
+                        !isPinActive &&
                         !!ad.pinType &&
                         !!ad.pinQueueAt &&
                         (!ad.pinnedUntil || ad.pinnedUntil <= now)
@@ -222,6 +223,7 @@ function MyAdsPage() {
                     const isHighlightActive =
                         !!ad.highlightUntil &&
                         ad.highlightUntil > now
+                    const promotionType = ad.pinType === 'top3' ? 'TOP 3' : 'TOP 6'
 
                     return (
                         <div key={ad.id} className="card stack8">
@@ -254,7 +256,7 @@ function MyAdsPage() {
                                         className="ad-badge"
                                         style={{ background: '#6b7280' }}
                                     >
-                                        В черзі
+                                        {myAdsText.topQueue.replace('{{type}}', promotionType)}
                                     </span>
                                 )}
 
@@ -275,22 +277,25 @@ function MyAdsPage() {
                             <div style={{ fontSize: 12, color: '#6b7280' }}>
                                 {isPinActive && ad.pinnedUntil && (
                                     <div>
-                                        TOP до{' '}
-                                        {new Date(ad.pinnedUntil).toLocaleDateString()}
+                                        {myAdsText.topActive
+                                            .replace('{{type}}', promotionType)
+                                            .replace('{{date}}', new Date(ad.pinnedUntil).toLocaleDateString())}
                                     </div>
                                 )}
 
                                 {isInQueue && ad.pinQueueAt && (
                                     <div>
-                                        В черзі з{' '}
-                                        {new Date(ad.pinQueueAt).toLocaleDateString()}
+                                        {myAdsText.queuedAt
+                                            .replace('{{date}}', new Date(ad.pinQueueAt).toLocaleDateString())}
+                                        <br />
+                                        {myAdsText.queueInfo}
                                     </div>
                                 )}
 
                                 {isHighlightActive && ad.highlightUntil && (
                                     <div>
-                                        Виділення до{' '}
-                                        {new Date(ad.highlightUntil).toLocaleDateString()}
+                                        {myAdsText.highlightActive
+                                            .replace('{{date}}', new Date(ad.highlightUntil).toLocaleDateString())}
                                     </div>
                                 )}
                             </div>

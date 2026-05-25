@@ -90,6 +90,55 @@ function AccountPage({ t }: Props) {
         return a.moderation.date
     }
 
+    function renderAdPromotionStatus(ad: Ad) {
+        const isPinActive =
+            !!ad.pinType &&
+            typeof ad.pinnedUntil === "number" &&
+            ad.pinnedUntil > now
+
+        const isInQueue =
+            !isPinActive &&
+            !!ad.pinType &&
+            typeof ad.pinQueueAt === "number" &&
+            (!ad.pinnedUntil || ad.pinnedUntil <= now)
+
+        const isHighlightActive =
+            !!ad.highlightUntil &&
+            ad.highlightUntil > now
+
+        if (!isPinActive && !isInQueue && !isHighlightActive) return null
+
+        const promotionType = ad.pinType === "top3" ? "TOP 3" : "TOP 6"
+
+        return (
+            <div className="stack8" style={{ fontSize: 13, color: "#374151" }}>
+                {isPinActive && ad.pinnedUntil && (
+                    <div>
+                        {a.myAds.topActive
+                            .replace("{{type}}", promotionType)
+                            .replace("{{date}}", new Date(ad.pinnedUntil).toLocaleDateString(a.chats.timeLocale))}
+                    </div>
+                )}
+
+                {isInQueue && ad.pinQueueAt && (
+                    <div style={{ color: "#4b5563" }}>
+                        <b>{a.myAds.topQueue.replace("{{type}}", promotionType)}</b>
+                        <br />
+                        {a.myAds.queuedAt.replace("{{date}}", new Date(ad.pinQueueAt).toLocaleDateString(a.chats.timeLocale))}
+                        <br />
+                        {a.myAds.queueInfo}
+                    </div>
+                )}
+
+                {isHighlightActive && ad.highlightUntil && (
+                    <div>
+                        {a.myAds.highlightActive.replace("{{date}}", new Date(ad.highlightUntil).toLocaleDateString(a.chats.timeLocale))}
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     function renderLongText(value?: string | null) {
         const text = value?.trim()
         if (!text) return null
@@ -975,6 +1024,8 @@ function AccountPage({ t }: Props) {
 
 
                                 </Link>
+
+                                {renderAdPromotionStatus(ad)}
 
                             </div>
                         ))}

@@ -574,6 +574,11 @@ export const translations = {
                 title: 'Мої оголошення',
                 empty: 'Ви ще не додали жодного оголошення',
                 emptyActive: 'Активних оголошень немає',
+                topActive: 'Активно в {{type}} до {{date}}',
+                topQueue: 'В черзі {{type}}',
+                queuedAt: 'У черзі з {{date}}',
+                queueInfo: 'Оплату отримано. Оголошення очікує вільного місця в TOP.',
+                highlightActive: 'GOLD активний до {{date}}',
             },
 
             myAuctions: {
@@ -1486,6 +1491,11 @@ export const translations = {
                 title: 'Moje ogłoszenia',
                 empty: 'Nie dodałeś jeszcze żadnego ogłoszenia',
                 emptyActive: 'Brak aktywnych ogłoszeń',
+                topActive: 'Aktywne w {{type}} do {{date}}',
+                topQueue: 'W kolejce {{type}}',
+                queuedAt: 'W kolejce od {{date}}',
+                queueInfo: 'Płatność otrzymana. Ogłoszenie czeka na wolne miejsce w TOP.',
+                highlightActive: 'GOLD aktywny do {{date}}',
             },
 
             myAuctions: {

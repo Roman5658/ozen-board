@@ -78,6 +78,7 @@ function AdCard(props: Props) {
     const isTop6 = isPinActive && ad?.pinType === 'top6' && !props.isSoftPinned
 
     const isInPinQueue =
+        !isPinActive &&
         !!ad?.pinQueueAt &&
         (!ad?.pinnedUntil || ad.pinnedUntil <= now)
 

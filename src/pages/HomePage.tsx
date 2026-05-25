@@ -102,6 +102,35 @@ function normalizeAd(ad: Ad): Ad {
     return ad
 }
 
+function isActivePin(ad: Ad, now: number) {
+    return (
+        ad.status === 'active' &&
+        !!ad.pinType &&
+        typeof ad.pinnedUntil === 'number' &&
+        ad.pinnedUntil > now
+    )
+}
+
+function prioritizeCityDiversity<T extends { id: string; city: string }>(ads: T[]): T[] {
+    const selected: T[] = []
+    const selectedIds = new Set<string>()
+    const seenCities = new Set<string>()
+
+    for (const ad of ads) {
+        if (seenCities.has(ad.city)) continue
+        seenCities.add(ad.city)
+        selected.push(ad)
+        selectedIds.add(ad.id)
+    }
+
+    for (const ad of ads) {
+        if (selectedIds.has(ad.id)) continue
+        selected.push(ad)
+    }
+
+    return selected
+}
+
 function HomePage({ t }: Props) {
     const location = useLocation()
     const lang = location.pathname.startsWith('/pl') ? 'pl' : 'uk'
@@ -189,11 +218,14 @@ function HomePage({ t }: Props) {
             .filter(ad => city === '' || ad.city === city)
             .filter(ad => ad.title.toLowerCase().includes(query.toLowerCase()))
             .sort((a, b) => {
-                if (a.pinType === 'top3' && b.pinType !== 'top3') return -1
-                if (a.pinType !== 'top3' && b.pinType === 'top3') return 1
+                const aActivePin = isActivePin(a, now)
+                const bActivePin = isActivePin(b, now)
 
-                if (a.pinType === 'top6' && b.pinType !== 'top6') return -1
-                if (a.pinType !== 'top6' && b.pinType === 'top6') return 1
+                if (aActivePin && a.pinType === 'top3' && !(bActivePin && b.pinType === 'top3')) return -1
+                if (!(aActivePin && a.pinType === 'top3') && bActivePin && b.pinType === 'top3') return 1
+
+                if (aActivePin && a.pinType === 'top6' && !(bActivePin && b.pinType === 'top6')) return -1
+                if (!(aActivePin && a.pinType === 'top6') && bActivePin && b.pinType === 'top6') return 1
 
                 if ((b.bumpAt ?? 0) !== (a.bumpAt ?? 0)) {
                     return (b.bumpAt ?? 0) - (a.bumpAt ?? 0)
@@ -204,11 +236,7 @@ function HomePage({ t }: Props) {
     }, [fireAds, category, voivodeship, city, query])
 
     const activePinnedAds = filteredAndSortedAds.filter(
-        ad =>
-            ad.status === "active" &&
-            ad.pinType &&
-            ad.pinnedUntil &&
-            ad.pinnedUntil > now
+        ad => isActivePin(ad, now)
     )
 
     const allTop3 = activePinnedAds.filter(ad => ad.pinType === "top3")
@@ -217,19 +245,13 @@ function HomePage({ t }: Props) {
 
     const top3Ads =
         city === ""
-            ? shuffle(uniqueByCity(allTop3)).slice(0, 3)
+            ? prioritizeCityDiversity(shuffle(allTop3)).slice(0, 3)
             : allTop3.filter(ad => ad.city === city).slice(0, 3)
 
     const top6Ads =
         city === ""
             ? shuffle(allTop6).slice(0, 6)
             : allTop6.filter(ad => ad.city === city).slice(0, 6)
-    const visibleTopIds = new Set([
-        ...top3Ads.map(ad => ad.id),
-        ...top6Ads.map(ad => ad.id),
-    ])
-
-
     const bumpAds = filteredAndSortedAds.filter(
         ad =>
             ad.status === "active" &&
@@ -241,20 +263,16 @@ function HomePage({ t }: Props) {
         if (ad.status !== 'active') return false
         if (ad.bumpAt) return false
 
-        const isActivePin =
-            !!ad.pinType &&
-            !!ad.pinnedUntil &&
-            ad.pinnedUntil > now
+        const activePin = isActivePin(ad, now)
 
-        // если объявление уже показано в TOP — не дублируем
-        if (isActivePin && visibleTopIds.has(ad.id)) {
+        // активные TOP показываются только в TOP-блоках, а не в обычной ленте
+        if (activePin) {
             return false
         }
 
         // сюда попадают:
         // • обычные
         // • в очереди
-        // • активные TOP вне витрины
         return true
     })
 
@@ -268,16 +286,6 @@ function HomePage({ t }: Props) {
     )
     function shuffle<T>(arr: T[]): T[] {
         return [...arr].sort(() => Math.random() - 0.5)
-    }
-
-    function uniqueByCity<T extends { city: string }>(ads: T[]): T[] {
-        const map = new Map<string, T>()
-        for (const ad of ads) {
-            if (!map.has(ad.city)) {
-                map.set(ad.city, ad)
-            }
-        }
-        return Array.from(map.values())
     }
 
     return (
@@ -408,25 +416,17 @@ function HomePage({ t }: Props) {
                     <div className="ads-separator">{t.home.regular}</div>
 
                 )}
-                {pagedRegularAds.map(ad => {
-                    const isSoftPinned =
-                        !!ad.pinType &&
-                        !!ad.pinnedUntil &&
-                        ad.pinnedUntil > now
+                {pagedRegularAds.map(ad => (
+                    <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: 'none'}}>
+                        <AdCard
+                            ad={ad}
+                            isMine={ad.userId === currentUserId}
+                            userNickname={getAdUserNickname(ad)}
+                            labels={t.adCard}
+                        />
 
-                    return (
-                        <Link key={ad.id} to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: 'none'}}>
-                            <AdCard
-                                ad={ad}
-                                isMine={ad.userId === currentUserId}
-                                userNickname={getAdUserNickname(ad)}
-                                isSoftPinned={isSoftPinned}
-                                labels={t.adCard}
-                            />
-
-                        </Link>
-                    )
-                })}
+                    </Link>
+                ))}
 
 
             </div>
