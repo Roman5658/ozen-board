@@ -73,13 +73,65 @@ function AddPage({ t }: Props) {
     const [pinLoading, setPinLoading] = useState(false)
     const [paymentCompleted, setPaymentCompleted] = useState(false)
     const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
+    const PAYMENT_STORAGE_KEY = "pendingAdPayment"
+    const FORM_STORAGE_KEY = "pendingAdForm"
     const paymentSuccessTitle = "✅ Оплата успешно подтверждена"
     const paymentSuccessMessage = "Теперь нажмите «Создать объявление», чтобы завершить публикацию."
 
     useEffect(() => {
-        setPaymentCompleted(false)
-        setPaypalOrderId(null)
-        setIsPaying(false)
+        const savedPayment = sessionStorage.getItem(PAYMENT_STORAGE_KEY)
+
+        if (savedPayment) {
+            try {
+                const parsed = JSON.parse(savedPayment)
+
+                setPaypalOrderId(parsed.orderId)
+                setPaymentCompleted(true)
+                setPromotion(parsed.promotion)
+            } catch (e) {
+                console.error(e)
+            }
+        }
+    }, [])
+    useEffect(() => {
+        const savedForm = sessionStorage.getItem(FORM_STORAGE_KEY)
+
+        if (savedForm) {
+            try {
+                const parsed = JSON.parse(savedForm)
+
+                setTitle(parsed.title ?? "")
+                setDescription(parsed.description ?? "")
+                setCategory(parsed.category ?? "")
+                setVoivodeship(parsed.voivodeship ?? "")
+                setCity(parsed.city ?? "")
+                setPrice(parsed.price ?? "")
+                setSellerContact(parsed.sellerContact ?? "")
+            } catch (e) {
+                console.error(e)
+            }
+        }
+    }, [])
+    useEffect(() => {
+        sessionStorage.setItem(
+            FORM_STORAGE_KEY,
+            JSON.stringify({
+                title,
+                description,
+                category,
+                voivodeship,
+                city,
+                price,
+                sellerContact,
+            })
+        )
+    }, [title, description, category, voivodeship, city, price, sellerContact])
+
+    useEffect(() => {
+        if (!paymentCompleted) {
+            setPaypalOrderId(null)
+            setIsPaying(false)
+        }
     }, [promotion])
 
     useEffect(() => {
@@ -290,7 +342,8 @@ function AddPage({ t }: Props) {
             //     ...adData,
             // })
             setSellerContact("")
-
+            sessionStorage.removeItem(PAYMENT_STORAGE_KEY)
+            sessionStorage.removeItem(FORM_STORAGE_KEY)
             navigate("/")
         } catch (err) {
             console.error(err)
@@ -571,6 +624,13 @@ function AddPage({ t }: Props) {
                                                     setPaypalOrderId(orderId)
                                                     setPaymentCompleted(true)
                                                     setError(null)
+                                                    sessionStorage.setItem(
+                                                        PAYMENT_STORAGE_KEY,
+                                                        JSON.stringify({
+                                                            orderId,
+                                                            promotion,
+                                                        })
+                                                    )
                                                 } finally {
                                                     setIsPaying(false)
                                                 }
