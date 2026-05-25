@@ -1,4 +1,4 @@
-export type AuctionStatus = "active" | "pending_payment" | "ended" | "hidden" | "deleted" | "removed"
+export type AuctionStatus = "active" | "pending_payment" | "ended" | "hidden" | "deleted" | "removed" | "expired"
 export type AuctionPromotionType =
     | "none"
     | "top-auction"
@@ -41,6 +41,11 @@ export type Auction = {
     moderatedBy?: string | null
     restoredAt?: number | null
     restoredBy?: string | null
+    deletedAt?: number | null
+    deletedBy?: string | null
+    deleteReason?: string | null
+    removedAt?: number | null
+    removedBy?: string | null
     ownerNotificationStatus?: "unread" | "read" | null
     ownerNotificationMessage?: string | null
 

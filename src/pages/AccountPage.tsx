@@ -3,7 +3,7 @@ import { auth, db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import type { AppUser } from "../types/user"
 import { getUserByEmail, createUser, isNicknameTaken } from "../data/users"
-import { collection, getDocs, query, where, deleteDoc, doc, getDoc, } from "firebase/firestore"
+import { collection, getDocs, query, where, doc, getDoc, } from "firebase/firestore"
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth"
 import { Link, useNavigate } from "react-router-dom"
 
@@ -268,10 +268,23 @@ function AccountPage({ t }: Props) {
         if (!ok) return
 
         try {
-            await deleteDoc(doc(db, "auctions", auctionId))
+            const deletedAt = Date.now()
+            const deletedBy = user.uid || user.id
 
-            // убираем из UI
-            setMyAuctions(prev => prev.filter(a => a.id !== auctionId))
+            await updateDoc(doc(db, "auctions", auctionId), {
+                status: "deleted",
+                deletedAt,
+                deletedBy,
+                deleteReason: "user_deleted",
+            })
+
+            setMyAuctions(prev =>
+                prev.map(a =>
+                    a.id === auctionId
+                        ? { ...a, status: "deleted", deletedAt, deletedBy, deleteReason: "user_deleted" }
+                        : a
+                )
+            )
         } catch (e) {
             console.error(e)
             alert(a.alerts.deleteAuctionError)
@@ -286,11 +299,23 @@ function AccountPage({ t }: Props) {
         if (!confirmDelete) return
 
         try {
-            // 1️⃣ удаляем из Firestore
-            await deleteDoc(doc(db, "ads", adId))
+            const deletedAt = Date.now()
+            const deletedBy = user.uid || user.id
 
-            // 2️⃣ убираем из UI
-            setMyAds(prev => prev.filter(ad => ad.id !== adId))
+            await updateDoc(doc(db, "ads", adId), {
+                status: "deleted",
+                deletedAt,
+                deletedBy,
+                deleteReason: "user_deleted",
+            })
+
+            setMyAds(prev =>
+                prev.map(ad =>
+                    ad.id === adId
+                        ? { ...ad, status: "deleted", deletedAt, deletedBy, deleteReason: "user_deleted" }
+                        : ad
+                )
+            )
         } catch (err) {
             console.error(err)
             alert(a.alerts.deleteAdError)

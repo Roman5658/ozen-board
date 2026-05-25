@@ -44,6 +44,34 @@ return signedIn() && authEmail() in [
              request.resource.data.status != resource.data.status;
     }
 
+    function isUserSoftDeletingAd() {
+      return isSelf(resource.data.userId) &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'status',
+               'deletedAt',
+               'deletedBy',
+               'deleteReason'
+             ]) &&
+             request.resource.data.status == 'deleted' &&
+             request.resource.data.deletedAt is number &&
+             isSelf(request.resource.data.deletedBy) &&
+             request.resource.data.deleteReason == 'user_deleted';
+    }
+
+    function isUserSoftDeletingAuction() {
+      return isSelf(resource.data.ownerId) &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'status',
+               'deletedAt',
+               'deletedBy',
+               'deleteReason'
+             ]) &&
+             request.resource.data.status == 'deleted' &&
+             request.resource.data.deletedAt is number &&
+             isSelf(request.resource.data.deletedBy) &&
+             request.resource.data.deleteReason == 'user_deleted';
+    }
+
     function hasProtectedAdCreateFields() {
       return request.resource.data.keys().hasAny([
         'pinType',
@@ -76,10 +104,11 @@ return signedIn() && authEmail() in [
       allow create: if signedIn() &&
         isSelf(request.resource.data.userId) &&
         !hasProtectedAdCreateFields();
-      allow update, delete: if signedIn() && (
-        (isSelf(resource.data.userId) && !isProtectedAdFieldChanged()) ||
+      allow update: if signedIn() && (
+        (isSelf(resource.data.userId) && (!isProtectedAdFieldChanged() || isUserSoftDeletingAd())) ||
         isAdmin()
       );
+      allow delete: if false;
     }
 
     match /auctions/{auctionId} {
@@ -87,10 +116,11 @@ return signedIn() && authEmail() in [
       allow create: if signedIn() &&
         isSelf(request.resource.data.ownerId) &&
         !hasPaidAuctionCreateFields();
-      allow update, delete: if signedIn() && (
-        (isSelf(resource.data.ownerId) && !isProtectedAuctionFieldChanged()) ||
+      allow update: if signedIn() && (
+        (isSelf(resource.data.ownerId) && (!isProtectedAuctionFieldChanged() || isUserSoftDeletingAuction())) ||
         isAdmin()
       );
+      allow delete: if false;
     }
 
     match /auctionBids/{auctionId}/bids/{bidId} {

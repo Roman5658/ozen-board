@@ -220,7 +220,7 @@ function AuctionPage() {
 
     const user = getLocalUser()
     const isAuthenticated = !!user
-    const isRestrictedActiveAuction = ['hidden', 'deleted', 'removed'].includes(activeAuction?.status ?? '')
+    const isRestrictedActiveAuction = ['hidden', 'deleted', 'removed', 'expired'].includes(activeAuction?.status ?? '')
     const canViewRestrictedAuction = !!activeAuction && (
         String(user?.id ?? '') === String(activeAuction.ownerId) ||
         isAdmin()
@@ -228,6 +228,17 @@ function AuctionPage() {
     const visibleActiveAuction = activeAuction && (!isRestrictedActiveAuction || canViewRestrictedAuction)
         ? activeAuction
         : null
+    const shouldShowStatusNotice = !!visibleActiveAuction &&
+        ['hidden', 'deleted', 'removed', 'expired', 'ended'].includes(visibleActiveAuction.status ?? '')
+
+    function getAuctionStatusMessage(status?: string) {
+        if (status === 'hidden') return t.auctionDetails.statusMessages.hidden
+        if (status === 'deleted') return t.auctionDetails.statusMessages.deleted
+        if (status === 'removed') return t.auctionDetails.statusMessages.removed
+        if (status === 'expired') return t.auctionDetails.statusMessages.expired
+        if (status === 'ended') return t.auctionDetails.statusMessages.ended
+        return t.auctions.notFound
+    }
 
     useEffect(() => {
         if (!slugOrId || !visibleActiveAuction) return
@@ -352,7 +363,16 @@ function AuctionPage() {
     }
 
     if (slugOrId && activeAuction && isRestrictedActiveAuction && !canViewRestrictedAuction) {
-        return <div className="card">{t.auctions.notFound}</div>
+        return (
+            <div className="card stack8">
+                <strong>{getAuctionStatusMessage(activeAuction.status)}</strong>
+                {activeAuction.moderationReason && (
+                    <div>
+                        <b>{t.auctionDetails.statusMessages.reason}:</b> {activeAuction.moderationReason}
+                    </div>
+                )}
+            </div>
+        )
     }
 
 
@@ -366,35 +386,47 @@ function AuctionPage() {
             <h2>{t.auctionTitle}</h2>
 
             {visibleActiveAuction ? (
-                <AuctionDetails
-                    t={t}
-                    auctionId={visibleActiveAuction.id}
-                    title={visibleActiveAuction.title}
-                    city={visibleActiveAuction.city}
-                    description={visibleActiveAuction.description}
-                    images={visibleActiveAuction.images}
-                    currentBid={visibleActiveAuction.currentBid}
-                    promotionType={visibleActiveAuction.promotionType}
-                    promotionUntil={visibleActiveAuction.promotionUntil ?? null}
-                    promotionQueueAt={visibleActiveAuction.promotionQueueAt ?? null}
-                    timeLeft={getTimeLeft(visibleActiveAuction.endsAt)}
-                    bids={bids}
-                    isAuthenticated={isAuthenticated}
-                    onBack={() => navigate('/auctions')}
-                    seller={{
-                        id: visibleActiveAuction.ownerId,
-                        name: getAuctionOwnerName(visibleActiveAuction),
-                        karma: 0,
-                    }}
-                    currentUserId={user?.id ?? null}
-                    onBidSuccess={() => {
-                        loadAuctionById(visibleActiveAuction.id)
-                        loadBids(visibleActiveAuction.id)
-                    }}
-                    onPromotionSuccess={() => {
-                        loadAuctionById(visibleActiveAuction.id)
-                    }}
-                />
+                <>
+                    {shouldShowStatusNotice && (
+                        <div className="card stack8" style={{ border: '1px solid #fde68a', background: '#fffbeb', color: '#78350f', marginBottom: 12 }}>
+                            <strong>{getAuctionStatusMessage(visibleActiveAuction.status)}</strong>
+                            {visibleActiveAuction.moderationReason && (
+                                <div>
+                                    <b>{t.auctionDetails.statusMessages.reason}:</b> {visibleActiveAuction.moderationReason}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    <AuctionDetails
+                        t={t}
+                        auctionId={visibleActiveAuction.id}
+                        title={visibleActiveAuction.title}
+                        city={visibleActiveAuction.city}
+                        description={visibleActiveAuction.description}
+                        images={visibleActiveAuction.images}
+                        currentBid={visibleActiveAuction.currentBid}
+                        promotionType={visibleActiveAuction.promotionType}
+                        promotionUntil={visibleActiveAuction.promotionUntil ?? null}
+                        promotionQueueAt={visibleActiveAuction.promotionQueueAt ?? null}
+                        timeLeft={getTimeLeft(visibleActiveAuction.endsAt)}
+                        bids={bids}
+                        isAuthenticated={isAuthenticated}
+                        onBack={() => navigate('/auctions')}
+                        seller={{
+                            id: visibleActiveAuction.ownerId,
+                            name: getAuctionOwnerName(visibleActiveAuction),
+                            karma: 0,
+                        }}
+                        currentUserId={user?.id ?? null}
+                        onBidSuccess={() => {
+                            loadAuctionById(visibleActiveAuction.id)
+                            loadBids(visibleActiveAuction.id)
+                        }}
+                        onPromotionSuccess={() => {
+                            loadAuctionById(visibleActiveAuction.id)
+                        }}
+                    />
+                </>
 
             ) : (
                 <>

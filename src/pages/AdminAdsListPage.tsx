@@ -4,10 +4,16 @@ import { Link } from "react-router-dom"
 
 import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
+import { getLocalUser } from "../data/localUser"
 
 function formatDate(ts?: number) {
     if (!ts) return "—"
     return new Date(ts).toLocaleString()
+}
+
+function getAdminActorId() {
+    const user = getLocalUser()
+    return user?.uid || user?.id || user?.email || "admin"
 }
 
 function AdminAdsListPage() {
@@ -32,23 +38,45 @@ function AdminAdsListPage() {
     }, [])
 
     // ✅ ВАЖНО: функция ВНУТРИ компонента
-    async function deleteAllAds() {
+    async function removeAllAds() {
         const ok = window.confirm(
-            "⚠ Ви впевнені, що хочете ВИДАЛИТИ ВСІ оголошення?\nЦю дію неможливо скасувати."
+            "⚠ Ви впевнені, що хочете зняти ВСІ оголошення з публікації?"
         )
         if (!ok) return
 
+        const reason = window.prompt("Вкажіть причину модерації")
+        const moderationReason = reason?.trim()
+        if (!moderationReason) {
+            alert("Причина обов'язкова")
+            return
+        }
+
+        const removedAt = Date.now()
+        const removedBy = getAdminActorId()
         const snap = await getDocs(collection(db, "ads"))
         const batch = writeBatch(db)
 
         snap.docs.forEach(d => {
-            batch.delete(doc(db, "ads", d.id))
+            batch.update(doc(db, "ads", d.id), {
+                status: "removed",
+                removedAt,
+                removedBy,
+                moderationReason,
+            })
         })
 
         await batch.commit()
 
-        setAds([]) // ✅ теперь доступен
-        alert("✅ Усі оголошення видалено")
+        setAds(prev =>
+            prev.map(ad => ({
+                ...ad,
+                status: "removed",
+                removedAt,
+                removedBy,
+                moderationReason,
+            }))
+        )
+        alert("✅ Усі оголошення знято з публікації")
     }
 
     if (loading) {
@@ -61,10 +89,10 @@ function AdminAdsListPage() {
 
             <button
                 className="btn-danger"
-                onClick={deleteAllAds}
+                onClick={removeAllAds}
                 style={{ marginBottom: 16 }}
             >
-                🗑 Видалити ВСІ оголошення
+                Зняти ВСІ оголошення з публікації
             </button>
 
             {ads.length === 0 && (

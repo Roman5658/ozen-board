@@ -18,6 +18,11 @@ export type Ad = {
     moderatedBy?: string | null
     restoredAt?: number | null
     restoredBy?: string | null
+    deletedAt?: number | null
+    deletedBy?: string | null
+    deleteReason?: string | null
+    removedAt?: number | null
+    removedBy?: string | null
     ownerNotificationStatus?: "unread" | "read" | null
     ownerNotificationMessage?: string | null
     // оплата и продвижение

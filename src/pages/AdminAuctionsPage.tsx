@@ -4,14 +4,19 @@ import {
     getDocs,
     doc,
     updateDoc,
-    deleteDoc,
 } from "firebase/firestore"
 
 
 import { db } from "../app/firebase"
 import type { Auction } from "../types/auction"
+import { getLocalUser } from "../data/localUser"
 
 const DAY = 24 * 60 * 60 * 1000
+
+function getAdminActorId() {
+    const user = getLocalUser()
+    return user?.uid || user?.id || user?.email || "admin"
+}
 
 function AdminAuctionsPage() {
     const [auctions, setAuctions] = useState<Auction[]>([])
@@ -146,14 +151,30 @@ function AdminAuctionsPage() {
         )
     }
 
-    async function hardDelete(auctionId: string) {
-        const ok = window.confirm("❌ Видалити аукціон назавжди?")
-        if (!ok) return
+    async function removeAuction(auctionId: string) {
+        const reason = window.prompt("Вкажіть причину зняття аукціону")
+        const moderationReason = reason?.trim()
+        if (!moderationReason) {
+            alert("Причина обов'язкова")
+            return
+        }
 
-        await deleteDoc(doc(db, "auctions", auctionId))
+        const removedAt = Date.now()
+        const removedBy = getAdminActorId()
+
+        await updateDoc(doc(db, "auctions", auctionId), {
+            status: "removed",
+            removedAt,
+            removedBy,
+            moderationReason,
+        })
 
         setAuctions(prev =>
-            prev.filter(a => a.id !== auctionId)
+            prev.map(a =>
+                a.id === auctionId
+                    ? { ...a, status: "removed", removedAt, removedBy, moderationReason }
+                    : a
+            )
         )
     }
 
@@ -175,6 +196,7 @@ function AdminAuctionsPage() {
 
             {auctions.map(a => {
                 const isEnded = a.status === "ended"
+                const isRemoved = a.status === "removed" || a.status === "deleted"
                 const hasPromo =
                     a.promotionType !== "none" &&
                     a.promotionUntil &&
@@ -213,9 +235,10 @@ function AdminAuctionsPage() {
                             </button>
                             <button
                                 className="btn-danger"
-                                onClick={() => hardDelete(a.id)}
+                                onClick={() => removeAuction(a.id)}
+                                disabled={isRemoved}
                             >
-                                ❌ Видалити назавжди
+                                Зняти з публікації
                             </button>
 
                             <button
@@ -245,7 +268,7 @@ function AdminAuctionsPage() {
                             <button
                                 className="btn-danger"
                                 onClick={() => softDelete(a.id)}
-                                disabled={isEnded}
+                                disabled={isEnded || isRemoved}
                             >
                                 Завершити
                             </button>

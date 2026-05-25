@@ -5,10 +5,16 @@ import { updateDoc } from "firebase/firestore"
 
 import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
+import { getLocalUser } from "../data/localUser"
 
-function formatDate(ts?: number) {
+function formatDate(ts?: number | null) {
     if (!ts) return "—"
     return new Date(ts).toLocaleString()
+}
+
+function getAdminActorId() {
+    const user = getLocalUser()
+    return user?.uid || user?.id || user?.email || "admin"
 }
 
 function AdminAdDetailsPage() {
@@ -111,18 +117,31 @@ function AdminAdDetailsPage() {
         })
     }
 
-    async function softDelete() {
+    async function removeAd() {
         if (!ad) return
-        const ok = window.confirm("Помітити оголошення як видалене?")
-        if (!ok) return
+        const reason = window.prompt("Вкажіть причину зняття оголошення")
+        const moderationReason = reason?.trim()
+        if (!moderationReason) {
+            alert("Причина обов'язкова")
+            return
+        }
+
+        const removedAt = Date.now()
+        const removedBy = getAdminActorId()
 
         await updateDoc(doc(db, "ads", ad.id), {
-            status: "deleted",
+            status: "removed",
+            removedAt,
+            removedBy,
+            moderationReason,
         })
 
         setAd({
             ...ad,
-            status: "deleted",
+            status: "removed",
+            removedAt,
+            removedBy,
+            moderationReason,
         })
     }
 
@@ -160,6 +179,8 @@ function AdminAdDetailsPage() {
 
                 <div><b>Створено:</b> {formatDate(ad.createdAt)}</div>
                 <div><b>Оплачено:</b> {formatDate(ad.paidAt)}</div>
+                <div><b>Знято:</b> {formatDate(ad.removedAt)}</div>
+                {ad.moderationReason && <div><b>Причина модерації:</b> {ad.moderationReason}</div>}
 
                 <hr />
 
@@ -197,8 +218,8 @@ function AdminAdDetailsPage() {
                             ❌ Зняти просування
                         </button>
 
-                        <button className="btn-danger" onClick={softDelete}>
-                            🗑 Видалити
+                        <button className="btn-danger" onClick={removeAd}>
+                            Зняти з публікації
                         </button>
                     </div>
 

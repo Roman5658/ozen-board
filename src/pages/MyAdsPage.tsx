@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, doc } from 'firebase/firestore'
 
 import { db } from '../app/firebase'
 import { getLocalUser } from '../data/localUser'
@@ -45,11 +45,28 @@ function MyAdsPage() {
     }, [user, navigate])
 
     async function handleDelete(adId: string) {
+        if (!user) return
+
         const ok = confirm('Ви дійсно хочете видалити оголошення?')
         if (!ok) return
 
-        await deleteDoc(doc(db, 'ads', adId))
-        setAds(prev => prev.filter(ad => ad.id !== adId))
+        const deletedAt = Date.now()
+        const deletedBy = user.uid || user.id
+
+        await updateDoc(doc(db, 'ads', adId), {
+            status: 'deleted',
+            deletedAt,
+            deletedBy,
+            deleteReason: 'user_deleted',
+        })
+
+        setAds(prev =>
+            prev.map(ad =>
+                ad.id === adId
+                    ? { ...ad, status: 'deleted', deletedAt, deletedBy, deleteReason: 'user_deleted' }
+                    : ad
+            )
+        )
     }
 
     function getStatusLabel(status?: string): string {

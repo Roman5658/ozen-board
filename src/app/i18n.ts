@@ -571,6 +571,13 @@ export const translations = {
         adDetails: {
             loading: "Завантаження…",
             notFound: "Оголошення не знайдено",
+            statusMessages: {
+                hidden: "Оголошення приховано модерацією.",
+                deleted: "Оголошення видалено власником.",
+                removed: "Оголошення знято модерацією.",
+                expired: "Оголошення завершилося або більше неактивне.",
+                reason: "Причина",
+            },
             back: "Назад",
 
             noImage: "Фото відсутнє",
@@ -785,6 +792,14 @@ export const translations = {
             back: "Назад",
             noImage: "Фото відсутнє",
             ended: "Завершено",
+            statusMessages: {
+                hidden: "Аукціон приховано модерацією.",
+                deleted: "Аукціон видалено власником.",
+                removed: "Аукціон знято модерацією.",
+                expired: "Аукціон завершився або більше неактивний.",
+                ended: "Аукціон завершено.",
+                reason: "Причина",
+            },
 
             currentBid: "Поточна ставка",
             timeLeft: "До завершення",
@@ -1449,6 +1464,13 @@ export const translations = {
         adDetails: {
             loading: "Ładowanie…",
             notFound: "Ogłoszenie nie znalezione",
+            statusMessages: {
+                hidden: "Ogłoszenie zostało ukryte przez moderację.",
+                deleted: "Ogłoszenie zostało usunięte przez właściciela.",
+                removed: "Ogłoszenie zostało zdjęte przez moderację.",
+                expired: "Ogłoszenie wygasło albo nie jest już aktywne.",
+                reason: "Powód",
+            },
             back: "Wstecz",
 
             noImage: "Brak zdjęcia",
@@ -1662,6 +1684,14 @@ export const translations = {
             back: "Wstecz",
             noImage: "Brak zdjęcia",
             ended: "Zakończone",
+            statusMessages: {
+                hidden: "Aukcja została ukryta przez moderację.",
+                deleted: "Aukcja została usunięta przez właściciela.",
+                removed: "Aukcja została zdjęta przez moderację.",
+                expired: "Aukcja wygasła albo nie jest już aktywna.",
+                ended: "Aukcja została zakończona.",
+                reason: "Powód",
+            },
 
             currentBid: "Aktualna oferta",
             timeLeft: "Do zakończenia",

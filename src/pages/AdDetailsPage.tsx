@@ -161,9 +161,16 @@ function AdDetailsPage({ t }: Props) {
         }
     }, [ad, slugOrId, navigate])
     const isOwner = !!currentUser && !!ad && String(currentUser.id) === String(ad.userId)
-    const isRestrictedAd = ['hidden', 'deleted', 'removed'].includes(ad?.status ?? '')
+    const isRestrictedAd = ['hidden', 'deleted', 'removed', 'expired'].includes(ad?.status ?? '')
     const canViewRestrictedAd = isOwner || isAdmin()
     const visibleAd = ad && (!isRestrictedAd || canViewRestrictedAd) ? ad : null
+    function getRestrictedAdMessage(status?: string) {
+        if (status === 'hidden') return a.statusMessages.hidden
+        if (status === 'deleted') return a.statusMessages.deleted
+        if (status === 'removed') return a.statusMessages.removed
+        if (status === 'expired') return a.statusMessages.expired
+        return a.notFound
+    }
     const lang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
     const seoTitle = visibleAd
         ? (lang === 'pl' ? `${visibleAd.title} ${visibleAd.city} | Xoven` : `Купити ${visibleAd.title} ${visibleAd.city} | Xoven`)
@@ -199,8 +206,21 @@ function AdDetailsPage({ t }: Props) {
         return <div className="card">{a.loading}</div>
     }
 
-    if (!ad || (isRestrictedAd && !canViewRestrictedAd)) {
+    if (!ad) {
         return <div className="card">{a.notFound}</div>
+    }
+
+    if (isRestrictedAd && !canViewRestrictedAd) {
+        return (
+            <div className="card stack8">
+                <strong>{getRestrictedAdMessage(ad.status)}</strong>
+                {ad.moderationReason && (
+                    <div>
+                        <b>{a.statusMessages.reason}:</b> {ad.moderationReason}
+                    </div>
+                )}
+            </div>
+        )
     }
 
     const now = Date.now()
@@ -235,6 +255,17 @@ function AdDetailsPage({ t }: Props) {
                 ← {a.back}
 
             </button>
+
+            {isRestrictedAd && (
+                <div className="card stack8" style={{ border: '1px solid #fde68a', background: '#fffbeb', color: '#78350f' }}>
+                    <strong>{getRestrictedAdMessage(ad.status)}</strong>
+                    {ad.moderationReason && (
+                        <div>
+                            <b>{a.statusMessages.reason}:</b> {ad.moderationReason}
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="card stack12">
                 <h2 className="h2">{ad.title}</h2>

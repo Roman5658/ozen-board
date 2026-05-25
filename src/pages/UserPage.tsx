@@ -126,7 +126,7 @@ function UserPage() {
                     ...(d.data() as Omit<Auction, 'id'>),
                 }))
 
-                setAuctions(data.filter((auction) => !['hidden', 'deleted', 'removed', 'pending_payment'].includes(auction.status)))
+                setAuctions(data.filter((auction) => (auction.status ?? 'active') === 'active'))
             } finally {
                 setAuctionsLoading(false)
             }
