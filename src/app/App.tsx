@@ -27,6 +27,7 @@ import NearbyPage from '../pages/NearbyPage'
 import AddPage from '../pages/AddPage'
 import AuctionPage from '../pages/AuctionPage'
 import AccountPage from '../pages/AccountPage'
+import AccountPaymentsPage from '../pages/AccountPaymentsPage'
 import AdDetailsPage from '../pages/AdDetailsPage'
 
 import Header from '../components/Header'
@@ -131,6 +132,7 @@ function App() {
 
                 <Route path="/add" element={<AddPage t={t} />} />
                 <Route path="/account" element={<AccountPage t={t} />} />
+                <Route path="/account/payments" element={<AccountPaymentsPage t={t} />} />
                 <Route path="/my-ads" element={<MyAdsPage />} />
 
                 {/* Аукционы */}

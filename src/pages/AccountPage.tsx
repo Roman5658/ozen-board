@@ -575,6 +575,13 @@ function AccountPage({ t }: Props) {
             <div className="card stack8">
                 <h2 className="h2">{user.nickname}</h2>
                 <div style={{fontSize: 14, color: "#6b7280"}}>{user.email}</div>
+                <Link
+                    to="/account/payments"
+                    className="btn-secondary"
+                    style={{display: "inline-block", textAlign: "center"}}
+                >
+                    {a.payments.link}
+                </Link>
 
                 <div className="card stack12">
                     <h3 className="h3">{a.profile.contactsTitle}</h3>
