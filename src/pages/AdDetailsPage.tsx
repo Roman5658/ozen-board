@@ -13,7 +13,7 @@ import { getLocalUser } from "../data/localUser"
 import AuthorCard from "../components/AuthorCard"
 import { getAdImages } from "../utils/getAdImages";
 import { buildAdPath, extractIdFromSlug } from "../utils/slug";
-import { db } from '../app/firebase'
+import { auth, db } from '../app/firebase'
 import type { Ad } from '../types/ad'
 type Props = {
     t: (typeof translations)[keyof typeof translations]
@@ -516,19 +516,23 @@ function AdDetailsPage({ t }: Props) {
                                     try {
                                         setReportSending(true)
 
-                                        const user = getLocalUser()
+                                        const authUser = auth.currentUser
+
+                                        if (!authUser) {
+                                            alert(a.report.authRequired)
+                                            return
+                                        }
 
                                         await addDoc(collection(db, "reports"), {
-                                            adId: ad.id,
-                                            adTitle: ad.title,
-                                            targetUserId: ad.userId,
-                                            targetUserName: "",
-                                            reporterUserId: user?.id,
-                                            message: reportText.trim(),
-                                            createdAt: Date.now(),
-                                            status: "new",
-                                            reporterUserName: user?.nickname ?? "",
+                                            targetType: "ad",
+                                            targetId: ad.id,
+                                            reporterId: authUser.uid,
                                             reason: "user-report",
+                                            description: reportText.trim(),
+                                            status: "new",
+                                            createdAt: Date.now(),
+                                            reviewedAt: null,
+                                            reviewedBy: null,
                                         })
 
                                         alert(a.report.sent)

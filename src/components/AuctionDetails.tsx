@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { addDoc, collection } from 'firebase/firestore'
 import { placeBid } from '../data/placeBid'
 import { useNavigate } from 'react-router-dom'
 import AuthorCard from "../components/AuthorCard"
@@ -6,6 +7,7 @@ import type { translations } from "../app/i18n"
 import { PRICES } from "../config/prices"
 import { verifyPayPalPayment } from "../api/payments"
 import PayPalCheckoutButton from "./PayPalCheckoutButton"
+import { auth, db } from "../app/firebase"
 
 type Bid = {
     id: string
@@ -72,6 +74,8 @@ function AuctionDetails({
     const [isReportOpen, setIsReportOpen] = useState(false)
     const [reportText, setReportText] = useState('')
     const [reportSent, setReportSent] = useState(false)
+    const [reportError, setReportError] = useState('')
+    const [reportSending, setReportSending] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [payAction, setPayAction] = useState<AuctionPromotionAction | null>(null)
     const [isPromoting, setIsPromoting] = useState(false)
@@ -97,33 +101,41 @@ function AuctionDetails({
         )
 
 
-    function submitReport() {
+    async function submitReport() {
         const text = reportText.trim()
         if (!text) return
 
-        try {
-            const key = 'ozen_reports'
-            const raw = localStorage.getItem(key)
-            const current = raw ? JSON.parse(raw) : []
-
-            current.unshift({
-                id: Date.now(),
-                auctionId: auctionId ?? null,
-                title,
-                sellerId: seller?.id ?? null,
-                sellerName: seller?.name ?? null,
-                reason: text,
-                createdAt: Date.now(),
-            })
-
-            localStorage.setItem(key, JSON.stringify(current))
-        } catch {
-            // ignore
+        const authUser = auth.currentUser
+        if (!authUser) {
+            setReportError(t.auctionDetails.report.authRequired)
+            return
         }
 
-        setReportSent(true)
-        setIsReportOpen(false)
-        setReportText('')
+        setReportSending(true)
+        setReportError('')
+
+        try {
+            await addDoc(collection(db, "reports"), {
+                targetType: "auction",
+                targetId: auctionId,
+                reporterId: authUser.uid,
+                reason: "user-report",
+                description: text,
+                status: "new",
+                createdAt: Date.now(),
+                reviewedAt: null,
+                reviewedBy: null,
+            })
+
+            setReportSent(true)
+            setIsReportOpen(false)
+            setReportText('')
+        } catch (e) {
+            console.error(e)
+            setReportError(t.auctionDetails.report.error)
+        } finally {
+            setReportSending(false)
+        }
     }
 
     async function placeBidHandler() {
@@ -420,6 +432,11 @@ function AuctionDetails({
                         {t.auctionDetails.report.sent}
                     </div>
                 )}
+            {reportError && (
+                <div style={{marginTop: 10, fontSize: 13, color: '#b91c1c'}}>
+                    {reportError}
+                </div>
+            )}
 
                 {isReportOpen && (
                     <div style={{marginTop: 10}}>
@@ -439,16 +456,16 @@ function AuctionDetails({
 
                         <button
                             onClick={submitReport}
-                            disabled={!reportText.trim()}
+                            disabled={reportSending || !reportText.trim()}
                             style={{
                                 width: '100%',
                                 padding: 12,
                                 borderRadius: 10,
                                 border: 'none',
-                                background: reportText.trim() ? '#111827' : '#9ca3af',
+                                background: !reportSending && reportText.trim() ? '#111827' : '#9ca3af',
                                 color: '#fff',
                                 fontWeight: 700,
-                                cursor: reportText.trim() ? 'pointer' : 'not-allowed',
+                                cursor: !reportSending && reportText.trim() ? 'pointer' : 'not-allowed',
                             }}
                         >
                             {t.auctionDetails.report.submit}

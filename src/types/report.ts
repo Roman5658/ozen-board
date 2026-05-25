@@ -1,14 +1,15 @@
 export type ReportStatus = 'new' | 'reviewed' | 'rejected' | 'resolved'
+export type ReportTargetType = 'ad' | 'auction'
+
 export type Report = {
     id: string
-    adId: string
-    adTitle: string
-    targetUserId: string
-    targetUserName?: string
-    reporterUserId?: string
-    reporterUserName?: string
-    message: string
-    reason?: string
+    targetType: ReportTargetType
+    targetId: string
+    reporterId: string
+    reason: string
+    description: string
     createdAt: number
     status: ReportStatus
+    reviewedAt?: number | null
+    reviewedBy?: string | null
 }

@@ -117,7 +117,27 @@ return signedIn() && authEmail() in [
     }
 
 match /reports/{reportId} {
-allow create: if true;
+allow create: if signedIn() &&
+  request.resource.data.keys().hasOnly([
+    'targetType',
+    'targetId',
+    'reporterId',
+    'reason',
+    'description',
+    'status',
+    'createdAt',
+    'reviewedAt',
+    'reviewedBy'
+  ]) &&
+  request.resource.data.targetType in ['ad', 'auction'] &&
+  request.resource.data.targetId is string &&
+  request.resource.data.reporterId == authUid() &&
+  request.resource.data.reason is string &&
+  request.resource.data.description is string &&
+  request.resource.data.status == 'new' &&
+  request.resource.data.createdAt is number &&
+  request.resource.data.reviewedAt == null &&
+  request.resource.data.reviewedBy == null;
 allow read, update, delete: if isAdmin();
 }
 match /userReviews/{reviewId} {

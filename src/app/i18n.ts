@@ -509,6 +509,7 @@ export const translations = {
                 submit: "Надіслати",
                 sent: "Скаргу надіслано",
                 error: "Помилка при надсиланні скарги",
+                authRequired: "Щоб надіслати скаргу, увійдіть в акаунт",
             },
         },
         add: {
@@ -723,6 +724,8 @@ export const translations = {
                 placeholder: "Опишіть причину скарги",
                 submit: "Надіслати",
                 sent: "Скаргу надіслано",
+                error: "Помилка при надсиланні скарги",
+                authRequired: "Щоб надіслати скаргу, увійдіть в акаунт",
             },
 
             bids: {
@@ -1292,6 +1295,7 @@ export const translations = {
                 submit: "Wyślij",
                 sent: "Zgłoszenie wysłane",
                 error: "Błąd wysyłania zgłoszenia",
+                authRequired: "Aby wysłać zgłoszenie, zaloguj się na konto",
             },
         },
         add: {
@@ -1505,6 +1509,8 @@ export const translations = {
                 placeholder: "Opisz powód zgłoszenia",
                 submit: "Wyślij",
                 sent: "Zgłoszenie zostało wysłane",
+                error: "Błąd wysyłania zgłoszenia",
+                authRequired: "Aby wysłać zgłoszenie, zaloguj się na konto",
             },
 
             bids: {
