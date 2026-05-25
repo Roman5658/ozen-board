@@ -28,7 +28,7 @@ function PrivacyPage({ t }: Props) {
             <h1>{p.title}</h1>
 
             <p>
-                <strong>Ozen Board</strong> — {p.intro}
+                <strong>Xoven</strong> — {p.intro}
             </p>
 
             <h3>{p.sections.generalTitle}</h3>
