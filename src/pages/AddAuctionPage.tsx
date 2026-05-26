@@ -36,7 +36,6 @@ function AddAuctionPage({ t }: Props) {
     const [voivodeship, setVoivodeship] = useState("")
     const [city, setCity] = useState("")
     const [startPrice, setStartPrice] = useState("")
-    const [buyNowPrice, setBuyNowPrice] = useState("")
     const [imageFiles, setImageFiles] = useState<File[]>([])
     const [endsAtDate, setEndsAtDate] = useState("")
 
@@ -175,7 +174,7 @@ function AddAuctionPage({ t }: Props) {
             city,
 
             startPrice: Number(startPrice),
-            buyNowPrice: buyNowPrice ? Number(buyNowPrice) : null,
+            buyNowPrice: null,
             currentBid: Number(startPrice),
             bidsCount: 0,
 
@@ -296,8 +295,6 @@ function AddAuctionPage({ t }: Props) {
 
                 <input className="input" type="number" placeholder={t.addAuction.fields.startPrice} value={startPrice}
                        onChange={(e) => setStartPrice(e.target.value)}/>
-                <input className="input" type="number" placeholder={t.addAuction.fields.buyNowPrice} value={buyNowPrice}
-                       onChange={(e) => setBuyNowPrice(e.target.value)}/>
                 <input className="input" type="date" value={endsAtDate}
                        onChange={(e) => setEndsAtDate(e.target.value)}/>
                 <div style={{fontSize: 13, color: "#6b7280"}}>{t.addAuction.fields.maxDaysHint}</div>
