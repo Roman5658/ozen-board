@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "seed:test-listings": "tsx scripts/seedTestListings.ts",
+    "seed:test-listings:write": "tsx scripts/seedTestListings.ts --write",
+    "seed:test-listings:cleanup": "tsx scripts/seedTestListings.ts --cleanup"
   },
   "dependencies": {
     "@paypal/react-paypal-js": "^8.9.2",
@@ -26,7 +29,9 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "firebase-admin": "^13.10.0",
     "globals": "^16.5.0",
+    "tsx": "^4.22.3",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
