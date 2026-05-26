@@ -650,8 +650,8 @@ export const translations = {
             authRequired: "Спочатку увійдіть в акаунт",
 
             fields: {
-                title: "Заголовок",
-                description: "Опис",
+                title: "Наприклад: iPhone 14 Pro 128GB",
+                description: "Опишіть стан, комплектацію, дефекти...",
                 price: "Ціна",
                 contact: "Контакт (телефон / Telegram) — необовʼязково",
                 category: "Категорія",
@@ -729,8 +729,8 @@ export const translations = {
             authRequired: "Спочатку увійдіть в акаунт",
 
             fields: {
-                title: "Заголовок",
-                description: "Опис",
+                title: "Наприклад: iPhone 14 Pro 128GB",
+                description: "Опишіть стан, комплектацію, дефекти...",
                 category: "Категорія",
                 voivodeship: "Воєводство",
                 city: "Місто",
@@ -1578,8 +1578,8 @@ export const translations = {
             authRequired: "Najpierw zaloguj się na konto",
 
             fields: {
-                title: "Tytuł",
-                description: "Opis",
+                title: "Na przykład: iPhone 14 Pro 128GB",
+                description: "Opisz stan, wyposażenie, wady...",
                 price: "Cena",
                 contact: "Kontakt (telefon / Telegram) — opcjonalnie",
                 category: "Kategoria",
@@ -1656,8 +1656,8 @@ export const translations = {
             authRequired: "Najpierw zaloguj się na konto",
 
             fields: {
-                title: "Tytuł",
-                description: "Opis",
+                title: "Na przykład: iPhone 14 Pro 128GB",
+                description: "Opisz stan, wyposażenie, wady...",
                 category: "Kategoria",
                 voivodeship: "Województwo",
                 city: "Miasto",
