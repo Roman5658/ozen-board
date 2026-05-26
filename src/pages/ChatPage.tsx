@@ -1,5 +1,6 @@
 
 import { useParams, useNavigate } from "react-router-dom"
+import { doc, getDoc, setDoc } from "firebase/firestore"
 import { getLocalUser } from "../data/localUser"
 import {
     sendMessage,
@@ -8,6 +9,8 @@ import {
     getChatUsers,
 } from "../data/chats"
 import { getUserPublicNickname, getUserPublicNicknames } from "../data/usersPublic"
+import { isAccountRestrictedError } from "../data/users"
+import { auth, db } from "../app/firebase"
 import { DEFAULT_LANG, translations } from "../app/i18n"
 import type { Lang } from "../app/i18n"
 import { useCallback, useEffect, useState } from "react"
@@ -38,6 +41,7 @@ function ChatPage() {
     const [otherNickname, setOtherNickname] = useState<string>("")
     const [lastSentAt, setLastSentAt] = useState<number>(0)
     const [sendError, setSendError] = useState<string>("")
+    const [reportingMessageId, setReportingMessageId] = useState<string>("")
 
 
     const currentIds = currentUser
@@ -113,6 +117,51 @@ function ChatPage() {
         return <div className="card">Чат не знайдено</div>
     }
 
+    async function reportMessage(message: ChatMessage, senderName: string) {
+        if (!currentUser || !chatId) return
+
+        const authUser = auth.currentUser
+        if (!authUser) {
+            alert(t.chatReport.authRequired)
+            return
+        }
+
+        const reportedBy = authUser.uid
+        const reportId = `chat_message_${chatId}_${message.id}_${reportedBy}`
+        const ok = window.confirm(t.chatReport.confirm)
+        if (!ok) return
+
+        try {
+            setReportingMessageId(message.id)
+
+            const reportRef = doc(db, "reports", reportId)
+            const existing = await getDoc(reportRef)
+            if (existing.exists()) {
+                alert(t.chatReport.duplicate)
+                return
+            }
+
+            await setDoc(reportRef, {
+                type: "chat_message",
+                chatId,
+                messageId: message.id,
+                senderId: message.senderId,
+                senderName,
+                reportedBy,
+                reportedByName: currentUser.nickname,
+                messageText: message.text,
+                createdAt: Date.now(),
+                status: "pending",
+            })
+
+            alert(t.chatReport.sent)
+        } catch (error) {
+            console.error("[chat] report message failed", error)
+            alert(t.chatReport.error)
+        } finally {
+            setReportingMessageId("")
+        }
+    }
 
     // ===== UI =====
     return (
@@ -203,6 +252,26 @@ function ChatPage() {
                                         {senderName}
                                     </div>
                                     {m.text}
+                                    {!isMine && !isSystem && (
+                                        <div style={{ marginTop: 6 }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => void reportMessage(m, senderName)}
+                                                disabled={reportingMessageId === m.id}
+                                                style={{
+                                                    border: "none",
+                                                    background: "transparent",
+                                                    color: "#b91c1c",
+                                                    padding: 0,
+                                                    fontSize: 12,
+                                                    cursor: reportingMessageId === m.id ? "wait" : "pointer",
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                {t.chatReport.report}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )
@@ -235,7 +304,9 @@ function ChatPage() {
                             setLastSentAt(now)
                         } catch (e) {
                             console.error("[chat] send failed", e)
-                            setSendError("Не вдалося надіслати повідомлення. Спробуйте ще раз.")
+                            setSendError(isAccountRestrictedError(e)
+                                ? t.common.accountRestricted
+                                : "Не вдалося надіслати повідомлення. Спробуйте ще раз.")
                         } finally {
                             setSending(false)
                         }

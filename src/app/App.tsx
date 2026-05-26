@@ -40,6 +40,7 @@ import { useSeo, BASE_URL } from '../utils/seo'
 import EditAuctionPage from '../pages/EditAuctionPage'
 import AdminPaymentsPage from "../pages/AdminPaymentsPage"
 import AdminAuctionsPage from "../pages/AdminAuctionsPage"
+import AdminUsersPage from "../pages/AdminUsersPage"
 
 function App() {
     const [lang, setLang] = useState<Lang>(() => detectInitialLang())
@@ -192,6 +193,7 @@ function App() {
                     <Route path="ads" element={<AdminAdsPage />} />
                     <Route path="auctions" element={<AdminAuctionsPage />} />
                     <Route path="reports" element={<AdminReportsPage t={t} />} />
+                    <Route path="users" element={<AdminUsersPage t={t} />} />
                     <Route path="payments" element={<AdminPaymentsPage />} />
                 </Route>
             </Routes>

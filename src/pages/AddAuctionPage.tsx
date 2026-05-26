@@ -6,6 +6,7 @@ import { PRICES } from "../config/prices"
 import type { translations } from "../app/i18n"
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
+import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
@@ -146,6 +147,13 @@ function AddAuctionPage({ t }: Props) {
 
 
     async function createAuction() {
+        try {
+            await assertUserNotBlocked(safeUser.id)
+        } catch (error) {
+            setError(isAccountRestrictedError(error) ? t.common.accountRestricted : t.addAuction.errors.createFailed)
+            return
+        }
+
         const validation = validateForm()
         if (!validation.ok) {
             setError(validation.reason)

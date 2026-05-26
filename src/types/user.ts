@@ -3,6 +3,10 @@ export type AppUser = {
     uid: string         // Firebase Auth UID
     email: string
     nickname: string
+    status?: "active" | "blocked"
+    blockedAt?: number | null
+    blockedReason?: string | null
+    blockedBy?: string | null
 
     karma: number
     createdAt: number

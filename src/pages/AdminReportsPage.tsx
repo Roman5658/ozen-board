@@ -44,9 +44,13 @@ function targetKey(targetType: ReportTargetType, targetId: string): string {
 }
 
 function statusRank(status: ReportStatus): number {
-    if (status === 'new') return 0
+    if (status === 'new' || status === 'pending') return 0
     if (status === 'reviewed') return 1
     return 2
+}
+
+function isContentReport(report: Report): boolean {
+    return report.targetType === 'ad' || report.targetType === 'auction'
 }
 
 function getAdminId(): string {
@@ -63,6 +67,7 @@ function formatTemplate(template: string, values: Record<string, string>): strin
 
 async function loadTargetInfo(report: Report): Promise<[string, TargetInfo]> {
     const key = targetKey(report.targetType, report.targetId)
+    if (report.targetType === 'chat_message') return [key, { exists: false }]
     if (!report.targetId) return [key, { exists: false }]
 
     try {
@@ -134,22 +139,35 @@ export default function AdminReportsPage({ t }: Props) {
             const loadedReports: Report[] = rSnap.docs.map(d => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const x = d.data() as any
-                const targetType: ReportTargetType = x.targetType === 'auction' ? 'auction' : 'ad'
+                const isChatMessageReport = x.type === 'chat_message'
+                const targetType: ReportTargetType = isChatMessageReport
+                    ? 'chat_message'
+                    : x.targetType === 'auction'
+                        ? 'auction'
+                        : 'ad'
                 return {
                     id: d.id,
                     targetType,
-                    targetId: x.targetId ?? x.adId ?? '',
-                    reporterId: x.reporterId ?? x.reporterUserId ?? '',
+                    targetId: isChatMessageReport ? (x.messageId ?? '') : (x.targetId ?? x.adId ?? ''),
+                    reporterId: x.reporterId ?? x.reporterUserId ?? x.reportedBy ?? '',
                     reason: x.reason ?? 'user-report',
-                    description: x.description ?? x.message ?? '',
+                    description: x.description ?? x.message ?? x.messageText ?? '',
                     createdAt: toMillis(x.createdAt) ?? Date.now(),
-                    status: (x.status ?? 'new') as ReportStatus,
+                    status: (x.status ?? (isChatMessageReport ? 'pending' : 'new')) as ReportStatus,
                     reviewedAt: toMillis(x.reviewedAt),
                     reviewedBy: x.reviewedBy ?? null,
                     resolutionNote: typeof x.resolutionNote === 'string' ? x.resolutionNote : null,
                     notificationNeeded: typeof x.notificationNeeded === 'boolean' ? x.notificationNeeded : null,
                     ownerNotified: typeof x.ownerNotified === 'boolean' ? x.ownerNotified : null,
                     reporterNotified: typeof x.reporterNotified === 'boolean' ? x.reporterNotified : null,
+                    type: isChatMessageReport ? 'chat_message' : undefined,
+                    chatId: typeof x.chatId === 'string' ? x.chatId : undefined,
+                    messageId: typeof x.messageId === 'string' ? x.messageId : undefined,
+                    senderId: typeof x.senderId === 'string' ? x.senderId : undefined,
+                    senderName: typeof x.senderName === 'string' ? x.senderName : null,
+                    reportedBy: typeof x.reportedBy === 'string' ? x.reportedBy : undefined,
+                    reportedByName: typeof x.reportedByName === 'string' ? x.reportedByName : null,
+                    messageText: typeof x.messageText === 'string' ? x.messageText : undefined,
                 }
             })
 
@@ -223,7 +241,7 @@ export default function AdminReportsPage({ t }: Props) {
                 adminId: getAdminId(),
                 ownerId: target.ownerId,
                 text: message,
-                targetType: report.targetType,
+                targetType: report.targetType === 'auction' ? 'auction' : 'ad',
                 targetId: report.targetId,
                 targetTitle: target.title,
                 moderationStatus,
@@ -235,6 +253,8 @@ export default function AdminReportsPage({ t }: Props) {
     }
 
     async function setTargetHidden(report: Report) {
+        if (!isContentReport(report)) return
+
         const key = targetKey(report.targetType, report.targetId)
         const target = targets[key]
         if (!target?.exists) {
@@ -279,6 +299,8 @@ export default function AdminReportsPage({ t }: Props) {
     }
 
     async function restoreTarget(report: Report) {
+        if (!isContentReport(report)) return
+
         const key = targetKey(report.targetType, report.targetId)
         const target = targets[key]
         if (!target?.exists) {
@@ -333,7 +355,8 @@ export default function AdminReportsPage({ t }: Props) {
                     const target = targets[key]
                     const reporter = reporters[r.reporterId]
                     const targetMissing = target && !target.exists
-                    const isNewReport = r.status === 'new'
+                    const isNewReport = r.status === 'new' || r.status === 'pending'
+                    const isChatReport = r.targetType === 'chat_message'
 
                     return (
                         <div
@@ -353,30 +376,41 @@ export default function AdminReportsPage({ t }: Props) {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                     {isNewReport && (
                                         <span className='ad-badge' style={{ background: '#f59e0b', color: '#111827' }}>
-                                            {text.status.new}
+                                            {text.status[r.status] ?? text.status.new}
                                         </span>
                                     )}
                                     <div style={{ color: '#6b7280', fontSize: 13 }}>{r.id}</div>
                                 </div>
                             </div>
 
-                            <div className='stack8' style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>
-                                <div><b>{text.target.title}</b></div>
-                                <div>{text.target.type}: <b>{r.targetType}</b></div>
-                                <div>{text.target.id}: {r.targetId || text.unknown}</div>
-                                {targetMissing ? (
-                                    <div style={{ color: target.loadError ? '#b45309' : '#b91c1c' }}>
-                                        {target.loadError ? text.target.loadError : text.target.notFound}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div>{text.target.titleField}: {target?.title ?? text.unknown}</div>
-                                        <div>{text.target.owner}: {target?.ownerId ?? text.unknown}</div>
-                                        <div>{text.target.status}: {target?.status ?? text.unknown}</div>
-                                        {target?.url && <Link to={target.url}>{text.target.open}</Link>}
-                                    </>
-                                )}
-                            </div>
+                            {isChatReport ? (
+                                <div className='stack8' style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>
+                                    <div><b>{text.chatReport.title}</b></div>
+                                    <div>{text.target.type}: <b>{text.targetLabels.chat_message}</b></div>
+                                    <div>{text.chatReport.chatId}: <code>{r.chatId ?? text.unknown}</code></div>
+                                    <div>{text.chatReport.messageId}: <code>{r.messageId ?? r.targetId ?? text.unknown}</code></div>
+                                    <div>{text.chatReport.sender}: {r.senderName || r.senderId || text.unknown}</div>
+                                    <div>{text.chatReport.text}: {r.messageText || r.description || text.unknown}</div>
+                                </div>
+                            ) : (
+                                <div className='stack8' style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>
+                                    <div><b>{text.target.title}</b></div>
+                                    <div>{text.target.type}: <b>{r.targetType}</b></div>
+                                    <div>{text.target.id}: {r.targetId || text.unknown}</div>
+                                    {targetMissing ? (
+                                        <div style={{ color: target.loadError ? '#b45309' : '#b91c1c' }}>
+                                            {target.loadError ? text.target.loadError : text.target.notFound}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div>{text.target.titleField}: {target?.title ?? text.unknown}</div>
+                                            <div>{text.target.owner}: {target?.ownerId ?? text.unknown}</div>
+                                            <div>{text.target.status}: {target?.status ?? text.unknown}</div>
+                                            {target?.url && <Link to={target.url}>{text.target.open}</Link>}
+                                        </>
+                                    )}
+                                </div>
+                            )}
 
                             <div className='stack8' style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>
                                 <div><b>{text.reporter.title}</b></div>
@@ -410,14 +444,16 @@ export default function AdminReportsPage({ t }: Props) {
                                 <button className='btn-danger' onClick={() => setStatus(r.id, 'rejected')}>
                                     {text.actions.reject}
                                 </button>
-                                {target?.exists && target.status === 'hidden' ? (
-                                    <button className='btn-secondary' onClick={() => restoreTarget(r)}>
-                                        {text.target.restore}
-                                    </button>
-                                ) : (
-                                    <button className='btn-danger' onClick={() => setTargetHidden(r)} disabled={!target?.exists}>
-                                        {text.target.hide}
-                                    </button>
+                                {isContentReport(r) && (
+                                    target?.exists && target.status === 'hidden' ? (
+                                        <button className='btn-secondary' onClick={() => restoreTarget(r)}>
+                                            {text.target.restore}
+                                        </button>
+                                    ) : (
+                                        <button className='btn-danger' onClick={() => setTargetHidden(r)} disabled={!target?.exists}>
+                                            {text.target.hide}
+                                        </button>
+                                    )
                                 )}
                             </div>
                         </div>

@@ -17,6 +17,21 @@ service cloud.firestore {
       return signedIn() && (idValue == authUid() || idValue == authEmail());
     }
 
+    function userDocPath() {
+      return /databases/$(database)/documents/users/$(authEmail());
+    }
+
+    function isBlockedUser() {
+      return signedIn() &&
+             authEmail() != null &&
+             exists(userDocPath()) &&
+             get(userDocPath()).data.status == 'blocked';
+    }
+
+    function canUseAccount() {
+      return signedIn() && !isBlockedUser();
+    }
+
 function isAdmin() {
 return signedIn() && authEmail() in [
   'ozenenesis56@gmail.com',
@@ -73,7 +88,8 @@ return signedIn() && authEmail() in [
     }
 
     function isValidAuctionBidUpdate() {
-      return resource.data.status == 'active' &&
+      return canUseAccount() &&
+             resource.data.status == 'active' &&
              resource.data.endsAt is number &&
              resource.data.endsAt > request.time.toMillis() &&
              request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -144,16 +160,26 @@ return signedIn() && authEmail() in [
        // Нужен публичный read для проверки занятых никнеймов при регистрации
             // и отображения никнеймов в чатах/карточках.
             allow read: if true;
-            allow create, update, delete: if isSelf(userId);
+            allow create: if isSelf(userId);
+            allow update: if isAdmin() || (
+              isSelf(userId) &&
+              !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                'status',
+                'blockedAt',
+                'blockedReason',
+                'blockedBy'
+              ])
+            );
+            allow delete: if isAdmin();
     }
 
     match /ads/{adId} {
       allow read: if true;
-      allow create: if signedIn() &&
+      allow create: if canUseAccount() &&
         isSelf(request.resource.data.userId) &&
         !hasProtectedAdCreateFields();
-      allow update: if signedIn() && (
-        (isSelf(resource.data.userId) && (!isProtectedAdFieldChanged() || isUserSoftDeletingAd())) ||
+      allow update: if (
+        (canUseAccount() && isSelf(resource.data.userId) && (!isProtectedAdFieldChanged() || isUserSoftDeletingAd())) ||
         isAdmin()
       );
       allow delete: if false;
@@ -161,11 +187,11 @@ return signedIn() && authEmail() in [
 
     match /auctions/{auctionId} {
       allow read: if true;
-      allow create: if signedIn() &&
+      allow create: if canUseAccount() &&
         isSelf(request.resource.data.ownerId) &&
         !hasPaidAuctionCreateFields();
-      allow update: if signedIn() && (
-        (isSelf(resource.data.ownerId) && (!isProtectedAuctionFieldChanged() || isUserSoftDeletingAuction())) ||
+      allow update: if (
+        (canUseAccount() && isSelf(resource.data.ownerId) && (!isProtectedAuctionFieldChanged() || isUserSoftDeletingAuction())) ||
         isValidAuctionBidUpdate() ||
         isAdmin()
       );
@@ -174,20 +200,27 @@ return signedIn() && authEmail() in [
 
     match /auctionBids/{auctionId}/bids/{bidId} {
       allow read: if true;
-      allow create: if signedIn() && isValidAuctionBidCreate(auctionId);
+      allow create: if canUseAccount() && isValidAuctionBidCreate(auctionId);
       allow update, delete: if false;
     }
 
     match /chats/{chatId} {
-      allow read, update: if signedIn() && (
+      allow read: if isAdmin() || (signedIn() && (
+        authUid() in resource.data.users || authEmail() in resource.data.users
+      ));
+      allow update: if canUseAccount() && (
         authUid() in resource.data.users || authEmail() in resource.data.users
       );
-      allow create: if signedIn() && (
+      allow create: if canUseAccount() && (
         authUid() in request.resource.data.users || authEmail() in request.resource.data.users
       );
 
       match /messages/{messageId} {
-        allow read, create: if signedIn() && (
+        allow read: if signedIn() && (
+          authUid() in get(/databases/$(database)/documents/chats/$(chatId)).data.users ||
+          authEmail() in get(/databases/$(database)/documents/chats/$(chatId)).data.users
+        );
+        allow create: if canUseAccount() && (
           authUid() in get(/databases/$(database)/documents/chats/$(chatId)).data.users ||
           authEmail() in get(/databases/$(database)/documents/chats/$(chatId)).data.users
         );
@@ -195,30 +228,73 @@ return signedIn() && authEmail() in [
       }
     }
 
-match /reports/{reportId} {
-allow create: if signedIn() &&
-  request.resource.data.keys().hasOnly([
-    'targetType',
-    'targetId',
-    'reporterId',
-    'reason',
-    'description',
-    'status',
-    'createdAt',
-    'reviewedAt',
-    'reviewedBy'
-  ]) &&
-  request.resource.data.targetType in ['ad', 'auction'] &&
-  request.resource.data.targetId is string &&
-  request.resource.data.reporterId == authUid() &&
-  request.resource.data.reason is string &&
-  request.resource.data.description is string &&
-  request.resource.data.status == 'new' &&
-  request.resource.data.createdAt is number &&
-  request.resource.data.reviewedAt == null &&
-  request.resource.data.reviewedBy == null;
-allow read, update, delete: if isAdmin();
-}
+    function isValidContentReportCreate() {
+      return request.resource.data.keys().hasOnly([
+        'targetType',
+        'targetId',
+        'reporterId',
+        'reason',
+        'description',
+        'status',
+        'createdAt',
+        'reviewedAt',
+        'reviewedBy'
+      ]) &&
+      request.resource.data.targetType in ['ad', 'auction'] &&
+      request.resource.data.targetId is string &&
+      request.resource.data.reporterId == authUid() &&
+      request.resource.data.reason is string &&
+      request.resource.data.description is string &&
+      request.resource.data.status == 'new' &&
+      request.resource.data.createdAt is number &&
+      request.resource.data.reviewedAt == null &&
+      request.resource.data.reviewedBy == null;
+    }
+
+    function isValidChatMessageReportCreate(reportId) {
+      let chatPath = /databases/$(database)/documents/chats/$(request.resource.data.chatId);
+      let messagePath = /databases/$(database)/documents/chats/$(request.resource.data.chatId)/messages/$(request.resource.data.messageId);
+      return request.resource.data.keys().hasOnly([
+        'type',
+        'chatId',
+        'messageId',
+        'senderId',
+        'senderName',
+        'reportedBy',
+        'reportedByName',
+        'messageText',
+        'createdAt',
+        'status'
+      ]) &&
+      request.resource.data.type == 'chat_message' &&
+      request.resource.data.chatId is string &&
+      request.resource.data.messageId is string &&
+      request.resource.data.senderId is string &&
+      request.resource.data.reportedBy == authUid() &&
+      request.resource.data.senderId != authUid() &&
+      request.resource.data.senderId != authEmail() &&
+      request.resource.data.senderName is string &&
+      request.resource.data.reportedByName is string &&
+      request.resource.data.messageText is string &&
+      request.resource.data.messageText.size() > 0 &&
+      request.resource.data.messageText.size() <= 5000 &&
+      request.resource.data.createdAt is number &&
+      request.resource.data.status == 'pending' &&
+      reportId == 'chat_message_' + request.resource.data.chatId + '_' + request.resource.data.messageId + '_' + authUid() &&
+      exists(chatPath) &&
+      exists(messagePath) &&
+      (authUid() in get(chatPath).data.users || authEmail() in get(chatPath).data.users) &&
+      get(messagePath).data.senderId == request.resource.data.senderId &&
+      get(messagePath).data.senderType == 'user';
+    }
+
+    match /reports/{reportId} {
+      allow create: if signedIn() && (
+        isValidContentReportCreate() ||
+        isValidChatMessageReportCreate(reportId)
+      );
+      allow read, update, delete: if isAdmin();
+    }
 match /userReviews/{reviewId} {
 allow read: if true;
 allow create: if signedIn() &&

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { addDoc, collection } from 'firebase/firestore'
 import { placeBid } from '../data/placeBid'
+import { isAccountRestrictedError } from '../data/users'
 import { useNavigate } from 'react-router-dom'
 import AuthorCard from "../components/AuthorCard"
 import type { translations } from "../app/i18n"
@@ -180,7 +181,9 @@ function AuctionDetails({
             onBidSuccess()
 
         } catch (e) {
-            if (e instanceof Error) {
+            if (isAccountRestrictedError(e)) {
+                setError(t.common.accountRestricted)
+            } else if (e instanceof Error) {
                 setError(e.message)
             } else {
                 setError(t.auctionDetails.errors.bidFailed)

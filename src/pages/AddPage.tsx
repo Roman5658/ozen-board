@@ -18,6 +18,7 @@ import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
+import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
@@ -260,6 +261,13 @@ function AddPage({ t }: Props) {
 
         const DAY_MS = 24 * 60 * 60 * 1000
         const since = Date.now() - DAY_MS
+
+        try {
+            await assertUserNotBlocked(userId)
+        } catch (error) {
+            setError(isAccountRestrictedError(error) ? t.common.accountRestricted : a.errors.createFailed)
+            return
+        }
 
 // лимит объявлений
         const MAX_ADS_PER_USER = 10

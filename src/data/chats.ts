@@ -18,6 +18,7 @@ import {
     type QueryDocumentSnapshot,
     type Unsubscribe,
 } from "firebase/firestore"
+import { assertUserNotBlocked } from "./users"
 
 export type ChatItem = {
     id: string
@@ -197,6 +198,7 @@ export async function sendMessage(
 ) {
     const clean = text.trim()
     if (!clean) return
+    await assertUserNotBlocked(senderId)
 
     await addDoc(collection(db, "chats", chatId, "messages"), {
         senderId,

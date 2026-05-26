@@ -4,6 +4,7 @@ import {
     collection,
 } from "firebase/firestore"
 import { db } from "../app/firebase"
+import { assertUserNotBlocked } from "./users"
 
 type PlaceBidParams = {
     auctionId: string
@@ -18,6 +19,8 @@ export async function placeBid({
                                    userName,
                                    amount,
                                }: PlaceBidParams) {
+    await assertUserNotBlocked(userId)
+
     const auctionRef = doc(db, "auctions", auctionId)
     const bidsRef = collection(db, "auctionBids", auctionId, "bids")
 

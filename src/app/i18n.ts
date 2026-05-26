@@ -1,5 +1,44 @@
 export const translations = {
     uk: {
+        adminUsers: {
+            title: 'Історія користувача',
+            subtitle: 'Короткий огляд для модерації без повного перегляду приватних чатів.',
+            selectUser: 'Оберіть користувача',
+            searchPlaceholder: 'Пошук за email або nickname',
+            minSearchHint: 'Введіть мінімум 2 символи',
+            loading: 'Завантаження...',
+            empty: 'Користувачів немає',
+            loadError: 'Не вдалося завантажити історію користувача',
+            basicInfo: 'Основні дані',
+            userId: 'User ID / email',
+            uid: 'UID',
+            email: 'Email',
+            nickname: 'Нікнейм',
+            createdAt: 'Створено',
+            updatedAt: 'Оновлено',
+            status: 'Статус',
+            statusActive: 'active',
+            statusBlocked: 'blocked',
+            blockedBadge: 'BLOCKED',
+            blockedAt: 'Заблоковано',
+            blockedReason: 'Причина блокування',
+            blockedBy: 'Заблокував',
+            blockUser: 'Заблокувати користувача',
+            blockReasonPrompt: 'Вкажіть причину блокування користувача',
+            blockReasonRequired: 'Потрібно вказати причину блокування',
+            blockedAlert: 'Користувача заблоковано',
+            adsTitle: 'Оголошення користувача',
+            auctionsTitle: 'Аукціони користувача',
+            reportsTitle: 'Скарги',
+            chatsTitle: 'Чати',
+            currentBid: 'Поточна ставка',
+            reportsCreated: 'створені користувачем',
+            reportsAboutUser: 'на користувача або його об’єкти',
+            chatCount: 'Кількість чатів',
+            participants: 'Учасники',
+            open: 'Відкрити',
+            noItems: 'Немає даних',
+        },
         title: 'Xoven',
         subtitle: 'Локальна дошка оголошень',
         warning: 'Будьте обережні під час онлайн-угод. Xoven не займається доставкою і не є гарантом оплати.',
@@ -11,6 +50,14 @@ export const translations = {
         },
         chatIndicator: {
             label: 'Нові повідомлення',
+        },
+        chatReport: {
+            report: 'Поскаржитися',
+            confirm: 'Поскаржитися на це повідомлення?',
+            sent: 'Скаргу надіслано',
+            duplicate: 'Ви вже поскаржилися на це повідомлення',
+            error: 'Не вдалося надіслати скаргу',
+            authRequired: 'Щоб поскаржитися, увійдіть в акаунт',
         },
 
         homeTitle: 'Оголошення',
@@ -398,6 +445,7 @@ export const translations = {
             },
             status: {
                 new: 'Нова',
+                pending: 'Очікує',
                 reviewed: 'Переглянута',
                 resolved: 'Вирішена',
                 rejected: 'Відхилена',
@@ -423,6 +471,14 @@ export const translations = {
             targetLabels: {
                 ad: 'оголошення',
                 auction: 'аукціон',
+                chat_message: 'повідомлення в чаті',
+            },
+            chatReport: {
+                title: 'Скарга на повідомлення',
+                chatId: 'Chat ID',
+                messageId: 'Message ID',
+                sender: 'Відправник',
+                text: 'Текст повідомлення',
             },
             ownerMessages: {
                 hidden: 'Ваше {targetType} "{title}" приховано модерацією. Причина: {reason}. Якщо ви не згодні, зверніться до підтримки.',
@@ -902,6 +958,7 @@ export const translations = {
 
         common: {
             user: "Користувач",
+            accountRestricted: "Акаунт обмежено",
             chatSafetyNotice: "Будьте обережні під час онлайн-угод. Xoven не займається доставкою, не є гарантом оплати і не просить дані картки, CVV або банківські коди в чаті.",
         },
 
@@ -935,6 +992,45 @@ export const translations = {
     },
 
     pl: {
+        adminUsers: {
+            title: 'Historia użytkownika',
+            subtitle: 'Krótki widok moderacyjny bez pełnego podglądu prywatnych czatów.',
+            selectUser: 'Wybierz użytkownika',
+            searchPlaceholder: 'Szukaj po emailu lub nicku',
+            minSearchHint: 'Wpisz minimum 2 znaki',
+            loading: 'Ładowanie...',
+            empty: 'Brak użytkowników',
+            loadError: 'Nie udało się załadować historii użytkownika',
+            basicInfo: 'Podstawowe dane',
+            userId: 'User ID / email',
+            uid: 'UID',
+            email: 'Email',
+            nickname: 'Nick',
+            createdAt: 'Utworzono',
+            updatedAt: 'Zaktualizowano',
+            status: 'Status',
+            statusActive: 'active',
+            statusBlocked: 'blocked',
+            blockedBadge: 'BLOCKED',
+            blockedAt: 'Zablokowano',
+            blockedReason: 'Powód blokady',
+            blockedBy: 'Zablokował',
+            blockUser: 'Zablokuj użytkownika',
+            blockReasonPrompt: 'Podaj powód blokady użytkownika',
+            blockReasonRequired: 'Podaj powód blokady',
+            blockedAlert: 'Użytkownik został zablokowany',
+            adsTitle: 'Ogłoszenia użytkownika',
+            auctionsTitle: 'Aukcje użytkownika',
+            reportsTitle: 'Zgłoszenia',
+            chatsTitle: 'Czaty',
+            currentBid: 'Aktualna oferta',
+            reportsCreated: 'utworzone przez użytkownika',
+            reportsAboutUser: 'na użytkownika lub jego obiekty',
+            chatCount: 'Liczba czatów',
+            participants: 'Uczestnicy',
+            open: 'Otwórz',
+            noItems: 'Brak danych',
+        },
         title: 'Xoven',
         subtitle: 'Lokalna tablica ogłoszeń',
         warning: 'Zachowaj ostrożność podczas transakcji online. Xoven nie obsługuje dostawy i nie jest gwarantem płatności.',
@@ -946,6 +1042,14 @@ export const translations = {
         },
         chatIndicator: {
             label: 'Nowe wiadomości',
+        },
+        chatReport: {
+            report: 'Zgłoś',
+            confirm: 'Zgłosić tę wiadomość?',
+            sent: 'Zgłoszenie zostało wysłane',
+            duplicate: 'Już zgłosiłeś tę wiadomość',
+            error: 'Nie udało się wysłać zgłoszenia',
+            authRequired: 'Aby zgłosić wiadomość, zaloguj się na konto',
         },
 
         homeTitle: 'Ogłoszenia',
@@ -1330,6 +1434,7 @@ export const translations = {
             },
             status: {
                 new: 'Nowe',
+                pending: 'Oczekuje',
                 reviewed: 'Sprawdzone',
                 resolved: 'Rozwiązane',
                 rejected: 'Odrzucone',
@@ -1355,6 +1460,14 @@ export const translations = {
             targetLabels: {
                 ad: 'ogłoszenie',
                 auction: 'aukcja',
+                chat_message: 'wiadomość w czacie',
+            },
+            chatReport: {
+                title: 'Zgłoszenie wiadomości',
+                chatId: 'Chat ID',
+                messageId: 'Message ID',
+                sender: 'Nadawca',
+                text: 'Treść wiadomości',
             },
             ownerMessages: {
                 hidden: 'Twoje {targetType} "{title}" zostało ukryte przez moderację. Powód: {reason}. Jeśli się nie zgadzasz, skontaktuj się z pomocą.',
@@ -1833,6 +1946,7 @@ export const translations = {
 
         common: {
             user: "Użytkownik",
+            accountRestricted: "Konto zostało ograniczone",
             chatSafetyNotice: "Zachowaj ostrożność podczas transakcji online. Xoven nie obsługuje dostawy, nie jest gwarantem płatności i nie prosi o dane karty, CVV ani kody bankowe w czacie.",
         },
 
