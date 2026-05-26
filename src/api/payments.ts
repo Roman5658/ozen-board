@@ -14,5 +14,8 @@ export const verifyPayPalPayment = httpsCallable<
         ok: boolean;
         promotionUntil: number | null;
         queued: boolean;
+        paypalDebugId?: string | null;
+        paypalOrderDebugId?: string | null;
+        paypalCaptureDebugId?: string | null;
     }
 >(functions, "verifyPayPalPayment");
