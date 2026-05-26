@@ -7,7 +7,7 @@ import CityByVoivodeshipFilter from '../components/CityByVoivodeshipFilter'
 import { Link, useLocation } from 'react-router-dom'
 import { getLocalUser } from '../data/localUser'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { buildAdPath } from '../utils/slug'
@@ -212,6 +212,7 @@ function HomePage({ t }: Props) {
     const [page, setPage] = useState(1)
     const [isSeoTextVisible, setIsSeoTextVisible] = useState(false)
     const [now, setNow] = useState(() => Date.now())
+    const adsListStartRef = useRef<HTMLDivElement | null>(null)
     const rotationBucket = useMemo(() => Math.floor(now / ONE_HOUR), [now])
     const localUser = getLocalUser()
     const currentUserId = localUser?.id
@@ -343,10 +344,10 @@ function HomePage({ t }: Props) {
 
     function scrollToPageTop() {
         const scroll = () => {
-            const options: ScrollToOptions = { top: 0, behavior: 'smooth' }
-            window.scrollTo(options)
-            document.scrollingElement?.scrollTo(options)
-            document.querySelector<HTMLElement>('.app-main')?.scrollTo(options)
+            adsListStartRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            })
         }
 
         window.requestAnimationFrame(() => {
@@ -357,8 +358,11 @@ function HomePage({ t }: Props) {
 
     function goToPage(nextPage: number) {
         const safePage = Math.min(Math.max(nextPage, 1), totalPages || 1)
+        const shouldScrollToListStart = safePage > page
         setPage(safePage)
-        scrollToPageTop()
+        if (shouldScrollToListStart) {
+            scrollToPageTop()
+        }
     }
 
     return (
@@ -443,6 +447,8 @@ function HomePage({ t }: Props) {
                     t={t}
                 />
             </div>
+
+            <div ref={adsListStartRef} />
 
             <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
 
