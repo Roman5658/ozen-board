@@ -516,6 +516,7 @@ export const translations = {
             empty: 'Скарг поки немає',
             unknown: 'невідомо',
             locale: 'uk-UA',
+            searchPlaceholder: 'Пошук скарг',
             tabs: {
                 reports: 'Скарги',
                 reviews: 'Відгуки',
@@ -1611,6 +1612,7 @@ export const translations = {
             empty: 'Brak zgłoszeń',
             unknown: 'nieznane',
             locale: 'pl-PL',
+            searchPlaceholder: 'Szukaj zgłoszeń',
             tabs: {
                 reports: 'Zgłoszenia',
                 reviews: 'Opinie',

@@ -6,8 +6,10 @@ import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import { getLocalUser } from "../data/localUser"
 import { buildAdPath } from "../utils/slug"
+import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
 const ADMIN_READ_ADS_KEY = "xoven_admin_read_ads_v1"
+const PAGE_SIZE = 30
 
 function formatDate(ts?: number) {
     if (!ts) return "—"
@@ -36,20 +38,60 @@ function getSearchableText(ad: Ad) {
 
 function AdminAdsListPage() {
     const lang = localStorage.getItem("lang") === "pl" ? "pl" : "uk"
+    const paginationLabels = getAdminPaginationLabels(lang)
     const text = lang === "pl"
         ? {
             searchPlaceholder: "Szukaj ogłoszeń",
             noResults: "Nie znaleziono ogłoszeń",
             open: "Otwórz",
+            filters: {
+                city: "Miasto",
+                allCities: "Wszystkie miasta",
+                voivodeship: "Województwo",
+                allVoivodeships: "Wszystkie województwa",
+                category: "Kategoria",
+                allCategories: "Wszystkie kategorie",
+                status: "Status",
+                allStatuses: "Wszystkie statusy",
+            },
+            categories: {
+                work: "Praca",
+                sell: "Sprzedam",
+                buy: "Kupię",
+                service: "Usługi",
+                rent: "Wynajem",
+            } as Record<string, string>,
         }
         : {
             searchPlaceholder: "Пошук оголошень",
             noResults: "Оголошень не знайдено",
             open: "Відкрити",
+            filters: {
+                city: "Місто",
+                allCities: "Усі міста",
+                voivodeship: "Воєводство",
+                allVoivodeships: "Усі воєводства",
+                category: "Категорія",
+                allCategories: "Усі категорії",
+                status: "Статус",
+                allStatuses: "Усі статуси",
+            },
+            categories: {
+                work: "Робота",
+                sell: "Продам",
+                buy: "Куплю",
+                service: "Послуги",
+                rent: "Оренда",
+            } as Record<string, string>,
         }
     const [ads, setAds] = useState<Ad[]>([])
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
+    const [cityFilter, setCityFilter] = useState("all")
+    const [voivodeshipFilter, setVoivodeshipFilter] = useState("all")
+    const [categoryFilter, setCategoryFilter] = useState("all")
+    const [statusFilter, setStatusFilter] = useState("all")
+    const [page, setPage] = useState(1)
     const [now, setNow] = useState(() => Date.now())
     const [readAdIds, setReadAdIds] = useState<string[]>(() => {
         try {
@@ -97,9 +139,34 @@ function AdminAdsListPage() {
         saveReadAdIds(Array.from(new Set([...readAdIds, ...ads.map(ad => ad.id)])))
     }
 
+    const cityOptions = useMemo(
+        () => Array.from(new Set(ads.map(ad => ad.city).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [ads]
+    )
+
+    const voivodeshipOptions = useMemo(
+        () => Array.from(new Set(ads.map(ad => ad.voivodeship).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [ads]
+    )
+
+    const categoryOptions = useMemo(
+        () => Array.from(new Set(ads.map(ad => ad.category).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [ads]
+    )
+
+    const statusOptions = useMemo(
+        () => Array.from(new Set(ads.map(ad => ad.status ?? "active").filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [ads]
+    )
+
     const filteredAds = useMemo(() => {
         const q = search.trim().toLowerCase()
-        const base = q ? ads.filter(ad => getSearchableText(ad).includes(q)) : ads
+        const base = ads
+            .filter(ad => cityFilter === "all" || ad.city === cityFilter)
+            .filter(ad => voivodeshipFilter === "all" || ad.voivodeship === voivodeshipFilter)
+            .filter(ad => categoryFilter === "all" || ad.category === categoryFilter)
+            .filter(ad => statusFilter === "all" || (ad.status ?? "active") === statusFilter)
+            .filter(ad => !q || getSearchableText(ad).includes(q))
         const readIds = new Set(readAdIds)
 
         return [...base].sort((a, b) => {
@@ -109,7 +176,16 @@ function AdminAdsListPage() {
             if (!aNew && bNew) return 1
             return (b.createdAt ?? 0) - (a.createdAt ?? 0)
         })
-    }, [ads, readAdIds, search])
+    }, [ads, categoryFilter, cityFilter, readAdIds, search, statusFilter, voivodeshipFilter])
+
+    const pagedAds = useMemo(
+        () => paginateItems(filteredAds, page, PAGE_SIZE),
+        [filteredAds, page]
+    )
+
+    useEffect(() => {
+        setPage(1)
+    }, [categoryFilter, cityFilter, search, statusFilter, voivodeshipFilter])
 
     // ✅ ВАЖНО: функция ВНУТРИ компонента
     async function removeAllAds() {
@@ -175,13 +251,51 @@ function AdminAdsListPage() {
             )}
 
             {ads.length > 0 && (
-                <input
-                    className="input"
-                    value={search}
-                    onChange={event => setSearch(event.target.value)}
-                    placeholder={text.searchPlaceholder}
-                    style={{ maxWidth: 520 }}
-                />
+                <div className="card" style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
+                    <label className="stack8">
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{text.filters.city}</span>
+                        <select className="select" value={cityFilter} onChange={event => setCityFilter(event.target.value)}>
+                            <option value="all">{text.filters.allCities}</option>
+                            {cityOptions.map(city => <option key={city} value={city}>{city}</option>)}
+                        </select>
+                    </label>
+
+                    <label className="stack8">
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{text.filters.voivodeship}</span>
+                        <select className="select" value={voivodeshipFilter} onChange={event => setVoivodeshipFilter(event.target.value)}>
+                            <option value="all">{text.filters.allVoivodeships}</option>
+                            {voivodeshipOptions.map(voivodeship => <option key={voivodeship} value={voivodeship}>{voivodeship}</option>)}
+                        </select>
+                    </label>
+
+                    <label className="stack8">
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{text.filters.category}</span>
+                        <select className="select" value={categoryFilter} onChange={event => setCategoryFilter(event.target.value)}>
+                            <option value="all">{text.filters.allCategories}</option>
+                            {categoryOptions.map(category => (
+                                <option key={category} value={category}>{text.categories[category] ?? category}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="stack8">
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{text.filters.status}</span>
+                        <select className="select" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+                            <option value="all">{text.filters.allStatuses}</option>
+                            {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
+                        </select>
+                    </label>
+
+                    <label className="stack8">
+                        <span style={{ fontSize: 12, color: "#6b7280" }}>{text.searchPlaceholder}</span>
+                        <input
+                            className="input"
+                            value={search}
+                            onChange={event => setSearch(event.target.value)}
+                            placeholder={text.searchPlaceholder}
+                        />
+                    </label>
+                </div>
             )}
 
             {ads.length === 0 && (
@@ -192,7 +306,17 @@ function AdminAdsListPage() {
                 <div className="card">{text.noResults}</div>
             )}
 
-            {filteredAds.map(ad => {
+            {ads.length > 0 && filteredAds.length > 0 && (
+                <AdminPagination
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    totalItems={filteredAds.length}
+                    labels={paginationLabels}
+                    onPageChange={setPage}
+                />
+            )}
+
+            {pagedAds.map(ad => {
                 const inTop = ad.pinnedUntil && ad.pinnedUntil > now
                 const inQueue = !inTop && ad.pinQueueAt
                 const isNew = !isAdRead(ad.id)
@@ -276,6 +400,16 @@ function AdminAdsListPage() {
                     </div>
                 )
             })}
+
+            {ads.length > 0 && filteredAds.length > PAGE_SIZE && (
+                <AdminPagination
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    totalItems={filteredAds.length}
+                    labels={paginationLabels}
+                    onPageChange={setPage}
+                />
+            )}
         </div>
     )
 }

@@ -4,6 +4,7 @@ import { collection, doc, getDocs, query, updateDoc, where } from "firebase/fire
 import { db } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { buildAdPath, buildAuctionPath } from "../utils/slug"
+import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
 import type { translations } from "../app/i18n"
 import type { Ad } from "../types/ad"
@@ -15,6 +16,8 @@ type AppTranslations = (typeof translations)[keyof typeof translations]
 type Props = {
     t: AppTranslations
 }
+
+const HISTORY_PAGE_SIZE = 10
 
 type AdminUser = {
     id: string
@@ -161,9 +164,14 @@ function countLine(counts: Record<string, number>, statuses: string[]): string {
 export default function AdminUsersPage({ t }: Props) {
     const text = t.adminUsers
     const locale = t.adminReports.locale
+    const paginationLabels = getAdminPaginationLabels(locale === "pl-PL" ? "pl" : "uk")
     const [users, setUsers] = useState<AdminUser[]>([])
     const [selectedUserId, setSelectedUserId] = useState("")
     const [search, setSearch] = useState("")
+    const [adsPage, setAdsPage] = useState(1)
+    const [auctionsPage, setAuctionsPage] = useState(1)
+    const [reportsPage, setReportsPage] = useState(1)
+    const [chatsPage, setChatsPage] = useState(1)
     const [history, setHistory] = useState<UserHistory | null>(null)
     const [loading, setLoading] = useState(true)
     const [historyLoading, setHistoryLoading] = useState(false)
@@ -216,7 +224,7 @@ export default function AdminUsersPage({ t }: Props) {
         [selectedUserId, users]
     )
 
-    const searchResults = useMemo(() => {
+    const matchingUsers = useMemo(() => {
         const q = search.trim().toLowerCase()
         if (q.length < 2) return []
 
@@ -229,8 +237,13 @@ export default function AdminUsersPage({ t }: Props) {
             ].filter(Boolean).join(" ").toLowerCase()
 
             return haystack.includes(q)
-        }).slice(0, 20)
+        })
     }, [search, users])
+
+    const searchResults = useMemo(
+        () => matchingUsers.slice(0, 20),
+        [matchingUsers]
+    )
 
     useEffect(() => {
         if (!selectedUser) {
@@ -295,6 +308,40 @@ export default function AdminUsersPage({ t }: Props) {
 
     const adCounts = useMemo(() => statusCounts(history?.ads ?? []), [history?.ads])
     const auctionCounts = useMemo(() => statusCounts(history?.auctions ?? []), [history?.auctions])
+    const combinedReports = useMemo(() => {
+        const byId = new Map<string, Report>()
+        ;[...(history?.reportsAboutUser ?? []), ...(history?.reportsCreated ?? [])].forEach(report => {
+            byId.set(report.id, report)
+        })
+        return sortByCreatedAt(Array.from(byId.values()))
+    }, [history?.reportsAboutUser, history?.reportsCreated])
+
+    const pagedHistoryAds = useMemo(
+        () => paginateItems(history?.ads ?? [], adsPage, HISTORY_PAGE_SIZE),
+        [adsPage, history?.ads]
+    )
+
+    const pagedHistoryAuctions = useMemo(
+        () => paginateItems(history?.auctions ?? [], auctionsPage, HISTORY_PAGE_SIZE),
+        [auctionsPage, history?.auctions]
+    )
+
+    const pagedHistoryReports = useMemo(
+        () => paginateItems(combinedReports, reportsPage, HISTORY_PAGE_SIZE),
+        [combinedReports, reportsPage]
+    )
+
+    const pagedHistoryChats = useMemo(
+        () => paginateItems(history?.chats ?? [], chatsPage, HISTORY_PAGE_SIZE),
+        [chatsPage, history?.chats]
+    )
+
+    useEffect(() => {
+        setAdsPage(1)
+        setAuctionsPage(1)
+        setReportsPage(1)
+        setChatsPage(1)
+    }, [selectedUserId])
 
     async function blockUser() {
         if (!selectedUser || selectedUser.status === "blocked") return
@@ -390,6 +437,9 @@ export default function AdminUsersPage({ t }: Props) {
                 </label>
                 {search.trim().length > 0 && search.trim().length < 2 && (
                     <p style={{ color: "#64748b" }}>{text.minSearchHint}</p>
+                )}
+                {search.trim().length >= 2 && (
+                    <p style={{ color: "#64748b" }}>{paginationLabels.count(matchingUsers.length)}</p>
                 )}
                 {searchResults.length > 0 && (
                     <div style={{ display: "grid", gap: 6, marginTop: 10, maxWidth: 620 }}>
@@ -507,7 +557,16 @@ export default function AdminUsersPage({ t }: Props) {
                         <h2 style={{ marginTop: 0 }}>{text.adsTitle}</h2>
                         <p style={{ color: "#475569" }}>{countLine(adCounts, ["active", "hidden", "deleted", "removed", "expired"])}</p>
                         <div style={{ display: "grid", gap: 8 }}>
-                            {history.ads.slice(0, 10).map((ad) => (
+                            {history.ads.length > 0 && (
+                                <AdminPagination
+                                    page={adsPage}
+                                    pageSize={HISTORY_PAGE_SIZE}
+                                    totalItems={history.ads.length}
+                                    labels={paginationLabels}
+                                    onPageChange={setAdsPage}
+                                />
+                            )}
+                            {pagedHistoryAds.map((ad) => (
                                 <div key={ad.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
                                     <div>
                                         <b>{ad.title}</b>
@@ -526,7 +585,16 @@ export default function AdminUsersPage({ t }: Props) {
                         <h2 style={{ marginTop: 0 }}>{text.auctionsTitle}</h2>
                         <p style={{ color: "#475569" }}>{countLine(auctionCounts, ["active", "ended", "deleted", "removed", "expired"])}</p>
                         <div style={{ display: "grid", gap: 8 }}>
-                            {history.auctions.slice(0, 10).map((auction) => (
+                            {history.auctions.length > 0 && (
+                                <AdminPagination
+                                    page={auctionsPage}
+                                    pageSize={HISTORY_PAGE_SIZE}
+                                    totalItems={history.auctions.length}
+                                    labels={paginationLabels}
+                                    onPageChange={setAuctionsPage}
+                                />
+                            )}
+                            {pagedHistoryAuctions.map((auction) => (
                                 <div key={auction.id} style={{ display: "flex", justifyContent: "space-between", gap: 12, borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
                                     <div>
                                         <b>{auction.title}</b>
@@ -547,7 +615,16 @@ export default function AdminUsersPage({ t }: Props) {
                             {text.reportsCreated}: {history.reportsCreated.length} · {text.reportsAboutUser}: {history.reportsAboutUser.length}
                         </p>
                         <div style={{ display: "grid", gap: 8 }}>
-                            {[...history.reportsAboutUser, ...history.reportsCreated].slice(0, 10).map((report) => (
+                            {combinedReports.length > 0 && (
+                                <AdminPagination
+                                    page={reportsPage}
+                                    pageSize={HISTORY_PAGE_SIZE}
+                                    totalItems={combinedReports.length}
+                                    labels={paginationLabels}
+                                    onPageChange={setReportsPage}
+                                />
+                            )}
+                            {pagedHistoryReports.map((report) => (
                                 <div key={report.id} style={{ borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
                                     <b>{report.targetType}</b> · {report.status} · {formatDate(report.createdAt, locale)}
                                     <div style={{ color: "#64748b", fontSize: 13 }}>
@@ -555,7 +632,7 @@ export default function AdminUsersPage({ t }: Props) {
                                     </div>
                                 </div>
                             ))}
-                            {history.reportsCreated.length + history.reportsAboutUser.length === 0 && <p>{text.noItems}</p>}
+                            {combinedReports.length === 0 && <p>{text.noItems}</p>}
                         </div>
                     </section>
 
@@ -563,7 +640,16 @@ export default function AdminUsersPage({ t }: Props) {
                         <h2 style={{ marginTop: 0 }}>{text.chatsTitle}</h2>
                         <p style={{ color: "#475569" }}>{text.chatCount}: {history.chats.length}</p>
                         <div style={{ display: "grid", gap: 8 }}>
-                            {history.chats.slice(0, 10).map((chat) => (
+                            {history.chats.length > 0 && (
+                                <AdminPagination
+                                    page={chatsPage}
+                                    pageSize={HISTORY_PAGE_SIZE}
+                                    totalItems={history.chats.length}
+                                    labels={paginationLabels}
+                                    onPageChange={setChatsPage}
+                                />
+                            )}
+                            {pagedHistoryChats.map((chat) => (
                                 <div key={chat.id} style={{ borderTop: "1px solid #e5e7eb", paddingTop: 8 }}>
                                     <b>{chat.id}</b>
                                     <div style={{ color: "#64748b", fontSize: 13 }}>

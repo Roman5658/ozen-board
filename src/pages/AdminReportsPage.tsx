@@ -8,11 +8,14 @@ import { buildAdPath, buildAuctionPath } from "../utils/slug"
 import type { translations } from "../app/i18n"
 import type { Report, ReportStatus, ReportTargetType } from "../types/report"
 import type { UserReview } from "../types/userReview"
+import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
 type AppTranslations = (typeof translations)[keyof typeof translations]
 type Props = {
     t: AppTranslations
 }
+
+const REPORTS_PAGE_SIZE = 20
 
 type TargetInfo = {
     exists: boolean
@@ -89,6 +92,33 @@ function formatTemplate(template: string, values: Record<string, string>): strin
         (result, [key, value]) => result.replaceAll(`{${key}}`, value),
         template
     )
+}
+
+function getReportSearchText(report: Report, target?: TargetInfo, reporter?: ReporterInfo, reportedUserId?: string | null): string {
+    return [
+        report.id,
+        report.targetType,
+        report.targetId,
+        report.reporterId,
+        reporter?.nickname,
+        reporter?.email,
+        reportedUserId,
+        report.reason,
+        report.description,
+        report.reasonType,
+        report.reasonText,
+        report.status,
+        report.moderationStatus,
+        report.moderationAction,
+        report.chatId,
+        report.messageId,
+        report.senderId,
+        report.senderName,
+        report.messageText,
+        target?.title,
+        target?.ownerId,
+        target?.status,
+    ].filter(Boolean).join(" ").toLowerCase()
 }
 
 async function loadTargetInfo(report: Report): Promise<[string, TargetInfo]> {
@@ -198,9 +228,12 @@ export default function AdminReportsPage({ t }: Props) {
     const [reviews, setReviews] = useState<UserReview[]>([])
     const [tab, setTab] = useState<'reports' | 'reviews' | 'karma'>('reports')
     const [reportFilter, setReportFilter] = useState<'active' | 'archived' | 'all'>('active')
+    const [reportSearch, setReportSearch] = useState("")
+    const [reportPage, setReportPage] = useState(1)
     const [moderationForm, setModerationForm] = useState<ModerationForm | null>(null)
     const [processingAction, setProcessingAction] = useState(false)
     const text = t.adminReports
+    const paginationLabels = getAdminPaginationLabels(text.locale === 'pl-PL' ? 'pl' : 'uk')
 
     useEffect(() => {
         let cancelled = false
@@ -303,12 +336,30 @@ export default function AdminReportsPage({ t }: Props) {
     }, [reports])
 
     const visibleReports = useMemo(() => {
-        if (reportFilter === 'all') return sortedReports
-        return sortedReports.filter(report => {
-            const archived = isArchivedReport(report)
-            return reportFilter === 'archived' ? archived : !archived
+        const q = reportSearch.trim().toLowerCase()
+        const byFilter = reportFilter === 'all'
+            ? sortedReports
+            : sortedReports.filter(report => {
+                const archived = isArchivedReport(report)
+                return reportFilter === 'archived' ? archived : !archived
+            })
+        if (!q) return byFilter
+
+        return byFilter.filter(report => {
+            const key = targetKey(report.targetType, report.targetId)
+            const reportedUserId = report.reportedUserId ?? (report.targetType === 'chat_message' ? report.senderId ?? null : targets[key]?.ownerId ?? null)
+            return getReportSearchText(report, targets[key], reporters[report.reporterId], reportedUserId).includes(q)
         })
-    }, [reportFilter, sortedReports])
+    }, [reportFilter, reportSearch, reporters, sortedReports, targets])
+
+    const pagedReports = useMemo(
+        () => paginateItems(visibleReports, reportPage, REPORTS_PAGE_SIZE),
+        [reportPage, visibleReports]
+    )
+
+    useEffect(() => {
+        setReportPage(1)
+    }, [reportFilter, reportSearch])
 
     function getReportedUserId(report: Report): string | null {
         if (report.reportedUserId) return report.reportedUserId
@@ -556,6 +607,14 @@ export default function AdminReportsPage({ t }: Props) {
                     <div><b>{text.status.rejected}</b> — {text.statusHelp.rejected}</div>
                 </div>
 
+                <input
+                    className='input'
+                    value={reportSearch}
+                    onChange={event => setReportSearch(event.target.value)}
+                    placeholder={text.searchPlaceholder}
+                    style={{ maxWidth: 520 }}
+                />
+
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <button
                         className={reportFilter === 'active' ? 'btn-primary' : 'btn-secondary'}
@@ -582,7 +641,17 @@ export default function AdminReportsPage({ t }: Props) {
 
                 {visibleReports.length === 0 && <div className='card'>{text.empty}</div>}
 
-                {visibleReports.map(r => {
+                {visibleReports.length > 0 && (
+                    <AdminPagination
+                        page={reportPage}
+                        pageSize={REPORTS_PAGE_SIZE}
+                        totalItems={visibleReports.length}
+                        labels={paginationLabels}
+                        onPageChange={setReportPage}
+                    />
+                )}
+
+                {pagedReports.map(r => {
                     const key = targetKey(r.targetType, r.targetId)
                     const target = targets[key]
                     const reporter = reporters[r.reporterId]
@@ -734,6 +803,16 @@ export default function AdminReportsPage({ t }: Props) {
                         </div>
                     )
                 })}
+
+                {visibleReports.length > REPORTS_PAGE_SIZE && (
+                    <AdminPagination
+                        page={reportPage}
+                        pageSize={REPORTS_PAGE_SIZE}
+                        totalItems={visibleReports.length}
+                        labels={paginationLabels}
+                        onPageChange={setReportPage}
+                    />
+                )}
             </>
         )}
 

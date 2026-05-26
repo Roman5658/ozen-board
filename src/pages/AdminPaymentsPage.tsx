@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { collection, getDocs, orderBy, query } from "firebase/firestore"
 import { db } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { useNavigate } from "react-router-dom"
+import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
 const ADMIN_IDS = ["ozenenesis56@gmail.com"]
+const PAGE_SIZE = 30
 
 type Payment = {
     id: string
@@ -22,8 +24,11 @@ type Payment = {
 export default function AdminPaymentsPage() {
     const user = getLocalUser()
     const navigate = useNavigate()
+    const lang = localStorage.getItem("lang") === "pl" ? "pl" : "uk"
+    const paginationLabels = getAdminPaginationLabels(lang)
     const [payments, setPayments] = useState<Payment[]>([])
     const [loading, setLoading] = useState(true)
+    const [page, setPage] = useState(1)
 
     useEffect(() => {
         const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
@@ -54,6 +59,10 @@ export default function AdminPaymentsPage() {
     }, [])
 
     const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
+    const pagedPayments = useMemo(
+        () => paginateItems(payments, page, PAGE_SIZE),
+        [page, payments]
+    )
 
     if (!isAdminMode || !user || (!ADMIN_IDS.includes(user.id) && !ADMIN_IDS.includes(user.email))) {
         return <div className="card">Немає доступу</div>
@@ -71,42 +80,62 @@ export default function AdminPaymentsPage() {
             {payments.length === 0 ? (
                 <div>Платежів немає</div>
             ) : (
-                <table className="table">
-                    <thead>
-                    <tr>
-                        <th>Дата</th>
-                        <th>Тип</th>
-                        <th>Promotion</th>
-                        <th>Сума</th>
-                        <th>Email</th>
-                        <th>Дія</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {payments.map(p => (
-                        <tr key={p.id}>
-                            <td>{new Date(p.createdAt).toLocaleString()}</td>
-                            <td>{p.targetType}</td>
-                            <td>{p.promotionType}</td>
-                            <td>{p.amount} {p.currency}</td>
-                            <td>{p.payerEmail ?? "-"}</td>
-                            <td>
-                                <button
-                                    onClick={() =>
-                                        navigate(
-                                            p.targetType === "ad"
-                                                ? `/ad/${p.targetId}`
-                                                : `/auction/${p.targetId}`
-                                        )
-                                    }
-                                >
-                                    Перейти
-                                </button>
-                            </td>
+                <>
+                    <AdminPagination
+                        page={page}
+                        pageSize={PAGE_SIZE}
+                        totalItems={payments.length}
+                        labels={paginationLabels}
+                        onPageChange={setPage}
+                    />
+
+                    <table className="table">
+                        <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Тип</th>
+                            <th>Promotion</th>
+                            <th>Сума</th>
+                            <th>Email</th>
+                            <th>Дія</th>
                         </tr>
-                    ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                        {pagedPayments.map(p => (
+                            <tr key={p.id}>
+                                <td>{new Date(p.createdAt).toLocaleString()}</td>
+                                <td>{p.targetType}</td>
+                                <td>{p.promotionType}</td>
+                                <td>{p.amount} {p.currency}</td>
+                                <td>{p.payerEmail ?? "-"}</td>
+                                <td>
+                                    <button
+                                        onClick={() =>
+                                            navigate(
+                                                p.targetType === "ad"
+                                                    ? `/ad/${p.targetId}`
+                                                    : `/auction/${p.targetId}`
+                                            )
+                                        }
+                                    >
+                                        Перейти
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+
+                    {payments.length > PAGE_SIZE && (
+                        <AdminPagination
+                            page={page}
+                            pageSize={PAGE_SIZE}
+                            totalItems={payments.length}
+                            labels={paginationLabels}
+                            onPageChange={setPage}
+                        />
+                    )}
+                </>
             )}
         </div>
     )

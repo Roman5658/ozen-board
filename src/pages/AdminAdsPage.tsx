@@ -6,6 +6,7 @@ import { Link } from "react-router-dom"
 import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import { buildAdPath } from "../utils/slug"
+import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
 type AdminAdSection = "activePromoted" | "queueTop"
 type PromotionFilter = "all" | "top3" | "top6" | "highlight" | "bump" | "queue"
@@ -18,6 +19,7 @@ type AdminAdActions = {
 
 const DAY = 24 * 60 * 60 * 1000
 const ADMIN_TOP_DURATION = 10 * DAY
+const PAGE_SIZE = 20
 
 function formatDate(ts?: number | null) {
     if (!ts) return "—"
@@ -191,11 +193,15 @@ function renderSection(title: string, emptyText: string, children: ReactNode, co
 }
 
 function AdminAdsPage() {
+    const lang = localStorage.getItem("lang") === "pl" ? "pl" : "uk"
+    const paginationLabels = getAdminPaginationLabels(lang)
     const [ads, setAds] = useState<Ad[]>([])
     const [loading, setLoading] = useState(true)
     const [cityFilter, setCityFilter] = useState("all")
     const [voivodeshipFilter, setVoivodeshipFilter] = useState("all")
     const [promotionFilter, setPromotionFilter] = useState<PromotionFilter>("all")
+    const [activePromotedPage, setActivePromotedPage] = useState(1)
+    const [queuedTopPage, setQueuedTopPage] = useState(1)
     const [now, setNow] = useState(() => Date.now())
 
     // -------------------------
@@ -439,6 +445,21 @@ function AdminAdsPage() {
             .sort((a, b) => (a.pinQueueAt ?? 0) - (b.pinQueueAt ?? 0))
     }, [activePromotedIds, ads, cityFilter, now, promotionFilter, voivodeshipFilter])
 
+    const pagedActivePromotedAds = useMemo(
+        () => paginateItems(activePromotedAds, activePromotedPage, PAGE_SIZE),
+        [activePromotedAds, activePromotedPage]
+    )
+
+    const pagedQueuedTopAds = useMemo(
+        () => paginateItems(queuedTopAds, queuedTopPage, PAGE_SIZE),
+        [queuedTopAds, queuedTopPage]
+    )
+
+    useEffect(() => {
+        setActivePromotedPage(1)
+        setQueuedTopPage(1)
+    }, [cityFilter, promotionFilter, voivodeshipFilter])
+
     const adminAdActions: AdminAdActions = {
         setTop,
         setQueue,
@@ -499,14 +520,50 @@ function AdminAdsPage() {
                     {renderSection(
                         "Активні promoted / TOP",
                         "Активних promoted оголошень немає",
-                        activePromotedAds.map(ad => renderAdItem(ad, "activePromoted", now, adminAdActions)),
+                        <>
+                            <AdminPagination
+                                page={activePromotedPage}
+                                pageSize={PAGE_SIZE}
+                                totalItems={activePromotedAds.length}
+                                labels={paginationLabels}
+                                onPageChange={setActivePromotedPage}
+                            />
+                            {pagedActivePromotedAds.map(ad => renderAdItem(ad, "activePromoted", now, adminAdActions))}
+                            {activePromotedAds.length > PAGE_SIZE && (
+                                <AdminPagination
+                                    page={activePromotedPage}
+                                    pageSize={PAGE_SIZE}
+                                    totalItems={activePromotedAds.length}
+                                    labels={paginationLabels}
+                                    onPageChange={setActivePromotedPage}
+                                />
+                            )}
+                        </>,
                         activePromotedAds.length
                     )}
 
                     {renderSection(
                         "Черга TOP",
                         "Черга TOP порожня",
-                        queuedTopAds.map((ad, index) => renderAdItem(ad, "queueTop", now, adminAdActions, index)),
+                        <>
+                            <AdminPagination
+                                page={queuedTopPage}
+                                pageSize={PAGE_SIZE}
+                                totalItems={queuedTopAds.length}
+                                labels={paginationLabels}
+                                onPageChange={setQueuedTopPage}
+                            />
+                            {pagedQueuedTopAds.map((ad, index) => renderAdItem(ad, "queueTop", now, adminAdActions, (queuedTopPage - 1) * PAGE_SIZE + index))}
+                            {queuedTopAds.length > PAGE_SIZE && (
+                                <AdminPagination
+                                    page={queuedTopPage}
+                                    pageSize={PAGE_SIZE}
+                                    totalItems={queuedTopAds.length}
+                                    labels={paginationLabels}
+                                    onPageChange={setQueuedTopPage}
+                                />
+                            )}
+                        </>,
                         queuedTopAds.length
                     )}
                 </>

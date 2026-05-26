@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
     collection,
     getDocs,
@@ -10,8 +10,10 @@ import {
 import { db } from "../app/firebase"
 import type { Auction } from "../types/auction"
 import { getLocalUser } from "../data/localUser"
+import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
 const ADMIN_READ_AUCTIONS_KEY = "xoven_admin_read_auctions_v1"
+const PAGE_SIZE = 30
 
 function getAdminActorId() {
     const user = getLocalUser()
@@ -24,9 +26,38 @@ function getAuctionPromotionUntil(auction: Auction) {
         : null
 }
 
+function getAuctionSearchText(auction: Auction) {
+    return [
+        auction.id,
+        auction.title,
+        auction.description,
+        auction.city,
+        auction.voivodeship,
+        auction.ownerId,
+        auction.ownerName,
+        auction.ownerNickname,
+        auction.status,
+        auction.promotionType,
+    ].filter(Boolean).join(" ").toLowerCase()
+}
+
 function AdminAuctionsPage() {
+    const lang = localStorage.getItem("lang") === "pl" ? "pl" : "uk"
+    const paginationLabels = getAdminPaginationLabels(lang)
+    const text = lang === "pl"
+        ? {
+            searchPlaceholder: "Szukaj aukcji",
+            noResults: "Nie znaleziono aukcji",
+        }
+        : {
+            searchPlaceholder: "Пошук аукціонів",
+            noResults: "Аукціонів не знайдено",
+        }
     const [auctions, setAuctions] = useState<Auction[]>([])
     const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState("")
+    const [page, setPage] = useState(1)
+    const [now, setNow] = useState(() => Date.now())
     const [readAuctionIds, setReadAuctionIds] = useState<string[]>(() => {
         try {
             const raw = localStorage.getItem(ADMIN_READ_AUCTIONS_KEY)
@@ -50,6 +81,7 @@ function AdminAuctionsPage() {
             }))
 
             setAuctions(data)
+            setNow(Date.now())
             setLoading(false)
         }
 
@@ -73,6 +105,30 @@ function AdminAuctionsPage() {
     function markAllAuctionsRead() {
         saveReadAuctionIds(Array.from(new Set([...readAuctionIds, ...auctions.map(a => a.id)])))
     }
+
+    const filteredAuctions = useMemo(() => {
+        const q = search.trim().toLowerCase()
+        const readIds = new Set(readAuctionIds)
+
+        return auctions
+            .filter(auction => !q || getAuctionSearchText(auction).includes(q))
+            .sort((a, b) => {
+                const aNew = !readIds.has(a.id)
+                const bNew = !readIds.has(b.id)
+                if (aNew && !bNew) return -1
+                if (!aNew && bNew) return 1
+                return (b.createdAt ?? 0) - (a.createdAt ?? 0)
+            })
+    }, [auctions, readAuctionIds, search])
+
+    const pagedAuctions = useMemo(
+        () => paginateItems(filteredAuctions, page, PAGE_SIZE),
+        [filteredAuctions, page]
+    )
+
+    useEffect(() => {
+        setPage(1)
+    }, [search])
 
     // =========================
     // ADMIN ACTIONS
@@ -244,24 +300,42 @@ function AdminAuctionsPage() {
                 </button>
             )}
 
+            {auctions.length > 0 && (
+                <input
+                    className="input"
+                    value={search}
+                    onChange={event => setSearch(event.target.value)}
+                    placeholder={text.searchPlaceholder}
+                    style={{ maxWidth: 520 }}
+                />
+            )}
+
             {auctions.length === 0 && (
                 <div className="card">Аукціонів немає</div>
             )}
 
-            {[...auctions].sort((a, b) => {
-                const aNew = !isAuctionRead(a.id)
-                const bNew = !isAuctionRead(b.id)
-                if (aNew && !bNew) return -1
-                if (!aNew && bNew) return 1
-                return (b.createdAt ?? 0) - (a.createdAt ?? 0)
-            }).map(a => {
+            {auctions.length > 0 && filteredAuctions.length === 0 && (
+                <div className="card">{text.noResults}</div>
+            )}
+
+            {filteredAuctions.length > 0 && (
+                <AdminPagination
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    totalItems={filteredAuctions.length}
+                    labels={paginationLabels}
+                    onPageChange={setPage}
+                />
+            )}
+
+            {pagedAuctions.map(a => {
                 const isEnded = a.status === "ended"
                 const isRemoved = a.status === "removed" || a.status === "deleted"
                 const isNew = !isAuctionRead(a.id)
                 const hasPromo =
                     a.promotionType !== "none" &&
                     a.promotionUntil &&
-                    a.promotionUntil > Date.now()
+                    a.promotionUntil > now
 
                 return (
                     <div
@@ -359,6 +433,16 @@ function AdminAuctionsPage() {
                     </div>
                 )
             })}
+
+            {filteredAuctions.length > PAGE_SIZE && (
+                <AdminPagination
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    totalItems={filteredAuctions.length}
+                    labels={paginationLabels}
+                    onPageChange={setPage}
+                />
+            )}
 
         </div>
     )
