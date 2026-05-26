@@ -1,4 +1,5 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
@@ -12,6 +13,8 @@ const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 
 const DAY = 24 * 60 * 60 * 1000;
 const AUCTION_NOTIFICATION_LOCK_TTL = 10 * 60 * 1000;
+const CHAT_EMAIL_COOLDOWN_MS = 2 * 60 * 1000;
+const CHAT_EMAIL_SEND_LOCK_MS = 60 * 1000;
 
 /* ======================================================
    ЧАТЫ — автоудаление через 30 дней
@@ -65,6 +68,165 @@ export const cleanupHiddenChats = onSchedule(
         }
     }
 );
+
+type ChatEmailClaim = {
+    chatId: string;
+    messageId: string;
+    recipientId: string;
+    recipientEmail: string;
+    senderName: string;
+    chatLink: string;
+};
+
+export const sendChatMessageEmail = onDocumentCreated(
+    {
+        document: "chats/{chatId}/messages/{messageId}",
+        secrets: [RESEND_API_KEY],
+    },
+    async (event) => {
+        const snap = event.data;
+        if (!snap) return;
+
+        const message = snap.data() ?? {};
+        const senderType = getString(message.senderType) ?? "user";
+        if (senderType !== "user") return;
+
+        const senderId = getString(message.senderId);
+        if (!senderId) return;
+
+        const chatId = event.params.chatId;
+        const messageId = event.params.messageId;
+        const chatRef = db.collection("chats").doc(chatId);
+        const chatSnap = await chatRef.get();
+        if (!chatSnap.exists) return;
+
+        const chat = chatSnap.data() ?? {};
+        const users = Array.isArray(chat.users)
+            ? chat.users.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+            : [];
+        const recipientIds = Array.from(new Set(users.filter((id) => id !== senderId)));
+
+        if (recipientIds.length === 0) return;
+
+        const senderName = getString(message.senderName) ?? await getDisplayName(senderId);
+        const baseUrl = requireEnv("APP_BASE_URL").replace(/\/+$/, "");
+        const resend = new Resend(RESEND_API_KEY.value());
+        const from = requireEnv("RECEIPTS_FROM_EMAIL");
+
+        await Promise.all(recipientIds.map(async (recipientId) => {
+            try {
+                const recipient = await getUserContact(recipientId);
+                if (!recipient.email) return;
+
+                const claim = await claimChatEmailNotification({
+                    chatId,
+                    messageId,
+                    recipientId,
+                    recipientEmail: recipient.email,
+                    senderName,
+                    chatLink: `${baseUrl}/chat/${chatId}`,
+                });
+
+                if (!claim) return;
+
+                await sendChatEmail(resend, from, claim);
+
+                await chatRef.update({
+                    [`emailNotificationLastSentAt.${getUserKey(recipientId)}`]: Date.now(),
+                    [`emailNotificationLastSentMessageId.${getUserKey(recipientId)}`]: messageId,
+                    [`emailNotificationSendingAt.${getUserKey(recipientId)}`]: null,
+                    [`emailNotificationError.${getUserKey(recipientId)}`]: null,
+                });
+            } catch (error) {
+                const messageText = getErrorMessage(error);
+                console.error(`Chat email notification failed for ${chatId}/${messageId}:`, messageText);
+
+                await chatRef.update({
+                    [`emailNotificationSendingAt.${getUserKey(recipientId)}`]: null,
+                    [`emailNotificationError.${getUserKey(recipientId)}`]: messageText,
+                    [`emailNotificationLastAttemptAt.${getUserKey(recipientId)}`]:
+                        admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
+        }));
+    }
+);
+
+async function claimChatEmailNotification(claim: ChatEmailClaim): Promise<ChatEmailClaim | null> {
+    const chatRef = db.collection("chats").doc(claim.chatId);
+    const recipientKey = getUserKey(claim.recipientId);
+    const now = Date.now();
+
+    return db.runTransaction(async (transaction) => {
+        const chatSnap = await transaction.get(chatRef);
+        if (!chatSnap.exists) return null;
+
+        const chat = chatSnap.data() ?? {};
+        const lastSentAt = getNestedMillis(chat.emailNotificationLastSentAt, recipientKey);
+        if (lastSentAt && now - lastSentAt < CHAT_EMAIL_COOLDOWN_MS) return null;
+
+        const sendingAt = getNestedMillis(chat.emailNotificationSendingAt, recipientKey);
+        if (sendingAt && now - sendingAt < CHAT_EMAIL_SEND_LOCK_MS) return null;
+
+        transaction.update(chatRef, {
+            [`emailNotificationSendingAt.${recipientKey}`]: now,
+            [`emailNotificationLastAttemptAt.${recipientKey}`]:
+                admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return claim;
+    });
+}
+
+async function sendChatEmail(resend: Resend, from: string, claim: ChatEmailClaim) {
+    const result = await resend.emails.send({
+        from,
+        to: claim.recipientEmail,
+        subject: "Нове повідомлення на Xoven / Nowa wiadomość na Xoven",
+        text: buildChatEmailText(claim),
+        html: buildChatEmailHtml(claim),
+    });
+
+    if (result.error) {
+        throw new Error(result.error.message);
+    }
+}
+
+function buildChatEmailText(claim: ChatEmailClaim): string {
+    return [
+        "UK",
+        `Ви отримали нове повідомлення від ${claim.senderName}.`,
+        "Щоб відповісти, відкрийте чат на Xoven.",
+        `Відкрити чат: ${claim.chatLink}`,
+        "",
+        "PL",
+        `Otrzymałeś nową wiadomość od ${claim.senderName}.`,
+        "Aby odpowiedzieć, otwórz czat na Xoven.",
+        `Otwórz czat: ${claim.chatLink}`,
+    ].join("\n");
+}
+
+function buildChatEmailHtml(claim: ChatEmailClaim): string {
+    return `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+            <h2>Xoven</h2>
+            <h3>UK</h3>
+            <p>Ви отримали нове повідомлення від ${escapeHtml(claim.senderName)}.</p>
+            <p>Щоб відповісти, відкрийте чат на Xoven.</p>
+            <p><a href="${escapeHtml(claim.chatLink)}">Відкрити чат</a></p>
+            <hr>
+            <h3>PL</h3>
+            <p>Otrzymałeś nową wiadomość od ${escapeHtml(claim.senderName)}.</p>
+            <p>Aby odpowiedzieć, otwórz czat na Xoven.</p>
+            <p><a href="${escapeHtml(claim.chatLink)}">Otwórz czat</a></p>
+        </div>
+    `;
+}
+
+async function getDisplayName(userId: string): Promise<string> {
+    const contact = await getUserContact(userId);
+    return contact.nickname || contact.email || "Xoven";
+}
 
 /* ======================================================
    АУКЦИОНЫ — архивирование через 5 дней
@@ -136,7 +298,7 @@ type AuctionWinnerEmailRole = "seller" | "winner";
 
 export const notifyEndedAuctionWinners = onSchedule(
     {
-        schedule: "every 15 minutes",
+        schedule: "every 2 minutes",
         timeZone: "Europe/Warsaw",
         secrets: [RESEND_API_KEY],
     },
@@ -536,6 +698,11 @@ function toMillis(value: unknown): number | null {
     }
 
     return null;
+}
+
+function getNestedMillis(value: unknown, key: string): number | null {
+    if (!value || typeof value !== "object") return null;
+    return toMillis((value as Record<string, unknown>)[key]);
 }
 
 function getUserKey(value: string): string {
