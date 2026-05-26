@@ -47,7 +47,7 @@ function Header({ title, subtitle,warning, lang, languages, chatUnreadCount, cha
                 <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
                     <button
                         type="button"
-                        onClick={() => navigate('/account#account-chats')}
+                        onClick={() => navigate('/account/chats')}
                         title={chatLabel}
                         aria-label={chatLabel}
                         style={{

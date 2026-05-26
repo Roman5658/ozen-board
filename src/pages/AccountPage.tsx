@@ -7,30 +7,16 @@ import { collection, getDocs, query, where, doc, getDoc, } from "firebase/firest
 import { createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth"
 import { Link, useNavigate } from "react-router-dom"
 
-import { getUserPublicNicknames } from "../data/usersPublic"
-
-import { updateDoc, arrayUnion, serverTimestamp } from "firebase/firestore"
+import { updateDoc } from "firebase/firestore"
 import type { translations } from '../app/i18n'
 
-import { getLocalUser, setLocalUser, clearLocalUser } from "../data/localUser"
+import { getLocalUser, setLocalUser, clearLocalUser, isAdmin } from "../data/localUser"
 import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
-import { getUnreadCountForUser, getUserChats } from "../data/chats"
-import type { ChatItem } from "../data/chats"
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
 type Props = {
     t: (typeof translations)[keyof typeof translations]
-}
-type ChatListRow = {
-    id: string
-    otherUserId: string
-    otherNickname: string
-    lastMessage: string
-    updatedAt?: number
-    isUnread: boolean
-    isNewChat: boolean
-    unreadCount: number
 }
 
 type ModeratedOwnerItem = {
@@ -245,11 +231,6 @@ function AccountPage({ t }: Props) {
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
 
-    const [chats, setChats] = useState<ChatItem[]>([])
-    const [nickCache, setNickCache] = useState<Record<string, string>>({})
-
-    const [loadingChats, setLoadingChats] = useState(true)
-
     // auth form
     const [nickname, setNickname] = useState("")
     const [email, setEmail] = useState("")
@@ -259,6 +240,10 @@ function AccountPage({ t }: Props) {
 
     // data
     const [user, setUser] = useState<AppUser | null>(null)
+    const [profileNickname, setProfileNickname] = useState("")
+    const [profileMessage, setProfileMessage] = useState<string | null>(null)
+    const [profileError, setProfileError] = useState<string | null>(null)
+    const [profileSaving, setProfileSaving] = useState(false)
 
     const [myAds, setMyAds] = useState<Ad[]>([])
     const [myAuctions, setMyAuctions] = useState<Auction[]>([])
@@ -266,39 +251,12 @@ function AccountPage({ t }: Props) {
     // contacts (public)
     const [phone, setPhone] = useState("")
     const [telegram, setTelegram] = useState("")
+    const [savedPhone, setSavedPhone] = useState("")
+    const [savedTelegram, setSavedTelegram] = useState("")
     const [contactsSaved, setContactsSaved] = useState(false)
 
 
 
-    useEffect(() => {
-        if (!user) return
-        if (chats.length === 0) return
-
-        // собеседники = второй пользователь в массиве users
-        const otherIds = Array.from(
-            new Set(
-                chats
-                    .map(c => c.users.find(id => id !== user.id))
-                    .filter((x): x is string => !!x)
-            )
-        )
-
-        const missing = otherIds.filter(id => !nickCache[id])
-        if (missing.length === 0) return
-
-            ;(async () => {
-            const names = await getUserPublicNicknames(missing, a.chats.userFallback)
-            const pairs = Object.entries(names)
-
-            setNickCache(prev => {
-                const next = { ...prev }
-                for (const [id, nick] of pairs) next[id] = nick
-                return next
-            })
-        })()
-        // важно: nickCache в deps НЕ добавляем, иначе будет лишняя “гонка”
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chats, user])
 
 // ============================
 // LOAD MY AUCTIONS (Firestore)
@@ -342,6 +300,7 @@ function AccountPage({ t }: Props) {
 
         const userId = u.id // ✅ фиксируем
         setUser(u)
+        setProfileNickname("")
 
         async function loadContacts() {
             const ref = doc(db, "users", userId)
@@ -350,8 +309,8 @@ function AccountPage({ t }: Props) {
 
             if (snap.exists()) {
                 const data = snap.data()
-                setPhone(typeof data.phone === "string" ? data.phone : "")
-                setTelegram(typeof data.telegram === "string" ? data.telegram : "")
+                setSavedPhone(typeof data.phone === "string" ? data.phone : "")
+                setSavedTelegram(typeof data.telegram === "string" ? data.telegram : "")
             }
         }
 
@@ -359,17 +318,6 @@ function AccountPage({ t }: Props) {
     }, [])
 
 
-    useEffect(() => {
-        if (!user) return
-
-        setLoadingChats(true)
-
-        getUserChats(user.id, user.uid)
-            .then((items) => {
-                setChats(items)
-            })
-            .finally(() => setLoadingChats(false))
-    }, [user])
 
 
 
@@ -460,24 +408,39 @@ function AccountPage({ t }: Props) {
         }
     }
 
-    async function handleDeleteChat(chatId: string) {
-        if (!user) return
 
-        const ok = window.confirm(a.confirms.deleteChat)
-        if (!ok) return
+    async function handleSaveProfile() {
+        if (!user || !isAdmin()) return
+
+        const nextNickname = profileNickname.trim()
+        setProfileMessage(null)
+        setProfileError(null)
+
+        if (!nextNickname) {
+            setProfileError(a.profile.nicknameRequired)
+            return
+        }
 
         try {
-            await updateDoc(doc(db, "chats", chatId), {
-                hiddenFor: arrayUnion(user.id),
-                [`hiddenForAt.${user.id}`]: serverTimestamp(),
+            setProfileSaving(true)
+            await updateDoc(doc(db, "users", user.id), {
+                nickname: nextNickname,
             })
 
+            const nextUser: AppUser = {
+                ...user,
+                nickname: nextNickname,
+            }
 
-            // сразу убираем из UI
-            setChats(prev => prev.filter(c => c.id !== chatId))
+            setLocalUser(nextUser)
+            setUser(nextUser)
+            setProfileNickname("")
+            setProfileMessage(a.profile.profileSaved)
         } catch (e) {
             console.error(e)
-            alert(a.alerts.deleteChatError)
+            setProfileError(a.profile.saveProfileError)
+        } finally {
+            setProfileSaving(false)
         }
     }
 
@@ -486,10 +449,26 @@ function AccountPage({ t }: Props) {
         if (!user) return
 
         try {
+            const nextPhone = phone.trim()
+            const nextTelegram = telegram.trim()
+
             await updateDoc(doc(db, "users", user.id), {
-                phone: phone.trim() || null,
-                telegram: telegram.trim() || null,
+                phone: nextPhone || null,
+                telegram: nextTelegram || null,
             })
+
+            const nextUser: AppUser = {
+                ...user,
+                phone: nextPhone || null,
+                telegram: nextTelegram || null,
+            }
+
+            setLocalUser(nextUser)
+            setUser(nextUser)
+            setSavedPhone(nextPhone)
+            setSavedTelegram(nextTelegram)
+            setPhone("")
+            setTelegram("")
             setContactsSaved(true)
 
             setTimeout(() => {
@@ -681,6 +660,7 @@ function AccountPage({ t }: Props) {
                                 // сохраняем сессию
                                 setLocalUser(mergedUser)
                                 setUser(mergedUser)
+                                setProfileNickname("")
                                 return
                             }
 
@@ -717,6 +697,7 @@ function AccountPage({ t }: Props) {
                             // localStorage
                             setLocalUser(newUser)
                             setUser(newUser)
+                            setProfileNickname("")
 
                             setNickname("")
                             setEmail("")
@@ -745,38 +726,6 @@ function AccountPage({ t }: Props) {
             </div>
         )
     }
-    const chatRows: ChatListRow[] = user
-        ? chats
-            .map(chat => {
-                const otherUserId = chat.users.find(id => id !== user.id) || ""
-                const unreadCount = getUnreadCountForUser(chat, [user.id, user.uid, user.email].filter(Boolean))
-                const isUnread = unreadCount > 0
-                const isNewChat = chat.lastMessage === ""
-
-
-                return {
-                    id: chat.id,
-                    otherUserId,
-                    otherNickname: chat.lastSenderType === "system" && chat.lastSenderName
-                        ? chat.lastSenderName
-                        : otherUserId
-                            ? (nickCache[otherUserId] || "…")
-                            : a.chats.userFallback,
-                    lastMessage: chat.lastMessage || a.chats.noMessages,
-
-                    updatedAt: chat.updatedAt,
-                    isUnread,
-                    isNewChat,
-                    unreadCount,
-                }
-            })
-            .filter(row => !!row.otherUserId)
-            .sort((a, b) => {
-                if (a.isUnread && !b.isUnread) return -1
-                if (!a.isUnread && b.isUnread) return 1
-                return (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
-            })
-        : []
 
     const getAdOwnerStatus = (ad: Ad) => ad.status ?? "active"
     const getAuctionOwnerStatus = (auction: Auction) => {
@@ -796,6 +745,7 @@ function AccountPage({ t }: Props) {
     const deletedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "deleted")
     const removedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "removed")
     const archivedAuctions = myAuctions.filter(auction => ["ended", "expired"].includes(getAuctionOwnerStatus(auction)))
+    const canEditProfile = isAdmin()
 
 
     // ============================
@@ -806,6 +756,65 @@ function AccountPage({ t }: Props) {
             <div className="card stack8">
                 <h2 className="h2">{user.nickname}</h2>
                 <div style={{fontSize: 14, color: "#6b7280"}}>{user.email}</div>
+                {canEditProfile ? (
+                    <div className="card stack8">
+                        <h3 className="h3">{a.profile.editProfile}</h3>
+                        <div
+                            style={{
+                                border: "1px solid #d1fae5",
+                                borderRadius: 8,
+                                padding: 10,
+                                background: "#f0fdf4",
+                                fontSize: 14,
+                            }}
+                        >
+                            <b>{a.profile.nicknameLabel}:</b> {user.nickname}
+                        </div>
+                        <label style={{fontSize: 13, fontWeight: 700}}>
+                            {a.profile.nicknameLabel}
+                        </label>
+                        <input
+                            className="input"
+                            type="text"
+                            placeholder={user.nickname}
+                            value={profileNickname}
+                            onChange={e => {
+                                setProfileNickname(e.target.value)
+                                setProfileMessage(null)
+                                setProfileError(null)
+                            }}
+                        />
+                        {profileError && (
+                            <div style={{fontSize: 13, color: "#b91c1c"}}>
+                                {profileError}
+                            </div>
+                        )}
+                        {profileMessage && (
+                            <div style={{fontSize: 13, color: "#15803d"}}>
+                                {profileMessage}
+                            </div>
+                        )}
+                        <button
+                            className="btn-primary"
+                            type="button"
+                            disabled={profileSaving}
+                            onClick={handleSaveProfile}
+                        >
+                            {a.profile.save}
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{fontSize: 14, color: "#374151"}}>
+                        <b>{a.profile.nicknameLabel}:</b> {user.nickname}
+                    </div>
+                )}
+                <Link
+                    to="/account/chats"
+                    className="btn-secondary"
+                    style={{display: "inline-block", textAlign: "center"}}
+                >
+                    {a.profile.myChats}
+                </Link>
                 <Link
                     to="/account/payments"
                     className="btn-secondary"
@@ -820,6 +829,31 @@ function AccountPage({ t }: Props) {
                     <div style={{fontSize: 13, color: "#b45309"}}>
                         ⚠️ {a.profile.contactsWarn}
                     </div>
+
+                    {(savedPhone || savedTelegram) && (
+                        <div
+                            className="stack8"
+                            style={{
+                                border: "1px solid #d1fae5",
+                                borderRadius: 8,
+                                padding: 10,
+                                background: "#f0fdf4",
+                                fontSize: 14,
+                            }}
+                        >
+                            <b>{a.profile.savedContacts}</b>
+                            {savedPhone && (
+                                <div>
+                                    {a.profile.phoneLabel}: {savedPhone}
+                                </div>
+                            )}
+                            {savedTelegram && (
+                                <div>
+                                    {a.profile.telegramLabel}: {savedTelegram}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     <input
                         className="input"
@@ -847,7 +881,7 @@ function AccountPage({ t }: Props) {
 
                 {contactsSaved && (
                     <div style={{fontSize: 13, color: "#15803d"}}>
-                        Контакти збережено
+                        {a.profile.saved}
                     </div>
                 )}
                 <button
@@ -866,8 +900,19 @@ function AccountPage({ t }: Props) {
                                 telegram: null,
                             })
 
+                            const nextUser: AppUser = {
+                                ...user,
+                                phone: null,
+                                telegram: null,
+                            }
+
+                            setLocalUser(nextUser)
+                            setUser(nextUser)
                             setPhone("")
                             setTelegram("")
+                            setSavedPhone("")
+                            setSavedTelegram("")
+                            setContactsSaved(false)
                             alert(a.alerts.contactsDeleted)
                         } catch (e) {
                             console.error(e)
@@ -883,6 +928,13 @@ function AccountPage({ t }: Props) {
                     onClick={() => {
                         clearLocalUser()
                         setUser(null)
+                        setProfileNickname("")
+                        setProfileMessage(null)
+                        setProfileError(null)
+                        setSavedPhone("")
+                        setSavedTelegram("")
+                        setPhone("")
+                        setTelegram("")
                         setMyAds([])
                         setMyAuctions([])
                     }}
@@ -890,115 +942,7 @@ function AccountPage({ t }: Props) {
                     {a.profile.logout}
                 </button>
             </div>
-            <div className="card stack12" id="account-chats">
-                <h3 className="h3">{a.chats.title}</h3>
 
-
-                {loadingChats && <div>{a.loading}</div>}
-
-                {!loadingChats && chatRows.length === 0 && (
-                    <div style={{fontSize: 14, color: "#6b7280"}}>
-                        {a.chats.none}
-                    </div>
-                )}
-
-                {!loadingChats && chatRows.length > 0 && (
-                    <div
-                        className="stack8"
-                        style={{
-                            maxHeight: 460,          // ≈ 5 чатов
-                            overflowY: "auto",
-                            paddingRight: 4,         // чтобы скролл не прижимал контент
-                        }}
-                    >
-                        {chatRows.map(row => (
-                            <div
-                                key={row.id}
-                                onClick={() => navigate(`/chat/${row.id}`)}
-                                style={{
-                                    padding: 12,
-                                    borderRadius: 10,
-                                    border: row.isUnread
-                                        ? "2px solid #1976d2"
-                                        : "1px solid #e5e7eb",
-                                    background: row.isUnread ? "#eef6ff" : "#fff",
-                                    cursor: "pointer",
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    gap: 8,
-                                }}
-
-                            >
-                                <div style={{display: "flex", flexDirection: "column", gap: 4}}>
-                                    <div style={{display: "flex", alignItems: "center", gap: 6}}>
-    <span style={{fontWeight: 700}}>
-        {row.otherNickname}
-    </span>
-
-                                        {row.isUnread && (
-                                            <span
-                                                style={{
-                                                    fontSize: 10,
-                                                    background: "#1976d2",
-                                                    color: "#fff",
-                                                    padding: "2px 6px",
-                                                    borderRadius: 999,
-                                                }}
-                                            >
-            {row.unreadCount > 99 ? "99+" : row.unreadCount}
-        </span>
-                                        )}
-                                    </div>
-
-
-                                    <div
-                                        style={{
-                                            fontSize: 14,
-                                            color: row.isUnread ? "#111827" : "#6b7280",
-                                            fontWeight: row.isUnread ? 600 : 400,
-                                        }}
-                                    >
-                                        {row.isNewChat ? a.chats.newChat : row.lastMessage}
-
-
-                                    </div>
-
-
-                                    {typeof row.updatedAt === "number" && (
-                                        <div style={{fontSize: 12, color: "#9ca3af"}}>
-                                            {new Date(row.updatedAt).toLocaleString(a.chats.timeLocale)}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleDeleteChat(row.id)
-                                    }}
-                                    style={{
-                                        background: "#fee2e2",
-                                        color: "#991b1b",
-                                        border: "none",
-                                        padding: 8,
-                                        borderRadius: 10,
-                                        fontSize: 13,
-                                        cursor: "pointer",
-                                    }}
-                                >
-                                    {a.chats.deleteBtn}
-                                </button>
-
-
-                            </div>
-
-                        ))}
-                    </div>
-                )}
-            </div>
-
-
-            {/* MY ADS */}
             <div className="card stack12">
                 <h3 className="h3">{a.myAds.title}</h3>
 
