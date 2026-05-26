@@ -44,6 +44,7 @@ type Props = {
     promotionQueueAt?: number | null
     onBack: () => void
     currentUserId: string | null
+    currentUserName: string | null
     onBidSuccess: () => void
     onPromotionSuccess: () => void
 }
@@ -66,6 +67,7 @@ function AuctionDetails({
                             promotionQueueAt,
                             onBack,
                             currentUserId,
+                            currentUserName,
                             onBidSuccess,
                             onPromotionSuccess,
                         }: Props) {
@@ -170,9 +172,7 @@ function AuctionDetails({
             await placeBid({
                 auctionId,
                 userId: currentUserId,
-                userName: seller?.name ?? 'Користувач'
-                ,
-
+                userName: currentUserName?.trim() || t.common.user,
                 amount: value,
             })
 

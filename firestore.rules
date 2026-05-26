@@ -72,6 +72,54 @@ return signedIn() && authEmail() in [
              request.resource.data.deleteReason == 'user_deleted';
     }
 
+    function isValidAuctionBidUpdate() {
+      return resource.data.status == 'active' &&
+             resource.data.endsAt is number &&
+             resource.data.endsAt > request.time.toMillis() &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'currentBid',
+               'currentBidderId',
+               'currentBidderName',
+               'bidsCount'
+             ]) &&
+             resource.data.currentBid is number &&
+             request.resource.data.currentBid is number &&
+             request.resource.data.currentBid > resource.data.currentBid &&
+             resource.data.bidsCount is number &&
+             request.resource.data.bidsCount == resource.data.bidsCount + 1 &&
+             request.resource.data.currentBidderId is string &&
+             isSelf(request.resource.data.currentBidderId) &&
+             !isSelf(resource.data.ownerId) &&
+             request.resource.data.currentBidderName is string &&
+             request.resource.data.currentBidderName.size() > 0 &&
+             request.resource.data.currentBidderName.size() <= 80;
+    }
+
+    function isValidAuctionBidCreate(auctionId) {
+      let auction = get(/databases/$(database)/documents/auctions/$(auctionId)).data;
+      return request.resource.data.keys().hasOnly([
+               'auctionId',
+               'userId',
+               'userName',
+               'amount',
+               'createdAt'
+             ]) &&
+             request.resource.data.auctionId == auctionId &&
+             request.resource.data.userId is string &&
+             isSelf(request.resource.data.userId) &&
+             request.resource.data.userName is string &&
+             request.resource.data.userName.size() > 0 &&
+             request.resource.data.userName.size() <= 80 &&
+             request.resource.data.amount is number &&
+             request.resource.data.createdAt is number &&
+             auction.status == 'active' &&
+             auction.endsAt is number &&
+             auction.endsAt > request.time.toMillis() &&
+             auction.currentBid is number &&
+             request.resource.data.amount > auction.currentBid &&
+             !isSelf(auction.ownerId);
+    }
+
     function hasProtectedAdCreateFields() {
       return request.resource.data.keys().hasAny([
         'pinType',
@@ -118,6 +166,7 @@ return signedIn() && authEmail() in [
         !hasPaidAuctionCreateFields();
       allow update: if signedIn() && (
         (isSelf(resource.data.ownerId) && (!isProtectedAuctionFieldChanged() || isUserSoftDeletingAuction())) ||
+        isValidAuctionBidUpdate() ||
         isAdmin()
       );
       allow delete: if false;
@@ -125,7 +174,7 @@ return signedIn() && authEmail() in [
 
     match /auctionBids/{auctionId}/bids/{bidId} {
       allow read: if true;
-      allow create: if signedIn() && isSelf(request.resource.data.userId);
+      allow create: if signedIn() && isValidAuctionBidCreate(auctionId);
       allow update, delete: if false;
     }
 

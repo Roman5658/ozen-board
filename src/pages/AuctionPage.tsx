@@ -460,6 +460,7 @@ function AuctionPage() {
                             karma: 0,
                         }}
                         currentUserId={user?.id ?? null}
+                        currentUserName={user?.nickname ?? user?.email ?? null}
                         onBidSuccess={() => {
                             loadAuctionById(visibleActiveAuction.id)
                             loadBids(visibleActiveAuction.id)
