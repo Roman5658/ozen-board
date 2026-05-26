@@ -211,7 +211,7 @@ function buildAds(now: number): SeedWrite[] {
 
         return {
             collectionName: "ads",
-            id: `seed-ad-${String(number).padStart(3, "0")}`,
+            id: `seedad${String(number).padStart(3, "0")}`,
             data: {
                 title: `${template.title} #${number}`,
                 description: template.description,
@@ -242,7 +242,7 @@ function buildAuctions(now: number): SeedWrite[] {
 
         return {
             collectionName: "auctions",
-            id: `seed-auction-${String(number).padStart(3, "0")}`,
+            id: `seedauction${String(number).padStart(3, "0")}`,
             data: {
                 title: template.title,
                 description: template.description,

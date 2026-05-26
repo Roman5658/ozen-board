@@ -46,6 +46,12 @@ export default function AdminPagination({
     onPageChange,
 }: AdminPaginationProps) {
     const totalPages = getTotalPages(totalItems, pageSize)
+    function goToPage(nextPage: number) {
+        const safePage = Math.min(Math.max(nextPage, 1), totalPages)
+        onPageChange(safePage)
+        window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+
     if (totalItems <= pageSize) {
         return (
             <div style={{ color: "#6b7280", fontSize: 13 }}>
@@ -74,7 +80,7 @@ export default function AdminPagination({
                     type="button"
                     className="btn-secondary"
                     disabled={page <= 1}
-                    onClick={() => onPageChange(Math.max(1, page - 1))}
+                    onClick={() => goToPage(page - 1)}
                     style={{ width: "fit-content" }}
                 >
                     {labels.previous}
@@ -83,7 +89,7 @@ export default function AdminPagination({
                     type="button"
                     className="btn-secondary"
                     disabled={page >= totalPages}
-                    onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+                    onClick={() => goToPage(page + 1)}
                     style={{ width: "fit-content" }}
                 >
                     {labels.next}

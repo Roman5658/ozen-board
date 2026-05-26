@@ -341,6 +341,12 @@ function HomePage({ t }: Props) {
         [page, regularAds]
     )
 
+    function goToPage(nextPage: number) {
+        const safePage = Math.min(Math.max(nextPage, 1), totalPages || 1)
+        setPage(safePage)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+
     return (
         <div>
             <h2 className="h2">{t.homeTitle}</h2>
@@ -502,7 +508,7 @@ function HomePage({ t }: Props) {
                     <button
                         className="btn-secondary"
                         disabled={page === 1}
-                        onClick={() => setPage(p => p - 1)}
+                        onClick={() => goToPage(page - 1)}
                     >
                         {t.home.prev}
 
@@ -516,7 +522,7 @@ function HomePage({ t }: Props) {
                     <button
                         className="btn-secondary"
                         disabled={page === totalPages}
-                        onClick={() => setPage(p => p + 1)}
+                        onClick={() => goToPage(page + 1)}
                     >
                         {t.home.next}
 
