@@ -8,6 +8,7 @@ type SeoPayload = {
     description: string
     path: string
     lang: 'pl' | 'uk'
+    image?: string
     alternates?: Array<{ hreflang: string; href: string }>
     noindex?: boolean
     jsonLd?: object | object[]
@@ -57,6 +58,7 @@ export function useSeo(payload: SeoPayload) {
 
         const normalizedPath = normalizePath(payload.path)
         const url = `${BASE_URL}${normalizedPath}`
+        const image = payload.image || DEFAULT_IMAGE
         const ogLocale = payload.lang === 'pl' ? 'pl_PL' : 'uk_UA'
         const alternateLocale = payload.lang === 'pl' ? 'uk_UA' : 'pl_PL'
 
@@ -66,7 +68,7 @@ export function useSeo(payload: SeoPayload) {
         setOrCreateMeta('property', 'og:site_name', 'Xoven')
         setOrCreateMeta('property', 'og:title', payload.title)
         setOrCreateMeta('property', 'og:description', payload.description)
-        setOrCreateMeta('property', 'og:image', DEFAULT_IMAGE)
+        setOrCreateMeta('property', 'og:image', image)
         setOrCreateMeta('property', 'og:url', url)
         setOrCreateMeta('property', 'og:locale', ogLocale)
         setOrCreateMeta('property', 'og:locale:alternate', alternateLocale)
@@ -74,10 +76,11 @@ export function useSeo(payload: SeoPayload) {
         setOrCreateMeta('name', 'twitter:card', 'summary_large_image')
         setOrCreateMeta('name', 'twitter:title', payload.title)
         setOrCreateMeta('name', 'twitter:description', payload.description)
-        setOrCreateMeta('name', 'twitter:image', DEFAULT_IMAGE)
+        setOrCreateMeta('name', 'twitter:image', image)
 
         setOrCreateLink('canonical', url)
 
+        document.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach(el => el.remove())
         const alternates = payload.alternates ?? []
         for (const alt of alternates) {
             setOrCreateLink('alternate', alt.href, alt.hreflang)

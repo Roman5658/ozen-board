@@ -186,6 +186,8 @@ function AdDetailsPage({ t }: Props) {
         description: seoDescription,
         path: `/ad/${slugOrId ?? ''}`,
         lang,
+        image: visibleAd ? getAdImages(visibleAd)[0] : undefined,
+        noindex: !visibleAd,
         alternates: [
             { hreflang: 'pl-PL', href: `${BASE_URL}/pl/ogloszenia` },
             { hreflang: 'uk-UA', href: `${BASE_URL}/uk/ogoloshennya` },
@@ -199,6 +201,8 @@ function AdDetailsPage({ t }: Props) {
             price: visibleAd.price ?? 0,
             priceCurrency: 'PLN',
             areaServed: 'PL',
+            url: `${BASE_URL}${buildAdPath(visibleAd.title, visibleAd.city, visibleAd.id)}`,
+            image: getAdImages(visibleAd)[0],
         } : undefined,
     })
 

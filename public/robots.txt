@@ -1,10 +1,16 @@
 User-agent: *
 Allow: /
+Disallow: /admin
 Disallow: /admin/
-Disallow: /login
+Disallow: /account
+Disallow: /chat
+Disallow: /add
+Disallow: /add-auction
+Disallow: /edit
+Disallow: /edit-auction
+Disallow: /my-ads
+Disallow: /pay-test
 Disallow: /profile
 Disallow: /settings
-Disallow: /account
-Disallow: /my-ads
 
 Sitemap: https://xoven.pl/sitemap.xml

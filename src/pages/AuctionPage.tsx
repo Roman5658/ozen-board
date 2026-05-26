@@ -291,6 +291,8 @@ function AuctionPage() {
             : (seoLang === 'pl' ? 'Aukcje lokalne.' : 'Локальні аукціони.'),
         path: visibleActiveAuction ? `/auction/${slugOrId ?? visibleActiveAuction.id}` : '/auctions',
         lang: seoLang,
+        image: visibleActiveAuction?.images?.[0],
+        noindex: !!slugOrId && !visibleActiveAuction,
         alternates: [
             { hreflang: 'pl-PL', href: `${BASE_URL}/pl/aukcje` },
             { hreflang: 'uk-UA', href: `${BASE_URL}/uk/auktsiony` },
@@ -301,11 +303,13 @@ function AuctionPage() {
             '@type': 'Product',
             name: visibleActiveAuction.title,
             description: visibleActiveAuction.description,
+            image: visibleActiveAuction.images?.[0],
             offers: {
                 '@type': 'Offer',
                 priceCurrency: 'PLN',
                 price: visibleActiveAuction.currentBid,
                 availability: 'https://schema.org/InStock',
+                url: `${BASE_URL}${buildAuctionPath(visibleActiveAuction.title, visibleActiveAuction.city, visibleActiveAuction.id)}`,
             },
         } : undefined,
     })

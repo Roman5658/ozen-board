@@ -43,6 +43,64 @@ import AdminAuctionsPage from "../pages/AdminAuctionsPage"
 import AdminUsersPage from "../pages/AdminUsersPage"
 import AdminBackupPage from "../pages/AdminBackupPage"
 
+function getAppSeo(pathname: string, lang: Lang, t: (typeof translations)[Lang]) {
+    const homeAlternates = [
+        { hreflang: 'pl-PL', href: `${BASE_URL}/pl/` },
+        { hreflang: 'uk-UA', href: `${BASE_URL}/uk/` },
+        { hreflang: 'x-default', href: `${BASE_URL}/pl/` },
+    ]
+
+    const safetyAlternates = [
+        { hreflang: 'pl-PL', href: `${BASE_URL}/pl/bezpieczenstwo` },
+        { hreflang: 'uk-UA', href: `${BASE_URL}/uk/bezpeka` },
+        { hreflang: 'x-default', href: `${BASE_URL}/pl/bezpieczenstwo` },
+    ]
+
+    const staticSeo: Record<string, { title: string; description: string; alternates?: typeof homeAlternates }> = {
+        '/privacy': {
+            title: lang === 'pl' ? 'Polityka prywatności | Xoven' : 'Політика конфіденційності | Xoven',
+            description: lang === 'pl' ? 'Jak Xoven przetwarza dane użytkowników, płatności, profile, czaty i cookies.' : 'Як Xoven обробляє дані користувачів, платежі, профілі, чати та cookies.',
+        },
+        '/terms': {
+            title: lang === 'pl' ? 'Regulamin | Xoven' : 'Умови користування | Xoven',
+            description: lang === 'pl' ? 'Zasady korzystania z Xoven, promowania, aukcji, moderacji i bezpieczeństwa.' : 'Правила користування Xoven, просування, аукціонів, модерації та безпеки.',
+        },
+        '/cookies': {
+            title: lang === 'pl' ? 'Cookies | Xoven' : 'Cookies | Xoven',
+            description: lang === 'pl' ? 'Informacje o cookies i localStorage używanych przez Xoven.' : 'Інформація про cookies і localStorage, які використовує Xoven.',
+        },
+        '/contact': {
+            title: lang === 'pl' ? 'Kontakt | Xoven' : 'Контакти | Xoven',
+            description: lang === 'pl' ? 'Kontakt z zespołem Xoven w sprawach platformy, bezpieczeństwa i prywatności.' : 'Контакт з командою Xoven щодо платформи, безпеки та приватності.',
+        },
+        '/promotion-info': {
+            title: lang === 'pl' ? 'Jak działa promowanie? | Xoven' : 'Як працює просування? | Xoven',
+            description: lang === 'pl' ? 'Informacje o promowaniu ogłoszeń i aukcji, płatnościach oraz zasadach widoczności.' : 'Інформація про просування оголошень і аукціонів, оплату та правила видимості.',
+        },
+        '/safety': {
+            title: lang === 'pl' ? 'Bezpieczeństwo | Xoven' : 'Безпека | Xoven',
+            description: lang === 'pl' ? 'Zasady bezpiecznych transakcji online i ochrony przed oszustwami na Xoven.' : 'Правила безпечних онлайн-угод і захисту від шахрайства на Xoven.',
+            alternates: safetyAlternates,
+        },
+        '/pl/bezpieczenstwo': {
+            title: 'Bezpieczeństwo | Xoven',
+            description: 'Zasady bezpiecznych transakcji online i ochrony przed oszustwami na Xoven.',
+            alternates: safetyAlternates,
+        },
+        '/uk/bezpeka': {
+            title: 'Безпека | Xoven',
+            description: 'Правила безпечних онлайн-угод і захисту від шахрайства на Xoven.',
+            alternates: safetyAlternates,
+        },
+    }
+
+    return staticSeo[pathname] ?? {
+        title: t.seo.appTitle,
+        description: t.seo.appDescription,
+        alternates: homeAlternates,
+    }
+}
+
 function App() {
     const [lang, setLang] = useState<Lang>(() => detectInitialLang())
     const [currentUser, setCurrentUser] = useState(() => getLocalUser())
@@ -54,16 +112,13 @@ function App() {
     const navigate = useNavigate()
     const noindexPrefixes = ['/admin', '/account', '/my-ads', '/add', '/edit', '/chat']
     const noindex = noindexPrefixes.some((prefix) => location.pathname.startsWith(prefix))
+    const appSeo = getAppSeo(location.pathname, lang, t)
     useSeo({
-        title: t.seo.appTitle,
-        description: t.seo.appDescription,
+        title: appSeo.title,
+        description: appSeo.description,
         path: location.pathname,
         lang: lang,
-        alternates: [
-            { hreflang: 'pl-PL', href: `${BASE_URL}/pl/` },
-            { hreflang: 'uk-UA', href: `${BASE_URL}/uk/` },
-            { hreflang: 'x-default', href: `${BASE_URL}/pl/` },
-        ],
+        alternates: appSeo.alternates,
         noindex,
         jsonLd: [
             {
@@ -74,7 +129,7 @@ function App() {
                 inLanguage: ['pl-PL', 'uk-UA'],
                 potentialAction: {
                     '@type': 'SearchAction',
-                    target: `${BASE_URL}/${lang}/ogloszenia?q={search_term_string}`,
+                    target: `${BASE_URL}/${lang === 'pl' ? 'pl/ogloszenia' : 'uk/ogoloshennya'}?q={search_term_string}`,
                     'query-input': 'required name=search_term_string',
                 },
             },
@@ -83,7 +138,7 @@ function App() {
                 '@type': 'Organization',
                 name: 'Xoven',
                 url: BASE_URL,
-                logo: `${BASE_URL}/vite.svg`,
+                logo: `${BASE_URL}/apple-touch-icon.png`,
             },
         ],
     })
