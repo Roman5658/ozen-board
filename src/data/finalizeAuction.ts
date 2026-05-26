@@ -6,13 +6,11 @@ import {
 import { db } from "../app/firebase"
 import { getOrCreateChat, sendAuctionEndedSystemMessage } from "./chats"
 
-const AUCTION_ENDED_SYSTEM_MESSAGE =
-    "Аукціон завершено. Ви можете зв’язатися щодо покупки.\n" +
-    "Aukcja została zakończona. Możesz skontaktować się w sprawie zakupu."
-
 type AuctionFinalizeData = {
     status?: string
     endsAt?: number
+    currentBid?: number
+    startPrice?: number
     currentBidderId?: string | null
     winnerId?: string | null
     winnerChatNotifiedAt?: number | null
@@ -27,6 +25,7 @@ export async function finalizeAuction(auctionId: string) {
     let winnerId: string | null = null
     let ownerId: string | null = null
     let auctionTitle = "Аукціон"
+    let finalPrice = 0
     const now = Date.now()
 
     await runTransaction(db, async (tx) => {
@@ -52,6 +51,11 @@ export async function finalizeAuction(auctionId: string) {
         auctionTitle = typeof auction.title === "string" && auction.title.trim()
             ? auction.title
             : auctionTitle
+        finalPrice = typeof auction.currentBid === "number"
+            ? auction.currentBid
+            : typeof auction.startPrice === "number"
+                ? auction.startPrice
+                : finalPrice
 
         const patch: Record<string, unknown> = {}
         if (isActiveAndEnded) {
@@ -80,7 +84,11 @@ export async function finalizeAuction(auctionId: string) {
             winnerId,
             auctionId,
             auctionTitle,
-            text: AUCTION_ENDED_SYSTEM_MESSAGE,
+            text: buildAuctionEndedSystemMessage(
+                auctionTitle,
+                finalPrice,
+                buildAuctionUrl(auctionId)
+            ),
         })
 
         await updateDoc(ref, {
@@ -101,4 +109,25 @@ export async function finalizeAuction(auctionId: string) {
             console.warn("[auction] failed to store winner chat error", updateError)
         }
     }
+}
+
+function buildAuctionEndedSystemMessage(title: string, price: number, auctionUrl: string): string {
+    const formattedPrice = `${price.toFixed(2)} zł`
+
+    return [
+        `Аукціон завершено: ${title}.`,
+        `Фінальна ціна: ${formattedPrice}.`,
+        "Для зв’язку напишіть у цьому чаті.",
+        `Переглянути аукціон: ${auctionUrl}`,
+        "",
+        `Aukcja zakończona: ${title}.`,
+        `Cena końcowa: ${formattedPrice}.`,
+        "Aby się skontaktować, napisz w tym czacie.",
+        `Zobacz aukcję: ${auctionUrl}`,
+    ].join("\n")
+}
+
+function buildAuctionUrl(auctionId: string): string {
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
+    return `${origin}/auction/${auctionId}`
 }

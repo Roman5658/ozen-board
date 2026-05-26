@@ -230,8 +230,14 @@ async function processAuctionWinnerNotification(
         ]);
 
         const chatRef = await getOrCreateAuctionWinnerChat(claim.sellerId, claim.winnerId, claim.chatId);
+        const baseUrl = requireEnv("APP_BASE_URL").replace(/\/+$/, "");
+        const links = {
+            chatLink: `${baseUrl}/chat/${chatRef.id}`,
+            auctionLink: `${baseUrl}/auction/${claim.auctionId}`,
+        };
+
         if (!claim.chatAlreadyNotified) {
-            await sendAuctionEndedChatMessage(chatRef, claim);
+            await sendAuctionEndedChatMessage(chatRef, claim, links.auctionLink);
         }
 
         await auctionRefForUpdate.update({
@@ -241,11 +247,6 @@ async function processAuctionWinnerNotification(
             winnerChatNotificationError: null,
         });
 
-        const baseUrl = requireEnv("APP_BASE_URL").replace(/\/+$/, "");
-        const links = {
-            chatLink: `${baseUrl}/chat/${chatRef.id}`,
-            auctionLink: `${baseUrl}/auction/${claim.auctionId}`,
-        };
         const resend = new Resend(RESEND_API_KEY.value());
         const from = requireEnv("RECEIPTS_FROM_EMAIL");
 
@@ -336,13 +337,11 @@ async function getOrCreateAuctionWinnerChat(
 
 async function sendAuctionEndedChatMessage(
     chatRef: FirebaseFirestore.DocumentReference,
-    claim: AuctionWinnerNotificationClaim
+    claim: AuctionWinnerNotificationClaim,
+    auctionLink: string
 ) {
     const messageRef = chatRef.collection("messages").doc(`auction-ended-${claim.auctionId}`);
-    const text = [
-        "Аукціон завершено. Ви можете зв’язатися щодо покупки.",
-        "Aukcja została zakończona. Możesz skontaktować się w sprawie zakupu.",
-    ].join("\n");
+    const text = buildAuctionEndedChatText(claim, auctionLink);
 
     await db.runTransaction(async (transaction) => {
         const messageSnap = await transaction.get(messageRef);
@@ -375,6 +374,22 @@ async function sendAuctionEndedChatMessage(
             [`hiddenForAt.${claim.winnerId}`]: null,
         });
     });
+}
+
+function buildAuctionEndedChatText(claim: AuctionWinnerNotificationClaim, auctionLink: string): string {
+    const price = `${claim.finalPrice.toFixed(2)} zł`;
+
+    return [
+        `Аукціон завершено: ${claim.title}.`,
+        `Фінальна ціна: ${price}.`,
+        "Для зв’язку напишіть у цьому чаті.",
+        `Переглянути аукціон: ${auctionLink}`,
+        "",
+        `Aukcja zakończona: ${claim.title}.`,
+        `Cena końcowa: ${price}.`,
+        "Aby się skontaktować, napisz w tym czacie.",
+        `Zobacz aukcję: ${auctionLink}`,
+    ].join("\n");
 }
 
 async function getUserContact(userId: string): Promise<UserContact> {

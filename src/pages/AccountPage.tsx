@@ -17,6 +17,7 @@ import AuctionCard from "../components/AuctionCard"
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
 type Props = {
     t: (typeof translations)[keyof typeof translations]
+    chatUnreadCount?: number
 }
 
 type ModeratedOwnerItem = {
@@ -37,7 +38,7 @@ type ModeratedOwnerItem = {
 
 
 
-function AccountPage({ t }: Props) {
+function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     const a = t.account
     const containsCyrillic = (value: string) => /[А-Яа-яЁёІіЇїЄєҐґ]/.test(value)
     const isLatinNickname = (value: string) => /^[A-Za-z0-9._-]+$/.test(value.trim())
@@ -746,6 +747,7 @@ function AccountPage({ t }: Props) {
     const removedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "removed")
     const archivedAuctions = myAuctions.filter(auction => ["ended", "expired"].includes(getAuctionOwnerStatus(auction)))
     const canEditProfile = isAdmin()
+    const chatBadgeText = chatUnreadCount > 99 ? "99+" : String(chatUnreadCount)
 
 
     // ============================
@@ -759,17 +761,6 @@ function AccountPage({ t }: Props) {
                 {canEditProfile ? (
                     <div className="card stack8">
                         <h3 className="h3">{a.profile.editProfile}</h3>
-                        <div
-                            style={{
-                                border: "1px solid #d1fae5",
-                                borderRadius: 8,
-                                padding: 10,
-                                background: "#f0fdf4",
-                                fontSize: 14,
-                            }}
-                        >
-                            <b>{a.profile.nicknameLabel}:</b> {user.nickname}
-                        </div>
                         <label style={{fontSize: 13, fontWeight: 700}}>
                             {a.profile.nicknameLabel}
                         </label>
@@ -803,17 +794,36 @@ function AccountPage({ t }: Props) {
                             {a.profile.save}
                         </button>
                     </div>
-                ) : (
-                    <div style={{fontSize: 14, color: "#374151"}}>
-                        <b>{a.profile.nicknameLabel}:</b> {user.nickname}
-                    </div>
-                )}
+                ) : null}
                 <Link
                     to="/account/chats"
                     className="btn-secondary"
-                    style={{display: "inline-block", textAlign: "center"}}
+                    style={{display: "inline-block", textAlign: "center", position: "relative"}}
                 >
                     {a.profile.myChats}
+                    {chatUnreadCount > 0 && (
+                        <span
+                            style={{
+                                position: "absolute",
+                                top: -8,
+                                right: -8,
+                                minWidth: 22,
+                                height: 22,
+                                padding: "0 6px",
+                                borderRadius: 999,
+                                background: "#dc2626",
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 800,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                border: "2px solid #fff",
+                            }}
+                        >
+                            {chatBadgeText}
+                        </span>
+                    )}
                 </Link>
                 <Link
                     to="/account/payments"

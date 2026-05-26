@@ -171,7 +171,7 @@ function App() {
                 <Route path="/privacy" element={<PrivacyPage t={t} />} />
 
                 <Route path="/add" element={<AddPage t={t} />} />
-                <Route path="/account" element={<AccountPage t={t} />} />
+                <Route path="/account" element={<AccountPage t={t} chatUnreadCount={chatUnreadCount} />} />
                 <Route path="/account/chats" element={<AccountChatsPage t={t} />} />
                 <Route path="/account/payments" element={<AccountPaymentsPage t={t} />} />
                 <Route path="/my-ads" element={<MyAdsPage />} />
