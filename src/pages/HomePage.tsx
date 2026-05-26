@@ -341,10 +341,24 @@ function HomePage({ t }: Props) {
         [page, regularAds]
     )
 
+    function scrollToPageTop() {
+        const scroll = () => {
+            const options: ScrollToOptions = { top: 0, behavior: 'smooth' }
+            window.scrollTo(options)
+            document.scrollingElement?.scrollTo(options)
+            document.querySelector<HTMLElement>('.app-main')?.scrollTo(options)
+        }
+
+        window.requestAnimationFrame(() => {
+            scroll()
+            window.setTimeout(scroll, 0)
+        })
+    }
+
     function goToPage(nextPage: number) {
         const safePage = Math.min(Math.max(nextPage, 1), totalPages || 1)
         setPage(safePage)
-        window.scrollTo({ top: 0, behavior: 'smooth' })
+        scrollToPageTop()
     }
 
     return (

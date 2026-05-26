@@ -46,10 +46,24 @@ export default function AdminPagination({
     onPageChange,
 }: AdminPaginationProps) {
     const totalPages = getTotalPages(totalItems, pageSize)
+    function scrollToPageTop() {
+        const scroll = () => {
+            const options: ScrollToOptions = { top: 0, behavior: "smooth" }
+            window.scrollTo(options)
+            document.scrollingElement?.scrollTo(options)
+            document.querySelector<HTMLElement>(".app-main")?.scrollTo(options)
+        }
+
+        window.requestAnimationFrame(() => {
+            scroll()
+            window.setTimeout(scroll, 0)
+        })
+    }
+
     function goToPage(nextPage: number) {
         const safePage = Math.min(Math.max(nextPage, 1), totalPages)
         onPageChange(safePage)
-        window.scrollTo({ top: 0, behavior: "smooth" })
+        scrollToPageTop()
     }
 
     if (totalItems <= pageSize) {
