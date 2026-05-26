@@ -644,6 +644,7 @@ function AddPage({ t }: Props) {
                                                 setIsPaying(true)
 
                                                 try {
+                                                    await assertUserNotBlocked(userId)
                                                     const paymentResult = await verifyPayPalPayment({
                                                         orderId,
                                                         targetType: "ad",
@@ -664,6 +665,9 @@ function AddPage({ t }: Props) {
                                                             promotion,
                                                         })
                                                     )
+                                                } catch (error) {
+                                                    setError(isAccountRestrictedError(error) ? t.common.accountRestricted : a.errors.paymentNotConfirmed)
+                                                    throw error
                                                 } finally {
                                                     setIsPaying(false)
                                                 }

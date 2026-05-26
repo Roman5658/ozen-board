@@ -369,6 +369,7 @@ function AddAuctionPage({ t }: Props) {
                                             setIsPaying(true)
 
                                             try {
+                                                await assertUserNotBlocked(safeUser.id)
                                                 const paymentResult = await verifyPayPalPayment({
                                                     orderId,
                                                     targetType: "auction",
@@ -381,6 +382,9 @@ function AddAuctionPage({ t }: Props) {
 
                                                 setPaypalOrderId(orderId)
                                                 setPaymentCompleted(true)
+                                            } catch (error) {
+                                                setError(isAccountRestrictedError(error) ? t.common.accountRestricted : t.addAuction.errors.paypalError)
+                                                throw error
                                             } finally {
                                                 setIsPaying(false)
                                             }

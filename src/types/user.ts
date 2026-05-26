@@ -7,6 +7,9 @@ export type AppUser = {
     blockedAt?: number | null
     blockedReason?: string | null
     blockedBy?: string | null
+    unblockedAt?: number | null
+    unblockReason?: string | null
+    unblockedBy?: string | null
 
     karma: number
     createdAt: number

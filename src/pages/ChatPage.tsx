@@ -42,6 +42,9 @@ function ChatPage() {
     const [lastSentAt, setLastSentAt] = useState<number>(0)
     const [sendError, setSendError] = useState<string>("")
     const [reportingMessageId, setReportingMessageId] = useState<string>("")
+    const [reportDraft, setReportDraft] = useState<{ message: ChatMessage; senderName: string } | null>(null)
+    const [reportReasonType, setReportReasonType] = useState("spam")
+    const [reportReasonText, setReportReasonText] = useState("")
 
 
     const currentIds = currentUser
@@ -117,7 +120,17 @@ function ChatPage() {
         return <div className="card">Чат не знайдено</div>
     }
 
-    async function reportMessage(message: ChatMessage, senderName: string) {
+    const reportReasons = [
+        { value: "spam", label: t.chatReport.reasons.spam },
+        { value: "scam", label: t.chatReport.reasons.scam },
+        { value: "abuse", label: t.chatReport.reasons.abuse },
+        { value: "suspicious_link", label: t.chatReport.reasons.suspiciousLink },
+        { value: "other", label: t.chatReport.reasons.other },
+    ]
+
+    async function submitReportMessage() {
+        if (!reportDraft) return
+        const { message, senderName } = reportDraft
         if (!currentUser || !chatId) return
 
         const authUser = auth.currentUser
@@ -150,10 +163,17 @@ function ChatPage() {
                 reportedBy,
                 reportedByName: currentUser.nickname,
                 messageText: message.text,
+                reason: reportReasonType,
+                description: reportReasonText.trim(),
+                reasonType: reportReasonType,
+                reasonText: reportReasonText.trim(),
                 createdAt: Date.now(),
                 status: "pending",
             })
 
+            setReportDraft(null)
+            setReportReasonText("")
+            setReportReasonType("spam")
             alert(t.chatReport.sent)
         } catch (error) {
             console.error("[chat] report message failed", error)
@@ -256,7 +276,11 @@ function ChatPage() {
                                         <div style={{ marginTop: 6 }}>
                                             <button
                                                 type="button"
-                                                onClick={() => void reportMessage(m, senderName)}
+                                                onClick={() => {
+                                                    setReportDraft({ message: m, senderName })
+                                                    setReportReasonType("spam")
+                                                    setReportReasonText("")
+                                                }}
                                                 disabled={reportingMessageId === m.id}
                                                 style={{
                                                     border: "none",
@@ -334,6 +358,59 @@ function ChatPage() {
                     </button>
                 </form>
             </div>
+            {reportDraft && (
+                <div
+                    style={{
+                        position: "fixed",
+                        inset: 0,
+                        background: "rgba(15, 23, 42, 0.45)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 16,
+                        zIndex: 50,
+                    }}
+                >
+                    <div className="card stack12" style={{ width: "min(520px, 100%)", background: "#fff" }}>
+                        <h3 style={{ margin: 0 }}>{t.chatReport.modalTitle}</h3>
+                        <label className="stack8">
+                            <span>{t.chatReport.reasonLabel}</span>
+                            <select
+                                className="input"
+                                value={reportReasonType}
+                                onChange={event => setReportReasonType(event.target.value)}
+                            >
+                                {reportReasons.map(reason => (
+                                    <option key={reason.value} value={reason.value}>{reason.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="stack8">
+                            <span>{t.chatReport.descriptionLabel}</span>
+                            <textarea
+                                className="input"
+                                value={reportReasonText}
+                                onChange={event => setReportReasonText(event.target.value)}
+                                placeholder={t.chatReport.descriptionPlaceholder}
+                                rows={4}
+                            />
+                        </label>
+                        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                            <button type="button" className="btn-secondary" onClick={() => setReportDraft(null)}>
+                                {t.chatReport.cancel}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn-danger"
+                                disabled={reportingMessageId === reportDraft.message.id}
+                                onClick={() => void submitReportMessage()}
+                            >
+                                {t.chatReport.submit}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

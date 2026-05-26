@@ -29,6 +29,17 @@ type ReporterInfo = {
     email?: string
 }
 
+type ModerationAction = 'reviewed' | 'warning' | 'block_user' | 'rejected'
+
+type ModerationForm = {
+    report: Report
+    action: ModerationAction
+    moderationNote: string
+    reporterMessage: string
+    reportedUserMessage: string
+    actionReason: string
+}
+
 function toMillis(value: unknown): number | null {
     if (typeof value === "number") return value
     if (value && typeof value === "object" && "toMillis" in value) {
@@ -43,14 +54,14 @@ function targetKey(targetType: ReportTargetType, targetId: string): string {
     return `${targetType}:${targetId}`
 }
 
-function statusRank(status: ReportStatus): number {
-    if (status === 'new' || status === 'pending') return 0
-    if (status === 'reviewed') return 1
-    return 2
-}
-
 function isContentReport(report: Report): boolean {
     return report.targetType === 'ad' || report.targetType === 'auction'
+}
+
+function moderationStatusRank(status: Report['moderationStatus'], fallback: ReportStatus): number {
+    if (status === 'pending' || fallback === 'new' || fallback === 'pending') return 0
+    if (status === 'reviewed' || fallback === 'reviewed') return 1
+    return 2
 }
 
 function getAdminId(): string {
@@ -119,12 +130,25 @@ async function loadReporterInfo(reporterId: string): Promise<[string, ReporterIn
     }
 }
 
+async function findUserDocId(userId: string): Promise<string | null> {
+    if (!userId) return null
+    const normalized = userId.trim().toLowerCase()
+
+    const directSnap = await getDoc(doc(db, 'users', normalized))
+    if (directSnap.exists()) return directSnap.id
+
+    const uidSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)))
+    return uidSnap.docs[0]?.id ?? null
+}
+
 export default function AdminReportsPage({ t }: Props) {
     const [reports, setReports] = useState<Report[]>([])
     const [targets, setTargets] = useState<Record<string, TargetInfo>>({})
     const [reporters, setReporters] = useState<Record<string, ReporterInfo>>({})
     const [reviews, setReviews] = useState<UserReview[]>([])
     const [tab, setTab] = useState<'reports' | 'reviews' | 'karma'>('reports')
+    const [moderationForm, setModerationForm] = useState<ModerationForm | null>(null)
+    const [processingAction, setProcessingAction] = useState(false)
     const text = t.adminReports
 
     useEffect(() => {
@@ -152,8 +176,19 @@ export default function AdminReportsPage({ t }: Props) {
                     reporterId: x.reporterId ?? x.reporterUserId ?? x.reportedBy ?? '',
                     reason: x.reason ?? 'user-report',
                     description: x.description ?? x.message ?? x.messageText ?? '',
+                    reasonType: typeof x.reasonType === 'string' ? x.reasonType : null,
+                    reasonText: typeof x.reasonText === 'string' ? x.reasonText : null,
                     createdAt: toMillis(x.createdAt) ?? Date.now(),
                     status: (x.status ?? (isChatMessageReport ? 'pending' : 'new')) as ReportStatus,
+                    moderationStatus: typeof x.moderationStatus === 'string' ? x.moderationStatus : (isChatMessageReport ? 'pending' : null),
+                    moderationAction: typeof x.moderationAction === 'string' ? x.moderationAction : null,
+                    moderationNote: typeof x.moderationNote === 'string' ? x.moderationNote : null,
+                    reporterMessage: typeof x.reporterMessage === 'string' ? x.reporterMessage : null,
+                    reportedUserMessage: typeof x.reportedUserMessage === 'string' ? x.reportedUserMessage : null,
+                    actionReason: typeof x.actionReason === 'string' ? x.actionReason : null,
+                    processedAt: toMillis(x.processedAt),
+                    processedBy: typeof x.processedBy === 'string' ? x.processedBy : null,
+                    reportedUserId: typeof x.reportedUserId === 'string' ? x.reportedUserId : null,
                     reviewedAt: toMillis(x.reviewedAt),
                     reviewedBy: x.reviewedBy ?? null,
                     resolutionNote: typeof x.resolutionNote === 'string' ? x.resolutionNote : null,
@@ -198,32 +233,105 @@ export default function AdminReportsPage({ t }: Props) {
 
     const sortedReports = useMemo(() => {
         return [...reports].sort((a, b) => {
-            const byStatus = statusRank(a.status) - statusRank(b.status)
+            const byStatus = moderationStatusRank(a.moderationStatus, a.status) - moderationStatusRank(b.moderationStatus, b.status)
             if (byStatus !== 0) return byStatus
             return b.createdAt - a.createdAt
         })
     }, [reports])
 
-    async function setStatus(reportId: string, status: ReportStatus) {
-        const reviewedAt = Date.now()
-        const reviewedBy = getAdminId()
-        const patch: Partial<Report> & Record<string, unknown> = { status, reviewedAt, reviewedBy }
+    function getReportedUserId(report: Report): string | null {
+        if (report.reportedUserId) return report.reportedUserId
+        if (report.targetType === 'chat_message') return report.senderId ?? null
+        const target = targets[targetKey(report.targetType, report.targetId)]
+        return target?.ownerId ?? null
+    }
 
-        if (status === 'resolved' || status === 'rejected') {
-            const note = window.prompt(text.prompts.resolutionNote)
-            if (note === null) return
+    function openModerationAction(report: Report, action: ModerationAction) {
+        const defaults = text.moderationDefaults[action]
+        setModerationForm({
+            report,
+            action,
+            moderationNote: defaults.moderationNote,
+            reporterMessage: defaults.reporterMessage,
+            reportedUserMessage: defaults.reportedUserMessage,
+            actionReason: defaults.actionReason,
+        })
+    }
 
-            patch.resolutionNote = note.trim()
-            patch.notificationNeeded = true
-            patch.ownerNotified = false
-            patch.reporterNotified = false
+    async function submitModerationAction() {
+        if (!moderationForm) return
+
+        const actionReason = moderationForm.actionReason.trim()
+        if (!actionReason) {
+            alert(text.alerts.reasonRequired)
+            return
         }
 
+        const now = Date.now()
+        const processedBy = getAdminId()
+        const reportedUserId = getReportedUserId(moderationForm.report)
+        const moderationStatus =
+            moderationForm.action === 'warning'
+                ? 'warned'
+                : moderationForm.action === 'block_user'
+                    ? 'user_blocked'
+                    : moderationForm.action
+        const status: ReportStatus =
+            moderationForm.action === 'reviewed'
+                ? 'reviewed'
+                : moderationForm.action === 'rejected'
+                    ? 'rejected'
+                    : 'resolved'
+        const patch: Partial<Report> & Record<string, unknown> = {
+            status,
+            moderationStatus,
+            moderationAction: moderationForm.action,
+            moderationNote: moderationForm.moderationNote.trim(),
+            reporterMessage: moderationForm.reporterMessage.trim(),
+            reportedUserMessage: moderationForm.reportedUserMessage.trim(),
+            actionReason,
+            processedAt: now,
+            processedBy,
+            reviewedAt: now,
+            reviewedBy: processedBy,
+            resolutionNote: moderationForm.moderationNote.trim(),
+            notificationNeeded: true,
+            reporterNotified: false,
+            ownerNotified: false,
+            reportedUserId: reportedUserId ?? null,
+        }
+
+        setProcessingAction(true)
         try {
-            await updateDoc(doc(db, 'reports', reportId), patch)
-            setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...patch } : r))
+            if (moderationForm.action === 'block_user') {
+                if (!reportedUserId) {
+                    alert(text.alerts.reportedUserMissing)
+                    return
+                }
+
+                const userDocId = await findUserDocId(reportedUserId)
+                if (!userDocId) {
+                    alert(text.alerts.reportedUserMissing)
+                    return
+                }
+
+                await updateDoc(doc(db, 'users', userDocId), {
+                    status: 'blocked',
+                    blockedAt: now,
+                    blockedBy: processedBy,
+                    blockedReason: actionReason,
+                    updatedAt: now,
+                })
+            }
+
+            await updateDoc(doc(db, 'reports', moderationForm.report.id), patch)
+            setReports(prev => prev.map(r => r.id === moderationForm.report.id ? { ...r, ...patch } : r))
+            setModerationForm(null)
+            alert(text.alerts.actionSaved)
         } catch {
             alert(text.alerts.updateError)
+        } finally {
+            setProcessingAction(false)
         }
     }
 
@@ -355,8 +463,10 @@ export default function AdminReportsPage({ t }: Props) {
                     const target = targets[key]
                     const reporter = reporters[r.reporterId]
                     const targetMissing = target && !target.exists
-                    const isNewReport = r.status === 'new' || r.status === 'pending'
+                    const moderationStatus = r.moderationStatus ?? (r.status === 'new' || r.status === 'pending' ? 'pending' : r.status)
+                    const isNewReport = moderationStatus === 'pending'
                     const isChatReport = r.targetType === 'chat_message'
+                    const reportedUserId = getReportedUserId(r)
 
                     return (
                         <div
@@ -369,14 +479,14 @@ export default function AdminReportsPage({ t }: Props) {
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                                 <div>
-                                    <b>{text.status[r.status] ?? r.status}</b>
+                                    <b>{text.moderationStatus[moderationStatus] ?? text.status[r.status] ?? r.status}</b>
                                     {' · '}
                                     {new Date(r.createdAt).toLocaleString(text.locale)}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                     {isNewReport && (
                                         <span className='ad-badge' style={{ background: '#f59e0b', color: '#111827' }}>
-                                            {text.status[r.status] ?? text.status.new}
+                                            {text.moderationStatus[moderationStatus] ?? text.status.new}
                                         </span>
                                     )}
                                     <div style={{ color: '#6b7280', fontSize: 13 }}>{r.id}</div>
@@ -390,6 +500,7 @@ export default function AdminReportsPage({ t }: Props) {
                                     <div>{text.chatReport.chatId}: <code>{r.chatId ?? text.unknown}</code></div>
                                     <div>{text.chatReport.messageId}: <code>{r.messageId ?? r.targetId ?? text.unknown}</code></div>
                                     <div>{text.chatReport.sender}: {r.senderName || r.senderId || text.unknown}</div>
+                                    {r.chatId && <Link to={`/chat/${r.chatId}`}>{text.chatReport.openChat}</Link>}
                                     <div>{text.chatReport.text}: {r.messageText || r.description || text.unknown}</div>
                                 </div>
                             ) : (
@@ -415,6 +526,7 @@ export default function AdminReportsPage({ t }: Props) {
                             <div className='stack8' style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8 }}>
                                 <div><b>{text.reporter.title}</b></div>
                                 <div>{text.reporter.id}: {r.reporterId || text.unknown}</div>
+                                {r.reporterId && <Link to={`/user/${r.reporterId}`}>{text.reporter.openProfile}</Link>}
                                 {(reporter?.nickname || reporter?.email) && (
                                     <div>
                                         {text.reporter.profile}: {reporter.nickname ?? reporter.email}
@@ -425,6 +537,26 @@ export default function AdminReportsPage({ t }: Props) {
 
                             <div><b>{text.fields.reason}:</b> {r.reason || '—'}</div>
                             <div><b>{text.fields.description}:</b> {r.description || '—'}</div>
+                            {reportedUserId && (
+                                <div>
+                                    <b>{text.reportedUser}:</b> {reportedUserId}{' '}
+                                    <Link to={`/user/${reportedUserId}`}>{text.reporter.openProfile}</Link>
+                                </div>
+                            )}
+                            <div><b>{text.fields.reason}:</b> {r.reasonType ? (text.reasonTypes[r.reasonType as keyof typeof text.reasonTypes] ?? r.reasonType) : (r.reason || '—')}</div>
+                            <div><b>{text.fields.description}:</b> {r.reasonText || r.description || '—'}</div>
+                            {r.moderationAction && <div><b>{text.fields.action}:</b> {text.actionsTaken[r.moderationAction] ?? r.moderationAction}</div>}
+                            {r.actionReason && <div><b>{text.fields.actionReason}:</b> {r.actionReason}</div>}
+                            {r.moderationNote && <div><b>{text.fields.moderationNote}:</b> {r.moderationNote}</div>}
+                            {r.reporterMessage && <div><b>{text.fields.reporterMessage}:</b> {r.reporterMessage}</div>}
+                            {r.reportedUserMessage && <div><b>{text.fields.reportedUserMessage}:</b> {r.reportedUserMessage}</div>}
+                            {r.processedBy && (
+                                <div style={{ fontSize: 13, color: '#6b7280' }}>
+                                    {text.fields.processedBy}: {r.processedBy}
+                                    {' · '}
+                                    {r.processedAt ? new Date(r.processedAt).toLocaleString(text.locale) : '—'}
+                                </div>
+                            )}
                             {r.resolutionNote && <div><b>{text.fields.resolutionNote}:</b> {r.resolutionNote}</div>}
                             {r.reviewedBy && (
                                 <div style={{ fontSize: 13, color: '#6b7280' }}>
@@ -435,13 +567,16 @@ export default function AdminReportsPage({ t }: Props) {
                             )}
 
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <button className='btn-secondary' onClick={() => setStatus(r.id, 'reviewed')}>
+                                <button className='btn-secondary' onClick={() => openModerationAction(r, 'reviewed')}>
                                     {text.actions.markReviewed}
                                 </button>
-                                <button className='btn-secondary' onClick={() => setStatus(r.id, 'resolved')}>
-                                    {text.actions.resolve}
+                                <button className='btn-secondary' onClick={() => openModerationAction(r, 'warning')}>
+                                    {text.actions.warnUser}
                                 </button>
-                                <button className='btn-danger' onClick={() => setStatus(r.id, 'rejected')}>
+                                <button className='btn-danger' onClick={() => openModerationAction(r, 'block_user')}>
+                                    {text.actions.blockUser}
+                                </button>
+                                <button className='btn-danger' onClick={() => openModerationAction(r, 'rejected')}>
                                     {text.actions.reject}
                                 </button>
                                 {isContentReport(r) && (
@@ -464,5 +599,48 @@ export default function AdminReportsPage({ t }: Props) {
 
         {tab === 'reviews' && reviews.map(r => <div key={r.id} className='card'><div><b>{r.authorUserName ?? r.authorUserId}</b> → {r.targetUserName ?? r.targetUserId}</div><div>{r.adTitle}</div><div>{text.review.karma}: {r.karmaValue > 0 ? '+1' : '-1'}</div><div>{r.comment}</div><button className='btn-danger' onClick={async () => { await deleteDoc(doc(db, 'userReviews', r.id)); setReviews(prev => prev.filter(x => x.id !== r.id)) }}>{text.review.delete}</button></div>)}
         {tab === 'karma' && badKarma.map(([id, v]) => <div key={id} className='card'>{v.name} ({id}) · {text.review.karma} {v.karma} · {text.review.reviewsCount} {v.count}</div>)}
+        {moderationForm && (
+            <div
+                style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(15, 23, 42, 0.45)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 16,
+                    zIndex: 60,
+                }}
+            >
+                <div className='card stack12' style={{ width: 'min(640px, 100%)', background: '#fff' }}>
+                    <h3 style={{ margin: 0 }}>{text.moderationModal.title}</h3>
+                    <div style={{ color: '#475569', fontSize: 14 }}>
+                        {text.moderationModal.action}: <b>{text.actionsTaken[moderationForm.action]}</b>
+                    </div>
+                    <label className='stack8'>
+                        <span>{text.moderationModal.actionReason}</span>
+                        <input className='input' value={moderationForm.actionReason} onChange={event => setModerationForm({ ...moderationForm, actionReason: event.target.value })} />
+                    </label>
+                    <label className='stack8'>
+                        <span>{text.moderationModal.moderationNote}</span>
+                        <textarea className='input' rows={3} value={moderationForm.moderationNote} onChange={event => setModerationForm({ ...moderationForm, moderationNote: event.target.value })} />
+                    </label>
+                    <label className='stack8'>
+                        <span>{text.moderationModal.reporterMessage}</span>
+                        <textarea className='input' rows={3} value={moderationForm.reporterMessage} onChange={event => setModerationForm({ ...moderationForm, reporterMessage: event.target.value })} />
+                    </label>
+                    {(moderationForm.action === 'warning' || moderationForm.action === 'block_user') && (
+                        <label className='stack8'>
+                            <span>{text.moderationModal.reportedUserMessage}</span>
+                            <textarea className='input' rows={3} value={moderationForm.reportedUserMessage} onChange={event => setModerationForm({ ...moderationForm, reportedUserMessage: event.target.value })} />
+                        </label>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+                        <button className='btn-secondary' type='button' onClick={() => setModerationForm(null)} disabled={processingAction}>{text.moderationModal.cancel}</button>
+                        <button className='btn-primary' type='button' onClick={() => void submitModerationAction()} disabled={processingAction}>{text.moderationModal.save}</button>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
 }

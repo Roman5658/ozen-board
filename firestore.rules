@@ -167,7 +167,14 @@ return signedIn() && authEmail() in [
                 'status',
                 'blockedAt',
                 'blockedReason',
-                'blockedBy'
+                'blockedBy',
+                'unblockedAt',
+                'unblockedBy',
+                'unblockReason',
+                'unblockEmailSent',
+                'unblockEmailSentAt',
+                'unblockEmailError',
+                'unblockEmailLastAttemptAt'
               ])
             );
             allow delete: if isAdmin();
@@ -263,6 +270,10 @@ return signedIn() && authEmail() in [
         'reportedBy',
         'reportedByName',
         'messageText',
+        'reason',
+        'description',
+        'reasonType',
+        'reasonText',
         'createdAt',
         'status'
       ]) &&
@@ -278,6 +289,13 @@ return signedIn() && authEmail() in [
       request.resource.data.messageText is string &&
       request.resource.data.messageText.size() > 0 &&
       request.resource.data.messageText.size() <= 5000 &&
+      request.resource.data.reason is string &&
+      request.resource.data.reasonType in ['spam', 'scam', 'abuse', 'suspicious_link', 'other'] &&
+      request.resource.data.reason == request.resource.data.reasonType &&
+      request.resource.data.description is string &&
+      request.resource.data.description.size() <= 1000 &&
+      request.resource.data.reasonText is string &&
+      request.resource.data.reasonText == request.resource.data.description &&
       request.resource.data.createdAt is number &&
       request.resource.data.status == 'pending' &&
       reportId == 'chat_message_' + request.resource.data.chatId + '_' + request.resource.data.messageId + '_' + authUid() &&

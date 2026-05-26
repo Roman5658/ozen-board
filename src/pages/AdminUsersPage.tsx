@@ -27,6 +27,9 @@ type AdminUser = {
     blockedAt?: number | null
     blockedReason?: string
     blockedBy?: string
+    unblockedAt?: number | null
+    unblockReason?: string
+    unblockedBy?: string
 }
 
 type ChatSummary = {
@@ -187,6 +190,9 @@ export default function AdminUsersPage({ t }: Props) {
                         blockedAt: toMillis(data.blockedAt),
                         blockedReason: getString(data.blockedReason),
                         blockedBy: getString(data.blockedBy),
+                        unblockedAt: toMillis(data.unblockedAt),
+                        unblockReason: getString(data.unblockReason),
+                        unblockedBy: getString(data.unblockedBy),
                     }
                 }).sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
 
@@ -323,6 +329,40 @@ export default function AdminUsersPage({ t }: Props) {
         }
     }
 
+    async function unblockUser() {
+        if (!selectedUser || selectedUser.status !== "blocked") return
+
+        const reason = window.prompt(text.unblockReasonPrompt)?.trim()
+        if (!reason) {
+            alert(text.unblockReasonRequired)
+            return
+        }
+
+        const admin = getLocalUser()
+        const adminId = admin?.uid || admin?.id || admin?.email || "admin"
+        const patch = {
+            status: "active",
+            unblockedAt: Date.now(),
+            unblockReason: reason,
+            unblockedBy: adminId,
+            unblockEmailSent: false,
+            updatedAt: Date.now(),
+        }
+
+        setModerationLoading(true)
+        try {
+            await updateDoc(doc(db, "users", selectedUser.id), patch)
+            setUsers((current) => current.map((user) => (
+                user.id === selectedUser.id ? { ...user, ...patch } : user
+            )))
+            alert(text.unblockedAlert)
+        } catch {
+            setError(text.loadError)
+        } finally {
+            setModerationLoading(false)
+        }
+    }
+
     return (
         <div style={{ display: "grid", gap: 18 }}>
             <header>
@@ -411,8 +451,33 @@ export default function AdminUsersPage({ t }: Props) {
                                 <div><b>{text.blockedBy}:</b> {selectedUser.blockedBy ?? "-"}</div>
                             </>
                         )}
+                        {selectedUser.unblockedAt && (
+                            <>
+                                <div><b>{text.unblockedAt}:</b> {formatDate(selectedUser.unblockedAt, locale)}</div>
+                                <div><b>{text.unblockReason}:</b> {selectedUser.unblockReason ?? "-"}</div>
+                                <div><b>{text.unblockedBy}:</b> {selectedUser.unblockedBy ?? "-"}</div>
+                            </>
+                        )}
                     </div>
-                    {selectedUser.status !== "blocked" && (
+                    {selectedUser.status === "blocked" ? (
+                        <button
+                            type="button"
+                            onClick={unblockUser}
+                            disabled={moderationLoading}
+                            style={{
+                                marginTop: 12,
+                                padding: "9px 12px",
+                                borderRadius: 8,
+                                border: "1px solid #16a34a",
+                                color: "#166534",
+                                background: "#dcfce7",
+                                cursor: "pointer",
+                                fontWeight: 700,
+                            }}
+                        >
+                            {text.unblockUser}
+                        </button>
+                    ) : (
                         <button
                             type="button"
                             onClick={blockUser}

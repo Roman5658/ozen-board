@@ -734,6 +734,7 @@ function escapeHtml(value: string): string {
 
 export { verifyPayPalPayment } from "./paypal/verifyPayPalPayment";
 export { sendPaymentReceipt } from "./paypal/sendPaymentReceipt";
+export { sendReportModerationEmails, sendUserUnblockedEmail } from "./moderation/sendModerationEmails";
 
 /* ======================================================
    ADS — автоматическая ротация PIN (TOP3 / TOP6)
