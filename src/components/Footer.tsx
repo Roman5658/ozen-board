@@ -14,7 +14,7 @@ function Footer({ t }: Props) {
 
     return (
         <footer style={{
-            padding: '16px 16px var(--footer-bottom-padding, 16px)',
+            padding: '12px 16px calc(var(--footer-bottom-padding, 16px) + 6px)',
             borderTop: '1px solid #e5e7eb',
             fontSize: 13,
             display: 'flex',
