@@ -87,6 +87,8 @@ type Props = {
     }
 }
 
+const ONE_HOUR = 60 * 60 * 1000
+
 
 // временная поддержка старого isPinned
 function normalizeAd(ad: Ad): Ad {
@@ -107,6 +109,17 @@ function isActivePin(ad: Ad, now: number) {
         typeof ad.pinnedUntil === 'number' &&
         ad.pinnedUntil > now
     )
+}
+
+function stableHash(value: string): number {
+    let hash = 2166136261
+
+    for (let i = 0; i < value.length; i++) {
+        hash ^= value.charCodeAt(i)
+        hash = Math.imul(hash, 16777619)
+    }
+
+    return hash >>> 0
 }
 
 function prioritizeCityDiversity<T extends { id: string; city: string }>(ads: T[]): T[] {
@@ -135,6 +148,29 @@ function sortTopAds(ads: Ad[]): Ad[] {
         if (timeDiff !== 0) return timeDiff
         return a.id.localeCompare(b.id)
     })
+}
+
+function sortTopAdsForRotation(ads: Ad[], rotationBucket: number): Ad[] {
+    return [...ads].sort((a, b) => {
+        const scoreDiff =
+            stableHash(`${a.city}:${a.id}:${rotationBucket}`) -
+            stableHash(`${b.city}:${b.id}:${rotationBucket}`)
+
+        if (scoreDiff !== 0) return scoreDiff
+
+        const timeDiff = (a.pinnedAt ?? a.createdAt) - (b.pinnedAt ?? b.createdAt)
+        if (timeDiff !== 0) return timeDiff
+
+        return a.id.localeCompare(b.id)
+    })
+}
+
+function pickTopAdsForDisplay(ads: Ad[], city: string, limit: number, rotationBucket: number): Ad[] {
+    if (city) {
+        return sortTopAds(ads.filter(ad => ad.city === city)).slice(0, limit)
+    }
+
+    return prioritizeCityDiversity(sortTopAdsForRotation(ads, rotationBucket)).slice(0, limit)
 }
 
 function HomePage({ t }: Props) {
@@ -177,6 +213,7 @@ function HomePage({ t }: Props) {
     const [page, setPage] = useState(1)
     const [isSeoTextVisible, setIsSeoTextVisible] = useState(false)
     const [now, setNow] = useState(() => Date.now())
+    const rotationBucket = useMemo(() => Math.floor(now / ONE_HOUR), [now])
     const localUser = getLocalUser()
     const currentUserId = localUser?.id
 
@@ -255,17 +292,13 @@ function HomePage({ t }: Props) {
 
 
     const top3Ads = useMemo(
-        () => city === ""
-            ? prioritizeCityDiversity(allTop3).slice(0, 3)
-            : allTop3.filter(ad => ad.city === city).slice(0, 3),
-        [allTop3, city]
+        () => pickTopAdsForDisplay(allTop3, city, 3, rotationBucket),
+        [allTop3, city, rotationBucket]
     )
 
     const top6Ads = useMemo(
-        () => city === ""
-            ? allTop6.slice(0, 6)
-            : allTop6.filter(ad => ad.city === city).slice(0, 6),
-        [allTop6, city]
+        () => pickTopAdsForDisplay(allTop6, city, 6, rotationBucket),
+        [allTop6, city, rotationBucket]
     )
     const bumpAds = useMemo(
         () => filteredAndSortedAds.filter(
