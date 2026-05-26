@@ -9,6 +9,7 @@ import { PRICES } from "../config/prices"
 import { verifyPayPalPayment } from "../api/payments"
 import PayPalCheckoutButton from "./PayPalCheckoutButton"
 import { auth, db } from "../app/firebase"
+import { isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
 
 type Bid = {
     id: string
@@ -142,20 +143,17 @@ function AuctionDetails({
     }
 
     async function placeBidHandler() {
-        const authUser = auth.currentUser
-        const matchesAuthUser =
-            !!authUser &&
-            !!currentUserId &&
-            (
-                authUser.uid === currentUserId ||
-                authUser.email?.toLowerCase() === currentUserId.toLowerCase()
-            )
-
-        if (!matchesAuthUser) {
-            setError(t.auctionDetails.authRequired)
+        try {
+            await requireMatchingFirebaseUser({
+                id: currentUserId,
+                email: currentUserId,
+            })
+        } catch (error) {
+            setError(isStaleAuthSessionError(error) ? error.message : t.auctionDetails.authRequired)
             return
         }
 
+        if (!currentUserId) return
         if (!seller) return
 
         const value = Number(amount)

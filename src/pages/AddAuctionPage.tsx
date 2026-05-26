@@ -6,6 +6,7 @@ import { PRICES } from "../config/prices"
 import type { translations } from "../app/i18n"
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
+import { isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
 import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
@@ -148,9 +149,14 @@ function AddAuctionPage({ t }: Props) {
 
     async function createAuction() {
         try {
+            await requireMatchingFirebaseUser(safeUser)
             await assertUserNotBlocked(safeUser.id)
         } catch (error) {
-            setError(isAccountRestrictedError(error) ? t.common.accountRestricted : t.addAuction.errors.createFailed)
+            if (isStaleAuthSessionError(error)) {
+                setError(error.message)
+            } else {
+                setError(isAccountRestrictedError(error) ? t.common.accountRestricted : t.addAuction.errors.createFailed)
+            }
             return
         }
 

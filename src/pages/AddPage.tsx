@@ -18,6 +18,7 @@ import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
+import { isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
 import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
@@ -263,9 +264,14 @@ function AddPage({ t }: Props) {
         const since = Date.now() - DAY_MS
 
         try {
+            await requireMatchingFirebaseUser(safeUser)
             await assertUserNotBlocked(userId)
         } catch (error) {
-            setError(isAccountRestrictedError(error) ? t.common.accountRestricted : a.errors.createFailed)
+            if (isStaleAuthSessionError(error)) {
+                setError(error.message)
+            } else {
+                setError(isAccountRestrictedError(error) ? t.common.accountRestricted : a.errors.createFailed)
+            }
             return
         }
 
