@@ -381,12 +381,12 @@ width: 80%;
 .ad-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     transition: transform 0.2s ease;
 }
 
 .ad-card:hover .ad-image img {
-    transform: scale(1.05);
+    transform: none;
 }
 .btn-primary {
     width: 100%;
@@ -491,7 +491,7 @@ body {
 .ad-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .ad-image-placeholder {
@@ -815,7 +815,7 @@ h1, h2, h3, h4, h5, h6 {
 .ads-grid--list .ad-image img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .ads-grid--list .ad-header,

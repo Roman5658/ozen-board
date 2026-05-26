@@ -102,7 +102,8 @@ function AuctionCard({
                         alt={title}
                         style={{
                             width: '100%',
-                            objectFit: 'cover',
+                            height: '100%',
+                            objectFit: 'contain',
                         }}
                     />
                 ) : (
