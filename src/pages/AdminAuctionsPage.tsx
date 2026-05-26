@@ -11,12 +11,17 @@ import { db } from "../app/firebase"
 import type { Auction } from "../types/auction"
 import { getLocalUser } from "../data/localUser"
 
-const DAY = 24 * 60 * 60 * 1000
 const ADMIN_READ_AUCTIONS_KEY = "xoven_admin_read_auctions_v1"
 
 function getAdminActorId() {
     const user = getLocalUser()
     return user?.uid || user?.id || user?.email || "admin"
+}
+
+function getAuctionPromotionUntil(auction: Auction) {
+    return typeof auction.endsAt === "number" && auction.endsAt > Date.now()
+        ? auction.endsAt
+        : null
 }
 
 function AdminAuctionsPage() {
@@ -73,22 +78,27 @@ function AdminAuctionsPage() {
     // ADMIN ACTIONS
     // =========================
 
-    async function setTop(auctionId: string) {
-        const now = Date.now()
+    async function setTop(auction: Auction) {
+        const promotionUntil = getAuctionPromotionUntil(auction)
+        if (!promotionUntil) {
+            alert("Аукціон уже завершено або немає дати завершення")
+            return
+        }
 
-        await updateDoc(doc(db, "auctions", auctionId), {
+        await updateDoc(doc(db, "auctions", auction.id), {
             promotionType: "top-auction",
-            promotionUntil: now + 3 * DAY,
+            promotionUntil,
             promotionQueueAt: null,
         })
 
         setAuctions(prev =>
             prev.map(a =>
-                a.id === auctionId
+                a.id === auction.id
                     ? {
                         ...a,
                         promotionType: "top-auction",
-                        promotionUntil: now + 3 * DAY,
+                        promotionUntil,
+                        promotionQueueAt: null,
                     }
                     : a
             )
@@ -96,22 +106,27 @@ function AdminAuctionsPage() {
     }
 
 
-    async function setFeatured(auctionId: string) {
-        const now = Date.now()
+    async function setFeatured(auction: Auction) {
+        const promotionUntil = getAuctionPromotionUntil(auction)
+        if (!promotionUntil) {
+            alert("Аукціон уже завершено або немає дати завершення")
+            return
+        }
 
-        await updateDoc(doc(db, "auctions", auctionId), {
+        await updateDoc(doc(db, "auctions", auction.id), {
             promotionType: "featured",
-            promotionUntil: now + 3 * DAY,
+            promotionUntil,
             promotionQueueAt: null,
         })
 
         setAuctions(prev =>
             prev.map(a =>
-                a.id === auctionId
+                a.id === auction.id
                     ? {
                         ...a,
                         promotionType: "featured",
-                        promotionUntil: now + 3 * DAY,
+                        promotionUntil,
+                        promotionQueueAt: null,
                     }
                     : a
             )
@@ -119,22 +134,27 @@ function AdminAuctionsPage() {
     }
 
 
-    async function setGold(auctionId: string) {
-        const now = Date.now()
+    async function setGold(auction: Auction) {
+        const promotionUntil = getAuctionPromotionUntil(auction)
+        if (!promotionUntil) {
+            alert("Аукціон уже завершено або немає дати завершення")
+            return
+        }
 
-        await updateDoc(doc(db, "auctions", auctionId), {
+        await updateDoc(doc(db, "auctions", auction.id), {
             promotionType: "highlight-gold",
-            promotionUntil: now + 7 * DAY,
+            promotionUntil,
             promotionQueueAt: null,
         })
 
         setAuctions(prev =>
             prev.map(a =>
-                a.id === auctionId
+                a.id === auction.id
                     ? {
                         ...a,
                         promotionType: "highlight-gold",
-                        promotionUntil: now + 7 * DAY,
+                        promotionUntil,
+                        promotionQueueAt: null,
                     }
                     : a
             )
@@ -291,7 +311,7 @@ function AdminAuctionsPage() {
                             )}
                             <button
                                 className="btn-secondary"
-                                onClick={() => setTop(a.id)}
+                                onClick={() => setTop(a)}
                                 disabled={isEnded}
                             >
                                 🔥 TOP
@@ -306,7 +326,7 @@ function AdminAuctionsPage() {
 
                             <button
                                 className="btn-secondary"
-                                onClick={() => setFeatured(a.id)}
+                                onClick={() => setFeatured(a)}
                                 disabled={isEnded}
                             >
                                 ⭐ FEATURED
@@ -314,7 +334,7 @@ function AdminAuctionsPage() {
 
                             <button
                                 className="btn-secondary"
-                                onClick={() => setGold(a.id)}
+                                onClick={() => setGold(a)}
                                 disabled={isEnded}
                             >
                                 ✨ GOLD

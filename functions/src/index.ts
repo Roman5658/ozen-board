@@ -742,8 +742,8 @@ export { sendPaymentReceipt } from "./paypal/sendPaymentReceipt";
 const TOP3_LIMIT = 3;
 const TOP6_LIMIT = 6;
 
-const TOP3_DURATION = 3 * DAY;
-const TOP6_DURATION = 3 * DAY;
+const TOP3_DURATION = 10 * DAY;
+const TOP6_DURATION = 10 * DAY;
 
 export const rotatePinnedAds = onSchedule(
     {
@@ -881,9 +881,6 @@ export const rotatePinnedAds = onSchedule(
 const AUCTION_TOP_LIMIT = 3;
 const AUCTION_FEATURED_LIMIT = 6;
 
-const AUCTION_TOP_DURATION = 3 * DAY;
-const AUCTION_FEATURED_DURATION = 3 * DAY;
-
 export const rotateAuctionPromotions = onSchedule(
     {
         schedule: "every 5 minutes",
@@ -960,16 +957,22 @@ export const rotateAuctionPromotions = onSchedule(
             const batch = db.batch();
 
             queueTop.slice(0, freeTop).forEach(doc => {
+                const endsAt = doc.data().endsAt;
+                if (typeof endsAt !== "number" || endsAt <= now) return;
+
                 batch.update(doc.ref, {
-                    promotionUntil: now + AUCTION_TOP_DURATION,
+                    promotionUntil: endsAt,
                     promotionQueueAt: null,
                 });
                 updates++;
             });
 
             queueFeatured.slice(0, freeFeatured).forEach(doc => {
+                const endsAt = doc.data().endsAt;
+                if (typeof endsAt !== "number" || endsAt <= now) return;
+
                 batch.update(doc.ref, {
-                    promotionUntil: now + AUCTION_FEATURED_DURATION,
+                    promotionUntil: endsAt,
                     promotionQueueAt: null,
                 });
                 updates++;

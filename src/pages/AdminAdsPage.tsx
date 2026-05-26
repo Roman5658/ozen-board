@@ -17,7 +17,7 @@ type AdminAdActions = {
 }
 
 const DAY = 24 * 60 * 60 * 1000
-const ADMIN_TOP_DURATION = 3 * DAY
+const ADMIN_TOP_DURATION = 10 * DAY
 
 function formatDate(ts?: number | null) {
     if (!ts) return "—"

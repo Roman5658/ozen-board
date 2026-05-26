@@ -332,18 +332,18 @@ export const translations = {
                 description: 'Що дає',
             },
             ads: {
-                top3: 'Показ у блоці TOP 3 у вибраному місті на 3 дні. Якщо всі місця зайняті, оголошення стає в чергу.',
-                top6: 'Показ у блоці TOP 6 у вибраному місті на 3 дні. Якщо всі місця зайняті, оголошення стає в чергу.',
+                top3: 'Показ у блоці TOP 3 у вибраному місті на 10 днів. Якщо всі місця зайняті, оголошення стає в чергу.',
+                top6: 'Показ у блоці TOP 6 у вибраному місті на 10 днів. Якщо всі місця зайняті, оголошення стає в чергу.',
                 bumpName: 'Bump / підняття',
                 bump: 'Разове підняття оголошення вище у звичайному списку.',
                 goldName: 'Gold / виділення',
                 gold: 'Кольорове виділення оголошення на 7 днів.',
             },
             auctions: {
-                top: 'Показ аукціону в TOP-блоці на 3 дні. Якщо всі місця зайняті, аукціон стає в чергу.',
-                featured: 'Показ аукціону в блоці Featured на 3 дні. Якщо всі місця зайняті, аукціон стає в чергу.',
+                top: 'Показ аукціону в TOP-блоці до завершення аукціону. Якщо всі місця зайняті, аукціон стає в чергу.',
+                featured: 'Показ аукціону в блоці Featured до завершення аукціону. Якщо всі місця зайняті, аукціон стає в чергу.',
                 goldName: 'Gold',
-                gold: 'Кольорове виділення аукціону на 7 днів.',
+                gold: 'Кольорове виділення аукціону до завершення аукціону.',
             },
             rulesTitle: 'Важливі умови',
             rules: [
@@ -709,8 +709,8 @@ export const translations = {
                 none: "Без просування",
                 noneHint: "Звичайне розміщення",
 
-                top3Hint: "Найвище місце у місті на 3 дні (обмежено)",
-                top6Hint: "Після TOP 3 на 3 дні",
+                top3Hint: "Найвище місце у місті на 10 днів (обмежено)",
+                top6Hint: "Після TOP 3 на 10 днів",
 
                 queue: "Усі місця зайняті — оголошення стане в чергу",
                 freeSlots: "Вільно: {{count}} з {{max}}",
@@ -765,13 +765,13 @@ export const translations = {
                 noneHint: "Звичайний аукціон",
 
                 top: "TOP аукціон",
-                topHint: "Показується вище звичайних аукціонів (3 дні)",
+                topHint: "Показується вище звичайних аукціонів до завершення аукціону",
 
                 featured: "Featured",
-                featuredHint: "Виділений аукціон (3 дні)",
+                featuredHint: "Виділений аукціон до завершення аукціону",
 
                 gold: "Виділити (gold)",
-                goldHint: "Кольорове виділення (7 днів)",
+                goldHint: "Кольорове виділення до завершення аукціону",
 
                 queue: "Усі місця зайняті — аукціон стане в чергу",
                 freeSlots: "Вільно: {{count}} з {{max}}",
@@ -1260,18 +1260,18 @@ export const translations = {
                 description: 'Co daje',
             },
             ads: {
-                top3: 'Wyświetlenie w bloku TOP 3 w wybranym mieście przez 3 dni. Jeśli wszystkie miejsca są zajęte, ogłoszenie trafia do kolejki.',
-                top6: 'Wyświetlenie w bloku TOP 6 w wybranym mieście przez 3 dni. Jeśli wszystkie miejsca są zajęte, ogłoszenie trafia do kolejki.',
+                top3: 'Wyświetlenie w bloku TOP 3 w wybranym mieście przez 10 dni. Jeśli wszystkie miejsca są zajęte, ogłoszenie trafia do kolejki.',
+                top6: 'Wyświetlenie w bloku TOP 6 w wybranym mieście przez 10 dni. Jeśli wszystkie miejsca są zajęte, ogłoszenie trafia do kolejki.',
                 bumpName: 'Bump / podbicie',
                 bump: 'Jednorazowe podniesienie ogłoszenia wyżej na zwykłej liście.',
                 goldName: 'Gold / wyróżnienie',
                 gold: 'Kolorowe wyróżnienie ogłoszenia przez 7 dni.',
             },
             auctions: {
-                top: 'Wyświetlenie aukcji w bloku TOP przez 3 dni. Jeśli wszystkie miejsca są zajęte, aukcja trafia do kolejki.',
-                featured: 'Wyświetlenie aukcji w bloku Featured przez 3 dni. Jeśli wszystkie miejsca są zajęte, aukcja trafia do kolejki.',
+                top: 'Wyświetlenie aukcji w bloku TOP do zakończenia aukcji. Jeśli wszystkie miejsca są zajęte, aukcja trafia do kolejki.',
+                featured: 'Wyświetlenie aukcji w bloku Featured do zakończenia aukcji. Jeśli wszystkie miejsca są zajęte, aukcja trafia do kolejki.',
                 goldName: 'Gold',
-                gold: 'Kolorowe wyróżnienie aukcji przez 7 dni.',
+                gold: 'Kolorowe wyróżnienie aukcji do zakończenia aukcji.',
             },
             rulesTitle: 'Ważne zasady',
             rules: [
@@ -1637,8 +1637,8 @@ export const translations = {
                 none: "Bez promowania",
                 noneHint: "Zwykłe ogłoszenie",
 
-                top3Hint: "Najwyższa pozycja w mieście na 3 dni (limitowana)",
-                top6Hint: "Po TOP 3 na 3 dni",
+                top3Hint: "Najwyższa pozycja w mieście na 10 dni (limitowana)",
+                top6Hint: "Po TOP 3 na 10 dni",
 
                 queue: "Wszystkie miejsca są zajęte — ogłoszenie trafi do kolejki",
                 freeSlots: "Dostępne: {{count}} z {{max}}",
@@ -1692,13 +1692,13 @@ export const translations = {
                 noneHint: "Zwykła aukcja",
 
                 top: "TOP aukcja",
-                topHint: "Wyświetlana wyżej (3 dni)",
+                topHint: "Wyświetlana wyżej do zakończenia aukcji",
 
                 featured: "Featured",
-                featuredHint: "Wyróżniona aukcja (3 dni)",
+                featuredHint: "Wyróżniona aukcja do zakończenia aukcji",
 
                 gold: "Wyróżnij (gold)",
-                goldHint: "Wyróżnienie kolorem (7 dni)",
+                goldHint: "Wyróżnienie kolorem do zakończenia aukcji",
 
                 queue: "Brak wolnych miejsc — aukcja trafi do kolejki",
                 freeSlots: "Dostępne: {{count}} z {{max}}",

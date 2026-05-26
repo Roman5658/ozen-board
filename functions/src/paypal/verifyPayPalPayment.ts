@@ -9,6 +9,8 @@ const db = admin.firestore();
 
 const CURRENCY = "PLN";
 const DAY = 24 * 60 * 60 * 1000;
+const AD_TOP_DURATION = 10 * DAY;
+const AD_GOLD_DURATION = 7 * DAY;
 
 const PRICE_MAP = {
     ad: {
@@ -501,6 +503,14 @@ function assertPromotionState(
     }
 }
 
+function getAuctionPromotionUntil(auction: FirebaseFirestore.DocumentData, now: number): number {
+    if (typeof auction.endsAt !== "number" || auction.endsAt <= now) {
+        throw new Error("Auction is ended");
+    }
+
+    return auction.endsAt;
+}
+
 function getPayPalBaseUrl(): string {
     const mode = (process.env.PAYPAL_MODE || "live").toLowerCase();
     return mode === "sandbox"
@@ -667,7 +677,7 @@ async function applyAdPromotion(
     }
 
     if (promotion === "gold") {
-        const promotionUntil = now + 7 * DAY;
+        const promotionUntil = now + AD_GOLD_DURATION;
         transaction.update(adRef, {
             highlightType: "gold",
             highlightUntil: promotionUntil,
@@ -698,7 +708,7 @@ async function applyAdPromotion(
 
     const limit = AD_TOP_LIMITS[promotion];
     const hasFreeSlot = activeCount < limit;
-    const promotionUntil = hasFreeSlot ? now + 3 * DAY : null;
+    const promotionUntil = hasFreeSlot ? now + AD_TOP_DURATION : null;
 
     transaction.update(adRef, hasFreeSlot
         ? {
@@ -741,19 +751,19 @@ async function applyAuctionPromotion(
     assertPromotionState("auction", auction, promotion, now);
 
     const ownerUserId = typeof auction.ownerId === "string" ? auction.ownerId : null;
+    const auctionPromotionUntil = getAuctionPromotionUntil(auction, now);
 
     if (promotion === "highlight-gold") {
-        const promotionUntil = now + 7 * DAY;
         transaction.update(auctionRef, {
             promotionType: promotion,
-            promotionUntil,
+            promotionUntil: auctionPromotionUntil,
             promotionQueueAt: null,
             status: "active",
         });
 
         return {
             ownerUserId,
-            promotionUntil,
+            promotionUntil: auctionPromotionUntil,
             queued: false,
         };
     }
@@ -777,7 +787,7 @@ async function applyAuctionPromotion(
 
     const limit = AUCTION_PROMOTION_LIMITS[promotion];
     const hasFreeSlot = activeCount < limit;
-    const promotionUntil = hasFreeSlot ? now + 3 * DAY : null;
+    const promotionUntil = hasFreeSlot ? auctionPromotionUntil : null;
 
     transaction.update(auctionRef, hasFreeSlot
         ? {

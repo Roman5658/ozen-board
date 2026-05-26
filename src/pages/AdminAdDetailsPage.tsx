@@ -7,6 +7,9 @@ import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import { getLocalUser } from "../data/localUser"
 
+const DAY = 24 * 60 * 60 * 1000
+const AD_TOP_DURATION = 10 * DAY
+
 function formatDate(ts?: number | null) {
     if (!ts) return "—"
     return new Date(ts).toLocaleString()
@@ -56,8 +59,6 @@ function AdminAdDetailsPage() {
             </div>
         )
     }
-    const DAY = 24 * 60 * 60 * 1000
-
     async function setTop(type: "top3" | "top6") {
         if (!ad) return
         const now = Date.now()
@@ -65,7 +66,7 @@ function AdminAdDetailsPage() {
         await updateDoc(doc(db, "ads", ad.id), {
             pinType: type,
             pinnedAt: now,
-            pinnedUntil: now + 3 * DAY,
+            pinnedUntil: now + AD_TOP_DURATION,
             pinQueueAt: null,
         })
 
@@ -73,7 +74,7 @@ function AdminAdDetailsPage() {
             ...ad,
             pinType: type,
             pinnedAt: now,
-            pinnedUntil: now + 3 * DAY,
+            pinnedUntil: now + AD_TOP_DURATION,
             pinQueueAt: undefined,
         })
     }
