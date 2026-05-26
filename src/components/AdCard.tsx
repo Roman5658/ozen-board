@@ -37,7 +37,6 @@ type Props = {
         gold: string
         mine: string
 
-        safeDeal: string
         delete: string
     }
 }
@@ -205,7 +204,6 @@ function AdCard(props: Props) {
 
             <div className="ad-meta">
                 <span>🕒 {formattedDate}</span>
-                <span>{props.labels?.safeDeal}</span>
             </div>
 
             {props.isMine && props.showActions && props.onDelete && (

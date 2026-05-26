@@ -37,7 +37,6 @@ type Props = {
             inQueue: string
             gold: string
             mine: string
-            safeDeal: string
             delete: string
         }
     }

@@ -158,6 +158,19 @@ function AccountChatsPage({ t }: Props) {
                     </Link>
                 </div>
 
+                <div
+                    style={{
+                        border: "1px solid #fbbf24",
+                        background: "#fffbeb",
+                        color: "#78350f",
+                        borderRadius: 10,
+                        padding: 10,
+                        fontSize: 13,
+                    }}
+                >
+                    ⚠️ {a.chats.safetyNotice}
+                </div>
+
                 {loadingChats && <div>{a.loading}</div>}
 
                 {!loadingChats && chatRows.length === 0 && (

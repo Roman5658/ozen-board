@@ -2,7 +2,7 @@ export const translations = {
     uk: {
         title: 'Xoven',
         subtitle: 'Локальна дошка оголошень',
-        warning: 'Будьте обережні з передоплатою та підозрілими пропозиціями',
+        warning: 'Будьте обережні під час онлайн-угод. Xoven не займається доставкою і не є гарантом оплати.',
 
         langLabel: 'Мова',
         languages: {
@@ -116,7 +116,7 @@ export const translations = {
                 chatsText: 'Чати потрібні для зв’язку між користувачами. Ми зберігаємо повідомлення, учасників чату і технічні мітки часу, щоб чат працював коректно та щоб можна було реагувати на скарги.',
 
                 paymentsTitle: '6. PayPal payments',
-                paymentsText: 'Платежі за просування здійснюються через PayPal. Xoven не зберігає дані карток або банківські реквізити. PayPal може передати нам статус платежу, email платника, orderId, captureId, суму та валюту.',
+                paymentsText: 'Платежі через Xoven стосуються лише просування оголошень та аукціонів. Xoven не приймає оплату за товари між користувачами і не зберігає дані карток або банківські реквізити. PayPal може передати нам статус платежу, email платника, orderId, captureId, суму та валюту.',
 
                 logsTitle: '7. Payment logs',
                 logsText: 'Ми зберігаємо записи платежів у Firestore payments, щоб показувати історію оплат, підтверджувати походження платежу, підтримувати користувачів і розглядати технічні спори.',
@@ -155,7 +155,7 @@ export const translations = {
                 generalText: 'Користуючись Xoven, ви погоджуєтеся діяти чесно, дотримуватися законів, не вводити інших користувачів в оману та не використовувати сервіс для шахрайства, спаму або небезпечних пропозицій.',
 
                 platformTitle: '2. Відповідальність платформи',
-                platformText: 'Xoven не є стороною угоди між користувачами, не приймає оплату за товар між покупцем і продавцем, не гарантує якість товару, доставку, оплату, ставку або завершення угоди.',
+                platformText: 'Xoven не є стороною угоди між користувачами, не займається доставкою товарів, не приймає оплату за товар між покупцем і продавцем та не гарантує якість товару, доставку, оплату, ставку або завершення угоди.',
 
                 usersTitle: '3. Відповідальність користувачів',
                 usersText: 'Користувач сам відповідає за правдивість оголошення, право продавати товар або послугу, фото, опис, ціну, контакти, виконання домовленостей і дотримання законів.',
@@ -164,7 +164,7 @@ export const translations = {
                 auctionsText: 'Ставки мають бути реальними. Заборонено накручувати ціну, робити фейкові ставки, маніпулювати аукціоном або відмовлятися від домовленості без поважної причини. Продавець відповідає за опис лота і контакт з переможцем.',
 
                 paidTitle: '5. Платні просування',
-                paidText: 'Платні просування збільшують видимість оголошення або аукціону, але не гарантують продаж, ставку чи контакт від покупця. Оплата списується після підтвердження в PayPal або банку. Після оплати потрібно завершити публікацію.',
+                paidText: 'Платні просування збільшують видимість оголошення або аукціону, але не гарантують продаж, ставку чи контакт від покупця. Єдина офіційна оплата на платформі — це оплата просування. Xoven не просить дані картки в чаті або повідомленнях. Після оплати потрібно завершити публікацію.',
 
                 refundsTitle: '6. Refunds, chargebacks та спори',
                 refundsText: 'Повернення можливе лише у випадку технічної помилки сервісу, через яку оплачене просування не може бути активоване. Помилка користувача, відсутність продажу, неправильний текст оголошення або випадкове закриття сторінки не є підставою для автоматичного повернення. Перед chargeback або dispute напишіть нам, щоб ми могли перевірити платіж.',
@@ -238,8 +238,8 @@ export const translations = {
         },
         safety: {
             back: '← Назад',
-            title: 'Безпека угод',
-            intro: 'Xoven допомагає людям знаходити оголошення та аукціони, але безпека угоди залежить від уважності користувачів. Будь ласка, перевіряйте пропозиції до оплати або передачі товару.',
+            title: 'Безпека та обережність',
+            intro: 'Xoven допомагає людям знаходити оголошення та аукціони, але не є гарантом угоди, не займається доставкою товарів і не приймає оплату за товари між користувачами. Єдина офіційна оплата на платформі — це оплата просування.',
             sections: [
                 {
                     title: 'Не надсилайте передоплату незнайомим людям',
@@ -247,6 +247,7 @@ export const translations = {
                     items: [
                         'не переказуйте гроші за товар, який не бачили',
                         'не оплачуйте “бронь”, “доставку” або “комісію”, якщо пропозиція виглядає підозріло',
+                        'не переходьте за payment links, які вам надсилають у чаті або месенджері',
                         'зберігайте листування та підтвердження платежів',
                     ],
                 },
@@ -266,6 +267,7 @@ export const translations = {
                         'не відкривайте скорочені або дивні посилання',
                         'не встановлюйте додатки для “підтвердження угоди”',
                         'не вводьте дані картки на сторонніх сторінках з чату',
+                        'Xoven не просить дані картки, CVV або банківські коди в повідомленнях',
                     ],
                 },
                 {
@@ -349,6 +351,7 @@ export const translations = {
             rules: [
                 'Просування збільшує видимість, але не гарантує продаж або ставку.',
                 'Оплата списується після підтвердження в PayPal або банку.',
+                'Офіційна оплата на Xoven стосується лише просування, а не купівлі товару між користувачами.',
                 'Після оплати потрібно завершити публікацію, натиснувши кнопку створення оголошення або аукціону.',
                 'Якщо ви випадково закрили сторінку, форма і підтверджена оплата повинні відновитися під час повернення.',
                 'Повернення можливе лише при технічній помилці сервісу, а не через помилку користувача.',
@@ -367,7 +370,6 @@ export const translations = {
             gold: 'GOLD',
             mine: 'МОЄ',
 
-            safeDeal: '✔️ Безпечна угода',
             delete: 'Видалити',
         },
         bottomNav: {
@@ -548,6 +550,7 @@ export const translations = {
                 noMessages: 'Без повідомлень',
                 userFallback: 'Користувач',
                 deleteBtn: 'Видалити',
+                safetyNotice: 'Будьте обережні під час онлайн-угод. Xoven не займається доставкою, не є гарантом оплати і не просить дані картки в повідомленнях.',
                 timeLocale: 'uk-UA',
             },
             moderation: {
@@ -699,7 +702,7 @@ export const translations = {
                 title: "Оплата просування",
                 amount: "Сума",
                 queueInfo:
-                    "Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
+                    "Офіційна оплата на Xoven стосується лише просування, а не купівлі товару. Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
                 fillBeforePay:
                     "Перед оплатою заповніть усі обовʼязкові поля та додайте хоча б одне фото",
             },
@@ -782,7 +785,7 @@ export const translations = {
                 info: "Після успішної оплати аукціон буде активовано автоматично",
                 amount: "Сума",
                 queueInfo:
-                    "Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
+                    "Офіційна оплата на Xoven стосується лише просування, а не купівлі лота. Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
                 fillBeforePay: "Спочатку заповніть обовʼязкові поля",
             },
 
@@ -899,6 +902,7 @@ export const translations = {
 
         common: {
             user: "Користувач",
+            chatSafetyNotice: "Будьте обережні під час онлайн-угод. Xoven не займається доставкою, не є гарантом оплати і не просить дані картки, CVV або банківські коди в чаті.",
         },
 
         userPage: {
@@ -933,7 +937,7 @@ export const translations = {
     pl: {
         title: 'Xoven',
         subtitle: 'Lokalna tablica ogłoszeń',
-        warning: 'Uważaj na przedpłaty i podejrzane oferty',
+        warning: 'Zachowaj ostrożność podczas transakcji online. Xoven nie obsługuje dostawy i nie jest gwarantem płatności.',
 
         langLabel: 'Język',
         languages: {
@@ -1044,7 +1048,7 @@ export const translations = {
                 chatsText: 'Czaty służą do kontaktu między użytkownikami. Przechowujemy wiadomości, uczestników czatu i techniczne znaczniki czasu, aby czat działał poprawnie i aby można było reagować na zgłoszenia.',
 
                 paymentsTitle: '6. PayPal payments',
-                paymentsText: 'Płatności za promowanie realizowane są przez PayPal. Xoven nie przechowuje danych kart ani danych bankowych. PayPal może przekazać nam status płatności, email płatnika, orderId, captureId, kwotę i walutę.',
+                paymentsText: 'Płatności przez Xoven dotyczą wyłącznie promowania ogłoszeń i aukcji. Xoven nie przyjmuje płatności za towary między użytkownikami i nie przechowuje danych kart ani danych bankowych. PayPal może przekazać nam status płatności, email płatnika, orderId, captureId, kwotę i walutę.',
 
                 logsTitle: '7. Payment logs',
                 logsText: 'Przechowujemy rekordy płatności w Firestore payments, aby pokazywać historię płatności, potwierdzać pochodzenie płatności, pomagać użytkownikom i rozpatrywać techniczne spory.',
@@ -1083,7 +1087,7 @@ export const translations = {
                 generalText: 'Korzystając z Xoven, zgadzasz się działać uczciwie, przestrzegać prawa, nie wprowadzać innych użytkowników w błąd i nie używać serwisu do oszustw, spamu ani niebezpiecznych ofert.',
 
                 platformTitle: '2. Odpowiedzialność platformy',
-                platformText: 'Xoven nie jest stroną transakcji między użytkownikami, nie przyjmuje płatności za towar między kupującym i sprzedającym, nie gwarantuje jakości towaru, dostawy, zapłaty, oferty ani finalizacji umowy.',
+                platformText: 'Xoven nie jest stroną transakcji między użytkownikami, nie obsługuje dostawy towarów, nie przyjmuje płatności za towar między kupującym i sprzedającym oraz nie gwarantuje jakości towaru, dostawy, zapłaty, oferty ani finalizacji umowy.',
 
                 usersTitle: '3. Odpowiedzialność użytkowników',
                 usersText: 'Użytkownik odpowiada za prawdziwość ogłoszenia, prawo do sprzedaży towaru lub usługi, zdjęcia, opis, cenę, kontakty, wykonanie ustaleń i przestrzeganie prawa.',
@@ -1092,7 +1096,7 @@ export const translations = {
                 auctionsText: 'Oferty w aukcji powinny być realne. Zabronione jest sztuczne podbijanie ceny, fałszywe licytacje, manipulowanie aukcją lub wycofywanie się z ustaleń bez ważnego powodu. Sprzedawca odpowiada za opis przedmiotu i kontakt ze zwycięzcą.',
 
                 paidTitle: '5. Płatne promowania',
-                paidText: 'Płatne promowania zwiększają widoczność ogłoszenia lub aukcji, ale nie gwarantują sprzedaży, oferty ani kontaktu od kupującego. Płatność jest pobierana po potwierdzeniu w PayPal lub banku. Po opłaceniu trzeba zakończyć publikację.',
+                paidText: 'Płatne promowania zwiększają widoczność ogłoszenia lub aukcji, ale nie gwarantują sprzedaży, oferty ani kontaktu od kupującego. Jedyna oficjalna płatność na platformie to płatność za promowanie. Xoven nie prosi o dane karty w czacie ani wiadomościach. Po opłaceniu trzeba zakończyć publikację.',
 
                 refundsTitle: '6. Refunds, chargebacks i spory',
                 refundsText: 'Zwrot jest możliwy tylko w przypadku technicznej awarii serwisu, przez którą opłacone promowanie nie może zostać aktywowane. Błąd użytkownika, brak sprzedaży, błędna treść ogłoszenia lub przypadkowe zamknięcie strony nie są podstawą automatycznego zwrotu. Przed chargebackiem lub disputem napisz do nas, abyśmy mogli sprawdzić płatność.',
@@ -1166,8 +1170,8 @@ export const translations = {
         },
         safety: {
             back: '← Wstecz',
-            title: 'Bezpieczeństwo transakcji',
-            intro: 'Xoven pomaga znajdować ogłoszenia i aukcje, ale bezpieczeństwo transakcji zależy od ostrożności użytkowników. Sprawdzaj oferty przed zapłatą lub przekazaniem przedmiotu.',
+            title: 'Bezpieczeństwo i ostrożność',
+            intro: 'Xoven pomaga znajdować ogłoszenia i aukcje, ale nie jest gwarantem transakcji, nie obsługuje dostawy towarów i nie przyjmuje płatności za towary między użytkownikami. Jedyna oficjalna płatność na platformie to płatność za promowanie.',
             sections: [
                 {
                     title: 'Nie wysyłaj przedpłaty nieznanym osobom',
@@ -1175,6 +1179,7 @@ export const translations = {
                     items: [
                         'nie przelewaj pieniędzy za przedmiot, którego nie widziałeś',
                         'nie opłacaj “rezerwacji”, “dostawy” lub “prowizji”, jeśli oferta wygląda podejrzanie',
+                        'nie klikaj payment links wysyłanych w czacie lub komunikatorze',
                         'zachowuj korespondencję i potwierdzenia płatności',
                     ],
                 },
@@ -1194,6 +1199,7 @@ export const translations = {
                         'nie otwieraj skróconych lub dziwnych linków',
                         'nie instaluj aplikacji do “potwierdzenia transakcji”',
                         'nie wpisuj danych karty na zewnętrznych stronach z czatu',
+                        'Xoven nie prosi o dane karty, CVV ani kody bankowe w wiadomościach',
                     ],
                 },
                 {
@@ -1277,6 +1283,7 @@ export const translations = {
             rules: [
                 'Promowanie zwiększa widoczność, ale nie gwarantuje sprzedaży ani oferty.',
                 'Płatność jest pobierana po potwierdzeniu w PayPal lub banku.',
+                'Oficjalna płatność na Xoven dotyczy tylko promowania, a nie zakupu towaru między użytkownikami.',
                 'Po opłaceniu trzeba zakończyć publikację, klikając przycisk utworzenia ogłoszenia lub aukcji.',
                 'Jeśli przypadkowo zamkniesz stronę, formularz i potwierdzona płatność powinny zostać przywrócone po powrocie.',
                 'Zwrot jest możliwy tylko przy technicznej awarii serwisu, a nie z powodu błędu użytkownika.',
@@ -1295,7 +1302,6 @@ export const translations = {
             gold: 'GOLD',
             mine: 'MOJE',
 
-            safeDeal: '✔️ Bezpieczna transakcja',
             delete: 'Usuń',
         },
         bottomNav: {
@@ -1476,6 +1482,7 @@ export const translations = {
                 noMessages: 'Brak wiadomości',
                 userFallback: 'Użytkownik',
                 deleteBtn: 'Usuń',
+                safetyNotice: 'Zachowaj ostrożność podczas transakcji online. Xoven nie obsługuje dostawy, nie jest gwarantem płatności i nie prosi o dane karty w wiadomościach.',
                 timeLocale: 'pl-PL',
             },
             moderation: {
@@ -1627,7 +1634,7 @@ export const translations = {
                 title: "Płatność za promowanie",
                 amount: "Kwota",
                 queueInfo:
-                    "Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
+                    "Oficjalna płatność na Xoven dotyczy tylko promowania, a nie zakupu towaru. Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
                 fillBeforePay:
                     "Przed dokonaniem płatności wypełnij wszystkie wymagane pola i dodaj co najmniej jedno zdjęcie",
             },
@@ -1709,7 +1716,7 @@ export const translations = {
                 info: "Po udanej płatności aukcja zostanie automatycznie aktywowana",
                 amount: "Kwota",
                 queueInfo:
-                    "Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
+                    "Oficjalna płatność na Xoven dotyczy tylko promowania, a nie zakupu przedmiotu. Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
                 fillBeforePay: "Najpierw wypełnij wymagane pola",
             },
 
@@ -1826,6 +1833,7 @@ export const translations = {
 
         common: {
             user: "Użytkownik",
+            chatSafetyNotice: "Zachowaj ostrożność podczas transakcji online. Xoven nie obsługuje dostawy, nie jest gwarantem płatności i nie prosi o dane karty, CVV ani kody bankowe w czacie.",
         },
 
         userPage: {

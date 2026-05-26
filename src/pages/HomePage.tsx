@@ -80,7 +80,6 @@ type Props = {
             gold: string
             mine: string
 
-            safeDeal: string
             delete: string
         }
 

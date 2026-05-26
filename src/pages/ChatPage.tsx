@@ -145,6 +145,18 @@ function ChatPage() {
             <div
                 className="card"
                 style={{
+                    border: "1px solid #fbbf24",
+                    background: "#fffbeb",
+                    color: "#78350f",
+                    fontSize: 13,
+                }}
+            >
+                ⚠️ {t.common.chatSafetyNotice}
+            </div>
+
+            <div
+                className="card"
+                style={{
                     display: "flex",
                     flexDirection: "column",
                     height: "70vh",
