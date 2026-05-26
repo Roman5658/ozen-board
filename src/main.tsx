@@ -13,7 +13,7 @@ createRoot(document.getElementById('root')!).render(
             options={{
                 clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
 
-                components: "buttons,payment-fields,marks,funding-eligibility",
+                components: "buttons,marks",
                 currency: "PLN",
                 intent: "capture",
                 commit: true,
@@ -21,7 +21,7 @@ createRoot(document.getElementById('root')!).render(
 
                 locale: "pl_PL",
 
-                enableFunding: "blik,p24",
+                disableFunding: "blik,p24",
             }}
         >
 

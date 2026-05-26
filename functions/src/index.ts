@@ -1,13 +1,17 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
+import { Resend } from "resend";
 
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 
 const db = admin.firestore();
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 
 const DAY = 24 * 60 * 60 * 1000;
+const AUCTION_NOTIFICATION_LOCK_TTL = 10 * 60 * 1000;
 
 /* ======================================================
    ЧАТЫ — автоудаление через 30 дней
@@ -108,6 +112,444 @@ export const cleanupEndedAuctions = onSchedule(
         }
     }
 );
+
+type AuctionWinnerNotificationClaim = {
+    auctionId: string;
+    sellerId: string;
+    winnerId: string;
+    title: string;
+    city: string | null;
+    finalPrice: number;
+    chatId: string | null;
+    chatAlreadyNotified: boolean;
+    sellerEmailSent: boolean;
+    winnerEmailSent: boolean;
+};
+
+type UserContact = {
+    id: string;
+    email: string | null;
+    nickname: string;
+};
+
+type AuctionWinnerEmailRole = "seller" | "winner";
+
+export const notifyEndedAuctionWinners = onSchedule(
+    {
+        schedule: "every 15 minutes",
+        timeZone: "Europe/Warsaw",
+        secrets: [RESEND_API_KEY],
+    },
+    async () => {
+        const now = Date.now();
+        const auctionsSnap = await db.collection("auctions").get();
+
+        for (const auctionDoc of auctionsSnap.docs) {
+            try {
+                await processAuctionWinnerNotification(auctionDoc, now);
+            } catch (error) {
+                console.error(`Auction winner notification failed for ${auctionDoc.id}:`, error);
+            }
+        }
+    }
+);
+
+async function processAuctionWinnerNotification(
+    auctionDoc: FirebaseFirestore.QueryDocumentSnapshot,
+    now: number
+) {
+    const auctionRef = auctionDoc.ref;
+    const claim = await db.runTransaction(async (transaction): Promise<AuctionWinnerNotificationClaim | null> => {
+        const snap = await transaction.get(auctionRef);
+        if (!snap.exists) return null;
+
+        const auction = snap.data() ?? {};
+        const status = getString(auction.status) ?? "active";
+        if (status === "hidden" || status === "removed" || status === "deleted") return null;
+
+        const endsAt = getNumber(auction.endsAt);
+        const isPastEnd = typeof endsAt === "number" && now >= endsAt;
+        const isEndedLike = status === "ended" || status === "expired";
+        if (!isPastEnd && !isEndedLike) return null;
+
+        const sellerId = getString(auction.ownerId);
+        const winnerId = getString(auction.winnerId) ?? getString(auction.currentBidderId);
+
+        const patch: Record<string, unknown> = {};
+        if (status === "active" && isPastEnd) {
+            patch.status = "ended";
+            patch.winnerId = winnerId ?? null;
+        }
+
+        if (!sellerId || !winnerId || sellerId === winnerId) {
+            if (Object.keys(patch).length > 0) transaction.update(auctionRef, patch);
+            return null;
+        }
+
+        if (auction.auctionWinnerNotificationSent === true) {
+            if (Object.keys(patch).length > 0) transaction.update(auctionRef, patch);
+            return null;
+        }
+
+        const sendingAt = toMillis(auction.auctionWinnerNotificationSendingAt);
+        if (
+            auction.auctionWinnerNotificationStatus === "sending" &&
+            sendingAt &&
+            now - sendingAt < AUCTION_NOTIFICATION_LOCK_TTL
+        ) {
+            return null;
+        }
+
+        patch.auctionWinnerNotificationStatus = "sending";
+        patch.auctionWinnerNotificationSendingAt = admin.firestore.FieldValue.serverTimestamp();
+        transaction.update(auctionRef, patch);
+
+        return {
+            auctionId: auctionDoc.id,
+            sellerId,
+            winnerId,
+            title: getString(auction.title) ?? "Aukcja",
+            city: getString(auction.city),
+            finalPrice: getNumber(auction.currentBid) ?? getNumber(auction.startPrice) ?? 0,
+            chatId: getString(auction.winnerChatId),
+            chatAlreadyNotified:
+                !!toMillis(auction.winnerChatNotifiedAt) ||
+                auction.winnerChatNotificationStatus === "sent",
+            sellerEmailSent: auction.auctionWinnerSellerEmailSent === true,
+            winnerEmailSent: auction.auctionWinnerWinnerEmailSent === true,
+        };
+    });
+
+    if (!claim) return;
+
+    try {
+        const auctionRefForUpdate = db.collection("auctions").doc(claim.auctionId);
+        const [seller, winner] = await Promise.all([
+            getUserContact(claim.sellerId),
+            getUserContact(claim.winnerId),
+        ]);
+
+        const chatRef = await getOrCreateAuctionWinnerChat(claim.sellerId, claim.winnerId, claim.chatId);
+        if (!claim.chatAlreadyNotified) {
+            await sendAuctionEndedChatMessage(chatRef, claim);
+        }
+
+        await auctionRefForUpdate.update({
+            winnerChatId: chatRef.id,
+            winnerChatNotifiedAt: Date.now(),
+            winnerChatNotificationStatus: "sent",
+            winnerChatNotificationError: null,
+        });
+
+        const baseUrl = requireEnv("APP_BASE_URL").replace(/\/+$/, "");
+        const links = {
+            chatLink: `${baseUrl}/chat/${chatRef.id}`,
+            auctionLink: `${baseUrl}/auction/${claim.auctionId}`,
+        };
+        const resend = new Resend(RESEND_API_KEY.value());
+        const from = requireEnv("RECEIPTS_FROM_EMAIL");
+
+        let sellerEmailSent = claim.sellerEmailSent;
+        let winnerEmailSent = claim.winnerEmailSent;
+
+        if (!sellerEmailSent && seller.email) {
+            await sendAuctionWinnerEmail(resend, from, seller.email, "seller", claim, winner, links);
+            sellerEmailSent = true;
+            await auctionRefForUpdate.update({
+                auctionWinnerSellerEmailSent: true,
+                auctionWinnerSellerEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+
+        if (!winnerEmailSent && winner.email) {
+            await sendAuctionWinnerEmail(resend, from, winner.email, "winner", claim, seller, links);
+            winnerEmailSent = true;
+            await auctionRefForUpdate.update({
+                auctionWinnerWinnerEmailSent: true,
+                auctionWinnerWinnerEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+
+        if (!sellerEmailSent || !winnerEmailSent) {
+            throw new Error("Seller or winner email is missing");
+        }
+
+        await auctionRefForUpdate.update({
+            auctionWinnerNotificationSent: true,
+            auctionWinnerNotificationSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            auctionWinnerNotificationStatus: "sent",
+            auctionWinnerNotificationError: null,
+        });
+    } catch (error) {
+        const message = getErrorMessage(error);
+        console.error(`Auction winner notification failed for ${claim.auctionId}:`, message);
+
+        await db.collection("auctions").doc(claim.auctionId).update({
+            auctionWinnerNotificationStatus: "failed",
+            auctionWinnerNotificationError: message,
+            auctionWinnerNotificationLastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    }
+}
+
+async function getOrCreateAuctionWinnerChat(
+    sellerId: string,
+    winnerId: string,
+    existingChatId: string | null
+): Promise<FirebaseFirestore.DocumentReference> {
+    if (existingChatId) {
+        const existingRef = db.collection("chats").doc(existingChatId);
+        const existingSnap = await existingRef.get();
+        const users = existingSnap.exists ? existingSnap.data()?.users : null;
+        if (Array.isArray(users) && users.includes(sellerId) && users.includes(winnerId)) {
+            return existingRef;
+        }
+    }
+
+    const chatsSnap = await db
+        .collection("chats")
+        .where("users", "array-contains", sellerId)
+        .limit(50)
+        .get();
+
+    for (const chatDoc of chatsSnap.docs) {
+        const users = chatDoc.data().users;
+        if (Array.isArray(users) && users.includes(winnerId)) {
+            return chatDoc.ref;
+        }
+    }
+
+    return db.collection("chats").add({
+        users: [sellerId, winnerId],
+        lastMessage: "",
+        lastMessageSenderId: null,
+        lastSenderType: null,
+        lastSenderName: null,
+        unreadCounts: {},
+        unreadFor: [],
+        hidden: false,
+        hiddenFor: [],
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+}
+
+async function sendAuctionEndedChatMessage(
+    chatRef: FirebaseFirestore.DocumentReference,
+    claim: AuctionWinnerNotificationClaim
+) {
+    const messageRef = chatRef.collection("messages").doc(`auction-ended-${claim.auctionId}`);
+    const text = [
+        "Аукціон завершено. Ви можете зв’язатися щодо покупки.",
+        "Aukcja została zakończona. Możesz skontaktować się w sprawie zakupu.",
+    ].join("\n");
+
+    await db.runTransaction(async (transaction) => {
+        const messageSnap = await transaction.get(messageRef);
+        if (messageSnap.exists) return;
+
+        transaction.set(messageRef, {
+            senderId: "system",
+            senderType: "system",
+            senderName: "Xoven Admin",
+            text,
+            targetType: "auction",
+            targetId: claim.auctionId,
+            targetTitle: claim.title,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        transaction.update(chatRef, {
+            lastMessage: text,
+            lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastMessageSenderId: "system",
+            lastSenderType: "system",
+            lastSenderName: "Xoven Admin",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            unreadFor: admin.firestore.FieldValue.arrayUnion(claim.sellerId, claim.winnerId),
+            [`unreadCounts.${getUserKey(claim.sellerId)}`]: admin.firestore.FieldValue.increment(1),
+            [`unreadCounts.${getUserKey(claim.winnerId)}`]: admin.firestore.FieldValue.increment(1),
+            hidden: false,
+            hiddenFor: admin.firestore.FieldValue.arrayRemove(claim.sellerId, claim.winnerId),
+            [`hiddenForAt.${claim.sellerId}`]: null,
+            [`hiddenForAt.${claim.winnerId}`]: null,
+        });
+    });
+}
+
+async function getUserContact(userId: string): Promise<UserContact> {
+    const normalized = userId.trim().toLowerCase();
+    const emailFromId = normalized.includes("@") ? normalized : null;
+
+    if (emailFromId) {
+        const snap = await db.collection("users").doc(emailFromId).get();
+        const data = snap.exists ? snap.data() ?? {} : {};
+        return {
+            id: userId,
+            email: getString(data.email) ?? emailFromId,
+            nickname: getString(data.nickname) ?? emailFromId.split("@")[0],
+        };
+    }
+
+    const usersSnap = await db
+        .collection("users")
+        .where("uid", "==", userId)
+        .limit(1)
+        .get();
+
+    const docSnap = usersSnap.docs[0];
+    const data = docSnap?.data() ?? {};
+    const email = getString(data.email) ?? (docSnap?.id.includes("@") ? docSnap.id : null);
+
+    return {
+        id: userId,
+        email,
+        nickname: getString(data.nickname) ?? email?.split("@")[0] ?? "User",
+    };
+}
+
+async function sendAuctionWinnerEmail(
+    resend: Resend,
+    from: string,
+    to: string,
+    role: AuctionWinnerEmailRole,
+    claim: AuctionWinnerNotificationClaim,
+    otherUser: UserContact,
+    links: { chatLink: string; auctionLink: string }
+) {
+    const result = await resend.emails.send({
+        from,
+        to,
+        subject: `Xoven / Ozen Board — aukcja zakończona: ${claim.title}`,
+        text: buildAuctionWinnerEmailText(role, claim, otherUser, links),
+        html: buildAuctionWinnerEmailHtml(role, claim, otherUser, links),
+    });
+
+    if (result.error) {
+        throw new Error(result.error.message);
+    }
+}
+
+function buildAuctionWinnerEmailText(
+    role: AuctionWinnerEmailRole,
+    claim: AuctionWinnerNotificationClaim,
+    otherUser: UserContact,
+    links: { chatLink: string; auctionLink: string }
+): string {
+    const price = `${claim.finalPrice.toFixed(2)} PLN`;
+    const otherLabelPl = role === "seller" ? "Zwycięzca" : "Sprzedawca";
+    const otherLabelUk = role === "seller" ? "Переможець" : "Продавець";
+
+    return [
+        "PL",
+        role === "seller"
+            ? "Twoja aukcja została zakończona."
+            : "Wygrałeś aukcję.",
+        `Aukcja: ${claim.title}`,
+        `Cena końcowa: ${price}`,
+        `${otherLabelPl}: ${otherUser.nickname}`,
+        `Czat: ${links.chatLink}`,
+        `Aukcja: ${links.auctionLink}`,
+        "",
+        "UK",
+        role === "seller"
+            ? "Ваш аукціон завершено."
+            : "Ви виграли аукціон.",
+        `Аукціон: ${claim.title}`,
+        `Фінальна ціна: ${price}`,
+        `${otherLabelUk}: ${otherUser.nickname}`,
+        `Чат: ${links.chatLink}`,
+        `Аукціон: ${links.auctionLink}`,
+    ].join("\n");
+}
+
+function buildAuctionWinnerEmailHtml(
+    role: AuctionWinnerEmailRole,
+    claim: AuctionWinnerNotificationClaim,
+    otherUser: UserContact,
+    links: { chatLink: string; auctionLink: string }
+): string {
+    const price = `${claim.finalPrice.toFixed(2)} PLN`;
+    const plIntro = role === "seller"
+        ? "Twoja aukcja została zakończona."
+        : "Wygrałeś aukcję.";
+    const ukIntro = role === "seller"
+        ? "Ваш аукціон завершено."
+        : "Ви виграли аукціон.";
+    const otherLabelPl = role === "seller" ? "Zwycięzca" : "Sprzedawca";
+    const otherLabelUk = role === "seller" ? "Переможець" : "Продавець";
+
+    return `
+        <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+            <h2>Xoven / Ozen Board</h2>
+            <h3>PL</h3>
+            <p>${escapeHtml(plIntro)}</p>
+            <ul>
+                <li>Aukcja: ${escapeHtml(claim.title)}</li>
+                <li>Cena końcowa: ${escapeHtml(price)}</li>
+                <li>${escapeHtml(otherLabelPl)}: ${escapeHtml(otherUser.nickname)}</li>
+            </ul>
+            <p><a href="${escapeHtml(links.chatLink)}">Otwórz czat</a></p>
+            <p><a href="${escapeHtml(links.auctionLink)}">Otwórz aukcję</a></p>
+            <hr>
+            <h3>UK</h3>
+            <p>${escapeHtml(ukIntro)}</p>
+            <ul>
+                <li>Аукціон: ${escapeHtml(claim.title)}</li>
+                <li>Фінальна ціна: ${escapeHtml(price)}</li>
+                <li>${escapeHtml(otherLabelUk)}: ${escapeHtml(otherUser.nickname)}</li>
+            </ul>
+            <p><a href="${escapeHtml(links.chatLink)}">Відкрити чат</a></p>
+            <p><a href="${escapeHtml(links.auctionLink)}">Відкрити аукціон</a></p>
+        </div>
+    `;
+}
+
+function getString(value: unknown): string | null {
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function getNumber(value: unknown): number | null {
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function toMillis(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (value && typeof value === "object" && "toMillis" in value) {
+        const timestamp = value as { toMillis?: () => number };
+        return timestamp.toMillis?.() ?? null;
+    }
+
+    return null;
+}
+
+function getUserKey(value: string): string {
+    return value.replace(/[^A-Za-z0-9_-]/g, char => `_${char.charCodeAt(0).toString(16)}_`);
+}
+
+function requireEnv(name: string): string {
+    const value = process.env[name];
+    if (!value) {
+        throw new Error(`${name} is not configured`);
+    }
+
+    return value;
+}
+
+function getErrorMessage(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.length > 1000 ? `${message.slice(0, 1000)}...` : message;
+}
+
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 export { verifyPayPalPayment } from "./paypal/verifyPayPalPayment";
 export { sendPaymentReceipt } from "./paypal/sendPaymentReceipt";
 

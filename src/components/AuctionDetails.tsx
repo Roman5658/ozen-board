@@ -139,7 +139,21 @@ function AuctionDetails({
     }
 
     async function placeBidHandler() {
-        if (!currentUserId || !seller) return
+        const authUser = auth.currentUser
+        const matchesAuthUser =
+            !!authUser &&
+            !!currentUserId &&
+            (
+                authUser.uid === currentUserId ||
+                authUser.email?.toLowerCase() === currentUserId.toLowerCase()
+            )
+
+        if (!matchesAuthUser) {
+            setError(t.auctionDetails.authRequired)
+            return
+        }
+
+        if (!seller) return
 
         const value = Number(amount)
 

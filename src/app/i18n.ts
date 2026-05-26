@@ -790,7 +790,7 @@ export const translations = {
                 create: "Створити аукціон",
                 loading: "Завантаження...",
                 payBelow: "створити",
-                pay: "Оплатіть PayPal",
+                pay: "Оплата карткою або через PayPal",
             },
 
             modes: {
@@ -839,7 +839,7 @@ export const translations = {
             currentBid: "Поточна ставка",
             timeLeft: "До завершення",
 
-            authRequired: "Щоб зробити ставку, необхідно увійти в акаунт",
+            authRequired: "Потрібно увійти в акаунт, щоб зробити ставку",
 
             ownerPanel: {
                 title: "Керування аукціоном",
@@ -1717,7 +1717,7 @@ export const translations = {
                 create: "Utwórz aukcję",
                 loading: "Ładowanie...",
                 payBelow: "stworzyć",
-                pay: "Opłać PayPal",
+                pay: "Płatność kartą lub przez PayPal",
             },
 
             modes: {
@@ -1766,7 +1766,7 @@ export const translations = {
             currentBid: "Aktualna oferta",
             timeLeft: "Do zakończenia",
 
-            authRequired: "Aby złożyć ofertę, musisz się zalogować",
+            authRequired: "Musisz zalogować się na konto, aby złożyć ofertę",
 
             ownerPanel: {
                 title: "Zarządzanie aukcją",
