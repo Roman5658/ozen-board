@@ -41,6 +41,7 @@ import EditAuctionPage from '../pages/EditAuctionPage'
 import AdminPaymentsPage from "../pages/AdminPaymentsPage"
 import AdminAuctionsPage from "../pages/AdminAuctionsPage"
 import AdminUsersPage from "../pages/AdminUsersPage"
+import AdminBackupPage from "../pages/AdminBackupPage"
 
 function App() {
     const [lang, setLang] = useState<Lang>(() => detectInitialLang())
@@ -195,6 +196,7 @@ function App() {
                     <Route path="reports" element={<AdminReportsPage t={t} />} />
                     <Route path="users" element={<AdminUsersPage t={t} />} />
                     <Route path="payments" element={<AdminPaymentsPage />} />
+                    <Route path="backups" element={<AdminBackupPage />} />
                 </Route>
             </Routes>
 
