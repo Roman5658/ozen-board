@@ -265,6 +265,54 @@ export async function sendAdminSystemMessage(params: {
 }
 
 /**
+ * Отправить системное сообщение о завершенном аукционе.
+ */
+export async function sendAuctionEndedSystemMessage(params: {
+    chatId: string
+    sellerId: string
+    winnerId: string
+    auctionId: string
+    auctionTitle?: string
+    text: string
+}) {
+    const clean = params.text.trim()
+    if (!clean) return
+
+    const unreadUserIds = Array.from(new Set([params.sellerId, params.winnerId].filter(Boolean)))
+    if (unreadUserIds.length === 0) return
+
+    await addDoc(collection(db, "chats", params.chatId, "messages"), {
+        senderId: "system",
+        senderType: "system",
+        senderName: "Xoven Admin",
+        text: clean,
+        targetType: "auction",
+        targetId: params.auctionId,
+        targetTitle: params.auctionTitle ?? null,
+        createdAt: serverTimestamp(),
+    })
+
+    const patch: Record<string, unknown> = {
+        lastMessage: clean,
+        lastMessageAt: serverTimestamp(),
+        lastMessageSenderId: "system",
+        lastSenderType: "system",
+        lastSenderName: "Xoven Admin",
+        updatedAt: serverTimestamp(),
+        unreadFor: arrayUnion(...unreadUserIds),
+        hidden: false,
+        hiddenFor: arrayRemove(...unreadUserIds),
+    }
+
+    unreadUserIds.forEach(userId => {
+        patch[`unreadCounts.${getUserKey(userId)}`] = increment(1)
+        patch[`hiddenForAt.${userId}`] = null
+    })
+
+    await updateDoc(doc(db, "chats", params.chatId), patch)
+}
+
+/**
  * Пометить чат как прочитанный
  */
 export async function markChatAsRead(chatId: string, userId: string, userUid?: string, userEmail?: string) {

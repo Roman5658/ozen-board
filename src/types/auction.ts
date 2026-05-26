@@ -35,6 +35,9 @@ export type Auction = {
 
     bidsCount: number         // чтобы быстро показывать в списке
     winnerId?: string | null  // появится после завершения
+    winnerChatId?: string | null
+    winnerChatNotifiedAt?: number | null
+    winnerChatNotificationStatus?: "sending" | "sent" | "failed" | null
     status: AuctionStatus
     moderationReason?: string | null
     moderatedAt?: number | null

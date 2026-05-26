@@ -15,6 +15,7 @@ import AuctionDetails from '../components/AuctionDetails'
 
 import { db } from '../app/firebase'
 import { getLocalUser, isAdmin } from '../data/localUser'
+import { getOrCreateChat } from '../data/chats'
 
 import { getTimeLeft } from '../utils/time'
 import { translations, DEFAULT_LANG } from '../app/i18n'
@@ -88,6 +89,11 @@ function AuctionPage() {
                         createdAt: raw.createdAt,
                         endsAt: raw.endsAt,
                         winnerId: raw.winnerId ?? null,
+                        winnerChatId: raw.winnerChatId ?? null,
+                        winnerChatNotifiedAt: raw.winnerChatNotifiedAt ?? null,
+                        winnerChatNotificationStatus: raw.winnerChatNotificationStatus ?? null,
+                        currentBidderId: raw.currentBidderId ?? null,
+                        currentBidderName: raw.currentBidderName ?? null,
 
                         promotionType: raw.promotionType ?? "none",
                         promotionUntil: raw.promotionUntil ?? null,
@@ -136,6 +142,11 @@ function AuctionPage() {
             createdAt: raw.createdAt,
             endsAt: raw.endsAt,
             winnerId: raw.winnerId ?? null,
+            winnerChatId: raw.winnerChatId ?? null,
+            winnerChatNotifiedAt: raw.winnerChatNotifiedAt ?? null,
+            winnerChatNotificationStatus: raw.winnerChatNotificationStatus ?? null,
+            currentBidderId: raw.currentBidderId ?? null,
+            currentBidderName: raw.currentBidderName ?? null,
 
             promotionType: raw.promotionType ?? "none",
             promotionUntil: raw.promotionUntil ?? null,
@@ -186,7 +197,9 @@ function AuctionPage() {
         async function openAuction() {
             await loadAuctionById(auctionId)
             await loadBids(auctionId)
-            await finalizeAuction(auctionId)
+            await finalizeAuction(auctionId).catch(error => {
+                console.warn('[auction] finalize skipped', error)
+            })
             await loadAuctionById(auctionId)
             await loadBids(auctionId)
         }
@@ -238,6 +251,25 @@ function AuctionPage() {
         if (status === 'expired') return t.auctionDetails.statusMessages.expired
         if (status === 'ended') return t.auctionDetails.statusMessages.ended
         return t.auctions.notFound
+    }
+
+    const winnerContactId = visibleActiveAuction?.winnerId ?? visibleActiveAuction?.currentBidderId ?? null
+    const isAuctionEndedForContact = !!visibleActiveAuction && (
+        ['ended', 'expired'].includes(visibleActiveAuction.status ?? '') ||
+        visibleActiveAuction.endsAt <= now
+    )
+    const canOpenWinnerChat = isAuctionEndedForContact && !!winnerContactId && !!user && (
+        String(user.id) === String(visibleActiveAuction.ownerId) ||
+        String(user.id) === String(winnerContactId)
+    )
+
+    async function openWinnerChat() {
+        if (!visibleActiveAuction || !winnerContactId) return
+        const chatId = visibleActiveAuction.winnerChatId || await getOrCreateChat(
+            visibleActiveAuction.ownerId,
+            winnerContactId
+        )
+        navigate(`/chat/${chatId}`)
     }
 
     useEffect(() => {
@@ -396,6 +428,16 @@ function AuctionPage() {
                                 </div>
                             )}
                         </div>
+                    )}
+                    {canOpenWinnerChat && (
+                        <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={openWinnerChat}
+                            style={{ marginBottom: 12 }}
+                        >
+                            {t.auctionDetails.openChat}
+                        </button>
                     )}
                     <AuctionDetails
                         t={t}

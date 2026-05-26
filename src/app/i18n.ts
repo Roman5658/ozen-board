@@ -826,6 +826,7 @@ export const translations = {
             back: "Назад",
             noImage: "Фото відсутнє",
             ended: "Завершено",
+            openChat: "Відкрити чат",
             statusMessages: {
                 hidden: "Аукціон приховано модерацією.",
                 deleted: "Аукціон видалено власником.",
@@ -1752,6 +1753,7 @@ export const translations = {
             back: "Wstecz",
             noImage: "Brak zdjęcia",
             ended: "Zakończone",
+            openChat: "Otwórz czat",
             statusMessages: {
                 hidden: "Aukcja została ukryta przez moderację.",
                 deleted: "Aukcja została usunięta przez właściciela.",
