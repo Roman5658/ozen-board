@@ -521,6 +521,11 @@ export const translations = {
                 reviews: 'Відгуки',
                 karma: 'Погана карма',
             },
+            filters: {
+                active: 'Нові / активні',
+                archived: 'Архів',
+                all: 'Усі',
+            },
             status: {
                 new: 'Нова',
                 pending: 'Очікує',
@@ -543,7 +548,7 @@ export const translations = {
                 open: 'Відкрити',
                 notFound: 'Об’єкт не знайдено',
                 loadError: 'Не вдалося завантажити об’єкт',
-                hide: 'Тимчасово приховати',
+                hide: 'Приховати об’єкт скарги',
                 restore: 'Відновити об’єкт',
             },
             targetLabels: {
@@ -586,20 +591,28 @@ export const translations = {
                 resolve: 'Скаргу вирішено',
                 warnUser: 'Попередити користувача',
                 blockUser: 'Заблокувати користувача',
+                unblockUser: 'Розблокувати користувача',
                 reject: 'Відхилити скаргу',
+            },
+            userStatus: {
+                blocked: 'Заблоковано',
+                blockedReason: 'Причина блокування',
             },
             prompts: {
                 moderationReason: 'Введіть причину модерації',
                 resolutionNote: 'Коротка нотатка рішення для історії',
+                unblockReason: 'Вкажіть причину розблокування користувача',
             },
             alerts: {
                 reasonRequired: 'Потрібно вказати причину модерації',
+                unblockReasonRequired: 'Потрібно вказати причину розблокування',
                 targetMissing: 'Об’єкт не знайдено',
                 hidden: 'Об’єкт приховано',
                 restored: 'Об’єкт відновлено',
                 updateError: 'Не вдалося оновити дані',
                 actionSaved: 'Рішення збережено',
                 reportedUserMissing: 'Не вдалося знайти користувача для цієї дії',
+                unblocked: 'Користувача розблоковано',
             },
             review: {
                 delete: 'Видалити відгук',
@@ -653,6 +666,9 @@ export const translations = {
                 saved: 'Контакти збережено',
                 deleteContacts: 'Видалити контакти',
                 logout: 'Вийти',
+                blockedTitle: 'Акаунт обмежено',
+                blockedMessage: 'Ваш акаунт обмежено. Ви не можете створювати оголошення, аукціони, писати в чат і робити ставки.',
+                blockedSupport: 'Якщо ви вважаєте це помилкою, зверніться до підтримки через платформу Xoven.',
             },
             payments: {
                 title: 'Історія платежів',
@@ -1600,6 +1616,11 @@ export const translations = {
                 reviews: 'Opinie',
                 karma: 'Słaba karma',
             },
+            filters: {
+                active: 'Nowe / aktywne',
+                archived: 'Archiwum',
+                all: 'Wszystkie',
+            },
             status: {
                 new: 'Nowe',
                 pending: 'Oczekuje',
@@ -1622,7 +1643,7 @@ export const translations = {
                 open: 'Otwórz',
                 notFound: 'Obiekt nie znaleziony',
                 loadError: 'Nie udało się załadować obiektu',
-                hide: 'Ukryj tymczasowo',
+                hide: 'Ukryj obiekt zgłoszenia',
                 restore: 'Przywróć obiekt',
             },
             targetLabels: {
@@ -1665,20 +1686,28 @@ export const translations = {
                 resolve: 'Zgłoszenie rozwiązane',
                 warnUser: 'Ostrzeż użytkownika',
                 blockUser: 'Zablokuj użytkownika',
+                unblockUser: 'Odblokuj użytkownika',
                 reject: 'Odrzuć zgłoszenie',
+            },
+            userStatus: {
+                blocked: 'Zablokowano',
+                blockedReason: 'Powód blokady',
             },
             prompts: {
                 moderationReason: 'Wpisz powód moderacji',
                 resolutionNote: 'Krótka notatka decyzji do historii',
+                unblockReason: 'Podaj powód odblokowania użytkownika',
             },
             alerts: {
                 reasonRequired: 'Podaj powód moderacji',
+                unblockReasonRequired: 'Podaj powód odblokowania',
                 targetMissing: 'Obiekt nie znaleziony',
                 hidden: 'Obiekt ukryty',
                 restored: 'Obiekt przywrócony',
                 updateError: 'Nie udało się zaktualizować danych',
                 actionSaved: 'Decyzja zapisana',
                 reportedUserMissing: 'Nie udało się znaleźć użytkownika dla tej akcji',
+                unblocked: 'Użytkownik został odblokowany',
             },
             review: {
                 delete: 'Usuń opinię',
@@ -1732,6 +1761,9 @@ export const translations = {
                 saved: 'Kontakty zapisano',
                 deleteContacts: 'Usuń kontakty',
                 logout: 'Wyloguj się',
+                blockedTitle: 'Konto zostało ograniczone',
+                blockedMessage: 'Twoje konto zostało ograniczone. Nie możesz dodawać ogłoszeń, aukcji, pisać na czacie ani składać ofert.',
+                blockedSupport: 'Jeśli uważasz, że to pomyłka, skontaktuj się z pomocą przez platformę Xoven.',
             },
             payments: {
                 title: 'Historia płatności',

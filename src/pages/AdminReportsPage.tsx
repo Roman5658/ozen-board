@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore"
 import { db } from "../app/firebase"
-import { sendAdminSystemMessage } from "../data/chats"
 import { getLocalUser } from "../data/localUser"
 import { buildAdPath, buildAuctionPath } from "../utils/slug"
 
@@ -27,6 +26,12 @@ type TargetInfo = {
 type ReporterInfo = {
     nickname?: string
     email?: string
+}
+
+type ReportedUserInfo = ReporterInfo & {
+    docId?: string
+    status?: "active" | "blocked"
+    blockedReason?: string | null
 }
 
 type ModerationAction = 'reviewed' | 'warning' | 'block_user' | 'rejected'
@@ -62,6 +67,16 @@ function moderationStatusRank(status: Report['moderationStatus'], fallback: Repo
     if (status === 'pending' || fallback === 'new' || fallback === 'pending') return 0
     if (status === 'reviewed' || fallback === 'reviewed') return 1
     return 2
+}
+
+function isArchivedReport(report: Report): boolean {
+    const status = report.moderationStatus ?? report.status
+    return status === 'warned' ||
+        status === 'user_blocked' ||
+        status === 'rejected' ||
+        status === 'resolved' ||
+        report.status === 'rejected' ||
+        report.status === 'resolved'
 }
 
 function getAdminId(): string {
@@ -130,6 +145,40 @@ async function loadReporterInfo(reporterId: string): Promise<[string, ReporterIn
     }
 }
 
+async function loadReportedUserInfo(userId: string): Promise<[string, ReportedUserInfo]> {
+    if (!userId) return ['', {}]
+    const normalized = userId.trim().toLowerCase()
+
+    try {
+        const directSnap = await getDoc(doc(db, 'users', normalized))
+        if (directSnap.exists()) {
+            const data = directSnap.data()
+            return [userId, {
+                docId: directSnap.id,
+                nickname: typeof data.nickname === 'string' ? data.nickname : undefined,
+                email: typeof data.email === 'string' ? data.email : undefined,
+                status: data.status === 'blocked' ? 'blocked' : 'active',
+                blockedReason: typeof data.blockedReason === 'string' ? data.blockedReason : null,
+            }]
+        }
+
+        const uidSnap = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)))
+        const docSnap = uidSnap.docs[0]
+        if (!docSnap) return [userId, {}]
+
+        const data = docSnap.data()
+        return [userId, {
+            docId: docSnap.id,
+            nickname: typeof data.nickname === 'string' ? data.nickname : undefined,
+            email: typeof data.email === 'string' ? data.email : undefined,
+            status: data.status === 'blocked' ? 'blocked' : 'active',
+            blockedReason: typeof data.blockedReason === 'string' ? data.blockedReason : null,
+        }]
+    } catch {
+        return [userId, {}]
+    }
+}
+
 async function findUserDocId(userId: string): Promise<string | null> {
     if (!userId) return null
     const normalized = userId.trim().toLowerCase()
@@ -145,8 +194,10 @@ export default function AdminReportsPage({ t }: Props) {
     const [reports, setReports] = useState<Report[]>([])
     const [targets, setTargets] = useState<Record<string, TargetInfo>>({})
     const [reporters, setReporters] = useState<Record<string, ReporterInfo>>({})
+    const [reportedUsers, setReportedUsers] = useState<Record<string, ReportedUserInfo>>({})
     const [reviews, setReviews] = useState<UserReview[]>([])
     const [tab, setTab] = useState<'reports' | 'reviews' | 'karma'>('reports')
+    const [reportFilter, setReportFilter] = useState<'active' | 'archived' | 'all'>('active')
     const [moderationForm, setModerationForm] = useState<ModerationForm | null>(null)
     const [processingAction, setProcessingAction] = useState(false)
     const text = t.adminReports
@@ -211,12 +262,24 @@ export default function AdminReportsPage({ t }: Props) {
                 Promise.all(loadedReports.map(loadTargetInfo)),
                 Promise.all(reporterIds.map(loadReporterInfo)),
             ])
+            const targetMap = Object.fromEntries(targetEntries)
+            const reportedUserIds = Array.from(new Set(
+                loadedReports
+                    .map(report => {
+                        if (report.reportedUserId) return report.reportedUserId
+                        if (report.targetType === 'chat_message') return report.senderId ?? null
+                        return targetMap[targetKey(report.targetType, report.targetId)]?.ownerId ?? null
+                    })
+                    .filter((id): id is string => Boolean(id))
+            ))
+            const reportedUserEntries = await Promise.all(reportedUserIds.map(loadReportedUserInfo))
 
             if (cancelled) return
 
             setReports(loadedReports)
-            setTargets(Object.fromEntries(targetEntries))
+            setTargets(targetMap)
             setReporters(Object.fromEntries(reporterEntries))
+            setReportedUsers(Object.fromEntries(reportedUserEntries))
             setReviews(vSnap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
         })()
 
@@ -238,6 +301,14 @@ export default function AdminReportsPage({ t }: Props) {
             return b.createdAt - a.createdAt
         })
     }, [reports])
+
+    const visibleReports = useMemo(() => {
+        if (reportFilter === 'all') return sortedReports
+        return sortedReports.filter(report => {
+            const archived = isArchivedReport(report)
+            return reportFilter === 'archived' ? archived : !archived
+        })
+    }, [reportFilter, sortedReports])
 
     function getReportedUserId(report: Report): string | null {
         if (report.reportedUserId) return report.reportedUserId
@@ -322,6 +393,15 @@ export default function AdminReportsPage({ t }: Props) {
                     blockedReason: actionReason,
                     updatedAt: now,
                 })
+                setReportedUsers(prev => ({
+                    ...prev,
+                    [reportedUserId]: {
+                        ...prev[reportedUserId],
+                        docId: userDocId,
+                        status: 'blocked',
+                        blockedReason: actionReason,
+                    },
+                }))
             }
 
             await updateDoc(doc(db, 'reports', moderationForm.report.id), patch)
@@ -335,28 +415,50 @@ export default function AdminReportsPage({ t }: Props) {
         }
     }
 
-    async function sendOwnerSystemMessage(
-        report: Report,
-        target: TargetInfo,
-        message: string,
-        moderationStatus: 'hidden' | 'restored',
-        moderationReason?: string | null
-    ) {
-        if (!target.ownerId) return
+    async function unblockReportedUser(report: Report) {
+        const reportedUserId = getReportedUserId(report)
+        if (!reportedUserId) {
+            alert(text.alerts.reportedUserMissing)
+            return
+        }
+
+        const reason = window.prompt(text.prompts.unblockReason)?.trim()
+        if (!reason) {
+            alert(text.alerts.unblockReasonRequired)
+            return
+        }
+
+        const userInfo = reportedUsers[reportedUserId]
+        const userDocId = userInfo?.docId ?? await findUserDocId(reportedUserId)
+        if (!userDocId) {
+            alert(text.alerts.reportedUserMissing)
+            return
+        }
+
+        const adminId = getAdminId()
+        const patch = {
+            status: 'active',
+            unblockedAt: Date.now(),
+            unblockedBy: adminId,
+            unblockReason: reason,
+            unblockEmailSent: false,
+            unblockEmailError: null,
+            updatedAt: Date.now(),
+        }
 
         try {
-            await sendAdminSystemMessage({
-                adminId: getAdminId(),
-                ownerId: target.ownerId,
-                text: message,
-                targetType: report.targetType === 'auction' ? 'auction' : 'ad',
-                targetId: report.targetId,
-                targetTitle: target.title,
-                moderationStatus,
-                moderationReason: moderationReason ?? null,
-            })
-        } catch (error) {
-            console.warn('[admin reports] owner chat notification failed', error)
+            await updateDoc(doc(db, 'users', userDocId), patch)
+            setReportedUsers(prev => ({
+                ...prev,
+                [reportedUserId]: {
+                    ...prev[reportedUserId],
+                    docId: userDocId,
+                    status: 'active',
+                },
+            }))
+            alert(text.alerts.unblocked)
+        } catch {
+            alert(text.alerts.updateError)
         }
     }
 
@@ -399,7 +501,6 @@ export default function AdminReportsPage({ t }: Props) {
         try {
             await updateDoc(doc(db, collectionName, report.targetId), patch)
             setTargets(prev => ({ ...prev, [key]: { ...target, status: 'hidden' } }))
-            await sendOwnerSystemMessage(report, target, ownerNotificationMessage, 'hidden', trimmedReason)
             alert(text.alerts.hidden)
         } catch {
             alert(text.alerts.updateError)
@@ -433,7 +534,6 @@ export default function AdminReportsPage({ t }: Props) {
         try {
             await updateDoc(doc(db, collectionName, report.targetId), patch)
             setTargets(prev => ({ ...prev, [key]: { ...target, status: 'active' } }))
-            await sendOwnerSystemMessage(report, target, ownerNotificationMessage, 'restored')
             alert(text.alerts.restored)
         } catch {
             alert(text.alerts.updateError)
@@ -456,9 +556,33 @@ export default function AdminReportsPage({ t }: Props) {
                     <div><b>{text.status.rejected}</b> — {text.statusHelp.rejected}</div>
                 </div>
 
-                {sortedReports.length === 0 && <div className='card'>{text.empty}</div>}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                        className={reportFilter === 'active' ? 'btn-primary' : 'btn-secondary'}
+                        type='button'
+                        onClick={() => setReportFilter('active')}
+                    >
+                        {text.filters.active} ({sortedReports.filter(report => !isArchivedReport(report)).length})
+                    </button>
+                    <button
+                        className={reportFilter === 'archived' ? 'btn-primary' : 'btn-secondary'}
+                        type='button'
+                        onClick={() => setReportFilter('archived')}
+                    >
+                        {text.filters.archived} ({sortedReports.filter(isArchivedReport).length})
+                    </button>
+                    <button
+                        className={reportFilter === 'all' ? 'btn-primary' : 'btn-secondary'}
+                        type='button'
+                        onClick={() => setReportFilter('all')}
+                    >
+                        {text.filters.all} ({sortedReports.length})
+                    </button>
+                </div>
 
-                {sortedReports.map(r => {
+                {visibleReports.length === 0 && <div className='card'>{text.empty}</div>}
+
+                {visibleReports.map(r => {
                     const key = targetKey(r.targetType, r.targetId)
                     const target = targets[key]
                     const reporter = reporters[r.reporterId]
@@ -467,6 +591,8 @@ export default function AdminReportsPage({ t }: Props) {
                     const isNewReport = moderationStatus === 'pending'
                     const isChatReport = r.targetType === 'chat_message'
                     const reportedUserId = getReportedUserId(r)
+                    const reportedUser = reportedUserId ? reportedUsers[reportedUserId] : undefined
+                    const isReportedUserBlocked = reportedUser?.status === 'blocked'
 
                     return (
                         <div
@@ -541,7 +667,15 @@ export default function AdminReportsPage({ t }: Props) {
                                 <div>
                                     <b>{text.reportedUser}:</b> {reportedUserId}{' '}
                                     <Link to={`/user/${reportedUserId}`}>{text.reporter.openProfile}</Link>
+                                    {isReportedUserBlocked && (
+                                        <span className='ad-badge' style={{ marginLeft: 8, background: '#b91c1c' }}>
+                                            {text.userStatus.blocked}
+                                        </span>
+                                    )}
                                 </div>
+                            )}
+                            {reportedUser?.blockedReason && (
+                                <div><b>{text.userStatus.blockedReason}:</b> {reportedUser.blockedReason}</div>
                             )}
                             <div><b>{text.fields.reason}:</b> {r.reasonType ? (text.reasonTypes[r.reasonType as keyof typeof text.reasonTypes] ?? r.reasonType) : (r.reason || '—')}</div>
                             <div><b>{text.fields.description}:</b> {r.reasonText || r.description || '—'}</div>
@@ -573,9 +707,15 @@ export default function AdminReportsPage({ t }: Props) {
                                 <button className='btn-secondary' onClick={() => openModerationAction(r, 'warning')}>
                                     {text.actions.warnUser}
                                 </button>
-                                <button className='btn-danger' onClick={() => openModerationAction(r, 'block_user')}>
-                                    {text.actions.blockUser}
-                                </button>
+                                {isReportedUserBlocked ? (
+                                    <button className='btn-secondary' onClick={() => void unblockReportedUser(r)}>
+                                        {text.actions.unblockUser}
+                                    </button>
+                                ) : (
+                                    <button className='btn-danger' onClick={() => openModerationAction(r, 'block_user')}>
+                                        {text.actions.blockUser}
+                                    </button>
+                                )}
                                 <button className='btn-danger' onClick={() => openModerationAction(r, 'rejected')}>
                                     {text.actions.reject}
                                 </button>

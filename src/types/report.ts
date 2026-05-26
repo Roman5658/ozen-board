@@ -1,6 +1,6 @@
 export type ReportStatus = 'new' | 'pending' | 'reviewed' | 'rejected' | 'resolved'
 export type ReportTargetType = 'ad' | 'auction' | 'chat_message'
-export type ReportModerationStatus = 'pending' | 'reviewed' | 'warned' | 'user_blocked' | 'rejected'
+export type ReportModerationStatus = 'pending' | 'reviewed' | 'warned' | 'user_blocked' | 'rejected' | 'resolved'
 export type ReportModerationAction = 'reviewed' | 'warning' | 'block_user' | 'rejected'
 
 export type Report = {

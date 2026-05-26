@@ -299,8 +299,9 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
             return
         }
 
-        const userId = u.id // ✅ фиксируем
-        setUser(u)
+        const currentUser: AppUser = u
+        const userId = currentUser.id // ✅ фиксируем
+        setUser(currentUser)
         setProfileNickname("")
 
         async function loadContacts() {
@@ -310,8 +311,26 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
             if (snap.exists()) {
                 const data = snap.data()
-                setSavedPhone(typeof data.phone === "string" ? data.phone : "")
-                setSavedTelegram(typeof data.telegram === "string" ? data.telegram : "")
+                const nextPhone = typeof data.phone === "string" ? data.phone : ""
+                const nextTelegram = typeof data.telegram === "string" ? data.telegram : ""
+                const nextUser: AppUser = {
+                    ...currentUser,
+                    nickname: typeof data.nickname === "string" ? data.nickname : currentUser.nickname,
+                    status: data.status === "blocked" ? "blocked" : "active",
+                    blockedAt: typeof data.blockedAt === "number" ? data.blockedAt : null,
+                    blockedReason: typeof data.blockedReason === "string" ? data.blockedReason : null,
+                    blockedBy: typeof data.blockedBy === "string" ? data.blockedBy : null,
+                    unblockedAt: typeof data.unblockedAt === "number" ? data.unblockedAt : null,
+                    unblockReason: typeof data.unblockReason === "string" ? data.unblockReason : null,
+                    unblockedBy: typeof data.unblockedBy === "string" ? data.unblockedBy : null,
+                    phone: nextPhone || null,
+                    telegram: nextTelegram || null,
+                }
+
+                setSavedPhone(nextPhone)
+                setSavedTelegram(nextTelegram)
+                setLocalUser(nextUser)
+                setUser(nextUser)
             }
         }
 
@@ -648,6 +667,13 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                                     uid: authRes.user.uid,
                                     email: cleanEmail,
                                     nickname: profile?.nickname || cleanEmail.split("@")[0],
+                                    status: profile?.status === "blocked" ? "blocked" : "active",
+                                    blockedAt: profile?.blockedAt ?? null,
+                                    blockedReason: profile?.blockedReason ?? null,
+                                    blockedBy: profile?.blockedBy ?? null,
+                                    unblockedAt: profile?.unblockedAt ?? null,
+                                    unblockReason: profile?.unblockReason ?? null,
+                                    unblockedBy: profile?.unblockedBy ?? null,
                                     karma: typeof profile?.karma === "number" ? profile.karma : 0,
                                     createdAt: typeof profile?.createdAt === "number" ? profile.createdAt : Date.now(),
                                     phone: profile?.phone ?? null,
@@ -748,6 +774,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     const archivedAuctions = myAuctions.filter(auction => ["ended", "expired"].includes(getAuctionOwnerStatus(auction)))
     const canEditProfile = isAdmin()
     const chatBadgeText = chatUnreadCount > 99 ? "99+" : String(chatUnreadCount)
+    const isBlockedAccount = user.status === "blocked"
 
 
     // ============================
@@ -755,6 +782,22 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     // ============================
     return (
         <div className="stack12">
+            {isBlockedAccount && (
+                <div
+                    className="warning stack8"
+                    style={{
+                        borderColor: "#f97316",
+                        background: "#fff7ed",
+                        color: "#9a3412",
+                        fontSize: 14,
+                    }}
+                >
+                    <b>{a.profile.blockedTitle}</b>
+                    <div>{a.profile.blockedMessage}</div>
+                    <div>{a.profile.blockedSupport}</div>
+                </div>
+            )}
+
             <div className="card stack8">
                 <h2 className="h2">{user.nickname}</h2>
                 <div style={{fontSize: 14, color: "#6b7280"}}>{user.email}</div>

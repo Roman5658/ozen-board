@@ -28,6 +28,9 @@ type ReportEmailClaim = {
     reportedUserId: string | null;
 };
 
+const SUPPORT_MESSAGE_UK = "Якщо ви вважаєте це помилкою, зверніться до підтримки через платформу Xoven.";
+const SUPPORT_MESSAGE_PL = "Jeśli uważasz, że to pomyłka, skontaktuj się z pomocą przez platformę Xoven.";
+
 export const sendReportModerationEmails = onDocumentUpdated(
     {
         document: "reports/{reportId}",
@@ -57,7 +60,11 @@ export const sendReportModerationEmails = onDocumentUpdated(
             if (!currentAction || !report.processedAt) return null;
 
             const shouldEmailReportedUser = currentAction === "warning" || currentAction === "block_user";
-            if (report.reporterModerationEmailSent === true && (!shouldEmailReportedUser || report.reportedUserModerationEmailSent === true)) {
+            const reporterAlreadySent = report.reporterModerationEmailSent === true &&
+                report.reporterModerationEmailAction === currentAction;
+            const reportedAlreadySent = report.reportedUserModerationEmailSent === true &&
+                report.reportedUserModerationEmailAction === currentAction;
+            if (reporterAlreadySent && (!shouldEmailReportedUser || reportedAlreadySent)) {
                 return null;
             }
 
@@ -82,7 +89,6 @@ export const sendReportModerationEmails = onDocumentUpdated(
         try {
             const resend = new Resend(RESEND_API_KEY.value());
             const from = requireEnv("RECEIPTS_FROM_EMAIL");
-            const supportEmail = process.env.SUPPORT_EMAIL || from;
 
             const reporter = claim.reporterId ? await getUserContact(claim.reporterId) : null;
             if (reporter?.email) {
@@ -90,16 +96,18 @@ export const sendReportModerationEmails = onDocumentUpdated(
                 await reportRef.update({
                     reporterModerationEmailSent: true,
                     reporterModerationEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+                    reporterModerationEmailAction: claim.action,
                 });
             }
 
             if ((claim.action === "warning" || claim.action === "block_user") && claim.reportedUserId) {
                 const reported = await getUserContact(claim.reportedUserId);
                 if (reported.email) {
-                    await sendReportedUserEmail(resend, from, reported.email, claim, supportEmail);
+                    await sendReportedUserEmail(resend, from, reported.email, claim);
                     await reportRef.update({
                         reportedUserModerationEmailSent: true,
                         reportedUserModerationEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+                        reportedUserModerationEmailAction: claim.action,
                     });
                 }
             }
@@ -217,7 +225,7 @@ async function sendReporterEmail(resend: Resend, from: string, to: string, claim
     if (result.error) throw new Error(result.error.message);
 }
 
-async function sendReportedUserEmail(resend: Resend, from: string, to: string, claim: ReportEmailClaim, supportEmail: string) {
+async function sendReportedUserEmail(resend: Resend, from: string, to: string, claim: ReportEmailClaim) {
     const result = await resend.emails.send({
         from,
         to,
@@ -228,14 +236,14 @@ async function sendReportedUserEmail(resend: Resend, from: string, to: string, c
             `Рішення: ${getActionLabelUk(claim.action)}.`,
             `Причина: ${claim.actionReason}.`,
             claim.reportedUserMessage,
-            `Якщо ви вважаєте це помилкою, зверніться до підтримки: ${supportEmail}`,
+            SUPPORT_MESSAGE_UK,
             "",
             "PL",
             "Twoje konto lub wiadomość zostały sprawdzone przez moderację.",
             `Decyzja: ${getActionLabelPl(claim.action)}.`,
             `Powód: ${claim.actionReason}.`,
             claim.reportedUserMessage,
-            `Jeśli uważasz, że to pomyłka, skontaktuj się z pomocą: ${supportEmail}`,
+            SUPPORT_MESSAGE_PL,
         ].join("\n"),
         html: `
             <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
@@ -245,14 +253,14 @@ async function sendReportedUserEmail(resend: Resend, from: string, to: string, c
                 <p><b>Рішення:</b> ${escapeHtml(getActionLabelUk(claim.action))}</p>
                 <p><b>Причина:</b> ${escapeHtml(claim.actionReason)}</p>
                 <p>${escapeHtml(claim.reportedUserMessage)}</p>
-                <p>Якщо ви вважаєте це помилкою, зверніться до підтримки: ${escapeHtml(supportEmail)}</p>
+                <p>${escapeHtml(SUPPORT_MESSAGE_UK)}</p>
                 <hr>
                 <h3>PL</h3>
                 <p>Twoje konto lub wiadomość zostały sprawdzone przez moderację.</p>
                 <p><b>Decyzja:</b> ${escapeHtml(getActionLabelPl(claim.action))}</p>
                 <p><b>Powód:</b> ${escapeHtml(claim.actionReason)}</p>
                 <p>${escapeHtml(claim.reportedUserMessage)}</p>
-                <p>Jeśli uważasz, że to pomyłka, skontaktuj się z pomocą: ${escapeHtml(supportEmail)}</p>
+                <p>${escapeHtml(SUPPORT_MESSAGE_PL)}</p>
             </div>
         `,
     });
