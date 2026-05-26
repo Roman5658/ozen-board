@@ -59,7 +59,6 @@ type PayPalCapture = {
 type PayPalOrder = {
     id?: string;
     status?: string;
-    paypalDebugId?: string | null;
     purchase_units?: {
         amount?: PayPalAmount;
         payments?: {
@@ -77,23 +76,6 @@ type PromotionResult = {
     queued: boolean;
 };
 
-type PayPalDebugFields = {
-    paypalDebugId: string | null;
-    paypalOrderDebugId: string | null;
-    paypalCaptureDebugId: string | null;
-};
-
-class PayPalApiError extends Error {
-    constructor(
-        message: string,
-        public readonly paypalDebugId: string | null,
-        public readonly responseBody?: string
-    ) {
-        super(message);
-        this.name = "PayPalApiError";
-    }
-}
-
 export const verifyPayPalPayment = onCall(async (request) => {
     const data = (request.data ?? {}) as {
         orderId?: string;
@@ -103,7 +85,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
     };
 
     const orderId = requireString(data.orderId, "orderId");
-    try {
     const targetType = requireTargetType(data.targetType);
     const targetId = optionalString(data.targetId);
     const normalized = normalizePayment(targetType, data.promotionType);
@@ -161,10 +142,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
     const completedCapture = getCompletedCapture(capturedOrder);
     const paidAmount = completedCapture?.amount ?? getOrderAmount(capturedOrder) ?? getOrderAmount(order);
     assertPayPalAmount(paidAmount, normalized.priceAmount);
-    const paypalDebug = getPayPalDebugFields(
-        order,
-        order.status === "COMPLETED" ? null : capturedOrder
-    );
 
     if (!targetId) {
         await db.runTransaction(async (transaction) => {
@@ -177,7 +154,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
                 provider: "paypal",
                 orderId: capturedOrder.id ?? orderId,
                 captureId: completedCapture?.id ?? null,
-                ...paypalDebug,
 
                 userId: null,
 
@@ -198,18 +174,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
             });
         });
 
-        await writePayPalDebugLog({
-            orderId: capturedOrder.id ?? orderId,
-            inputOrderId: orderId,
-            status: "completed",
-            targetType,
-            targetId: null,
-            promotionType: normalized.storagePromotion,
-            orderStatus: order.status ?? null,
-            captureStatus: capturedOrder.status ?? null,
-            ...paypalDebug,
-        });
-
         return {
             ok: true,
             orderId: capturedOrder.id ?? orderId,
@@ -221,7 +185,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
             amount: paidAmount?.value ?? normalized.priceAmount,
             currency: paidAmount?.currency_code ?? CURRENCY,
             payer: capturedOrder.payer?.email_address ?? order.payer?.email_address ?? null,
-            ...paypalDebug,
         };
     }
 
@@ -237,7 +200,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
             provider: "paypal",
             orderId: capturedOrder.id ?? orderId,
             captureId: completedCapture?.id ?? null,
-            ...paypalDebug,
 
             userId: result.ownerUserId,
 
@@ -258,18 +220,6 @@ export const verifyPayPalPayment = onCall(async (request) => {
         return result;
     });
 
-    await writePayPalDebugLog({
-        orderId: capturedOrder.id ?? orderId,
-        inputOrderId: orderId,
-        status: "completed",
-        targetType,
-        targetId,
-        promotionType: normalized.storagePromotion,
-        orderStatus: order.status ?? null,
-        captureStatus: capturedOrder.status ?? null,
-        ...paypalDebug,
-    });
-
     return {
         ok: true,
         orderId: capturedOrder.id ?? orderId,
@@ -281,23 +231,7 @@ export const verifyPayPalPayment = onCall(async (request) => {
         amount: paidAmount?.value ?? normalized.priceAmount,
         currency: paidAmount?.currency_code ?? CURRENCY,
         payer: capturedOrder.payer?.email_address ?? order.payer?.email_address ?? null,
-        ...paypalDebug,
     };
-    } catch (error) {
-        await writePayPalDebugLog({
-            orderId,
-            inputOrderId: orderId,
-            status: "error",
-            targetType: getDebugString(data.targetType),
-            targetId: getDebugString(data.targetId),
-            promotionType: getDebugString(data.promotionType),
-            errorMessage: getErrorMessage(error),
-            paypalDebugId: getErrorPayPalDebugId(error),
-            paypalOrderDebugId: null,
-            paypalCaptureDebugId: null,
-        });
-        throw error;
-    }
 });
 
 function requireString(value: unknown, fieldName: string): string {
@@ -504,9 +438,6 @@ function paymentResponse(
         amount: payment.amount ?? normalized.priceAmount,
         currency: payment.currency ?? CURRENCY,
         payer: payment.payerEmail ?? null,
-        paypalDebugId: typeof payment.paypalDebugId === "string" ? payment.paypalDebugId : null,
-        paypalOrderDebugId: typeof payment.paypalOrderDebugId === "string" ? payment.paypalOrderDebugId : null,
-        paypalCaptureDebugId: typeof payment.paypalCaptureDebugId === "string" ? payment.paypalCaptureDebugId : null,
     };
 }
 
@@ -577,66 +508,6 @@ function getPayPalBaseUrl(): string {
         : "https://api-m.paypal.com";
 }
 
-function getPayPalDebugFields(order: PayPalOrder, capturedOrder: PayPalOrder | null): PayPalDebugFields {
-    const paypalOrderDebugId = order.paypalDebugId ?? null;
-    const paypalCaptureDebugId = capturedOrder?.paypalDebugId ?? null;
-
-    return {
-        paypalDebugId: paypalCaptureDebugId ?? paypalOrderDebugId,
-        paypalOrderDebugId,
-        paypalCaptureDebugId,
-    };
-}
-
-function getResponseDebugId(response: Response): string | null {
-    return response.headers.get("paypal-debug-id");
-}
-
-function getDebugString(value: unknown): string | null {
-    return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function getErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
-}
-
-function getErrorPayPalDebugId(error: unknown): string | null {
-    return error instanceof PayPalApiError ? error.paypalDebugId : null;
-}
-
-function isPayPalDebugMode(): boolean {
-    const raw = (process.env.PAYPAL_DEBUG_MODE || "").toLowerCase();
-    return raw === "true" || raw === "1" || raw === "yes";
-}
-
-async function writePayPalDebugLog(data: {
-    orderId: string;
-    inputOrderId: string;
-    status: "completed" | "error";
-    targetType: string | null;
-    targetId: string | null;
-    promotionType: string | null;
-    paypalDebugId: string | null;
-    paypalOrderDebugId: string | null;
-    paypalCaptureDebugId: string | null;
-    orderStatus?: string | null;
-    captureStatus?: string | null;
-    errorMessage?: string;
-}): Promise<void> {
-    if (!isPayPalDebugMode()) return;
-
-    try {
-        await db.collection("paymentDebugLogs").doc(data.orderId).set({
-            provider: "paypal",
-            context: "verifyPayPalPayment",
-            ...data,
-            updatedAt: Date.now(),
-        }, { merge: true });
-    } catch (error) {
-        console.warn("Failed to write PayPal debug log", error);
-    }
-}
-
 async function getPayPalAccessToken(paypalBase: string): Promise<string> {
     const clientId = process.env.PAYPAL_CLIENT_ID;
     const secret = process.env.PAYPAL_SECRET;
@@ -678,20 +549,14 @@ async function getPayPalOrder(
             Authorization: `Bearer ${accessToken}`,
         },
     });
-    const paypalDebugId = getResponseDebugId(orderRes);
 
     if (!orderRes.ok) {
         const orderError = await orderRes.text();
-        console.error("Failed to get PayPal order:", {
-            orderId,
-            paypalDebugId,
-            error: orderError,
-        });
-        throw new PayPalApiError("Failed to get PayPal order", paypalDebugId, orderError);
+        console.error("Failed to get PayPal order:", orderError);
+        throw new Error("Failed to get PayPal order");
     }
 
-    const order = await orderRes.json() as PayPalOrder;
-    return { ...order, paypalDebugId };
+    return await orderRes.json() as PayPalOrder;
 }
 
 async function capturePayPalOrder(
@@ -707,20 +572,14 @@ async function capturePayPalOrder(
             "PayPal-Request-Id": orderId,
         },
     });
-    const paypalDebugId = getResponseDebugId(captureRes);
 
     if (!captureRes.ok) {
         const captureError = await captureRes.text();
-        console.error("PayPal capture failed:", {
-            orderId,
-            paypalDebugId,
-            error: captureError,
-        });
-        throw new PayPalApiError("PayPal capture failed", paypalDebugId, captureError);
+        console.error("PayPal capture failed:", captureError);
+        throw new Error("PayPal capture failed");
     }
 
-    const order = await captureRes.json() as PayPalOrder;
-    return { ...order, paypalDebugId };
+    return await captureRes.json() as PayPalOrder;
 }
 
 function getOrderAmount(order: PayPalOrder): PayPalAmount | null {
