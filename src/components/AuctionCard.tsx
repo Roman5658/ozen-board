@@ -54,7 +54,6 @@ function AuctionCard({
                                     ? '1px solid #facc15'
                                     : '1px solid #ddd',
 
-
                 boxShadow:
                     isSoftPinned
                         ? 'none'
