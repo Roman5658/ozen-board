@@ -519,6 +519,7 @@ function AuctionPage() {
                         )}
                         {topAuctionsVisible.map(item => (
                             <div key={item.id}
+                                 style={{ cursor: 'pointer' }}
                                  onClick={() => navigate(buildAuctionPath(item.title, item.city, item.id))}>
                                 <AuctionCard
                                     t={t}
@@ -546,6 +547,7 @@ function AuctionPage() {
                         )}
                         {featuredAuctionsVisible.map(item => (
                             <div key={item.id}
+                                 style={{ cursor: 'pointer' }}
                                  onClick={() => navigate(buildAuctionPath(item.title, item.city, item.id))}>
                                 <AuctionCard
                                     t={t}
@@ -573,6 +575,7 @@ function AuctionPage() {
                         {regularAuctions.map(item => (
                             <div
                                 key={item.id}
+                                style={{ cursor: 'pointer' }}
                                 onClick={() => navigate(buildAuctionPath(item.title, item.city, item.id))}
                             >
                                 <AuctionCard

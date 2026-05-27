@@ -71,11 +71,6 @@ function AuctionCard({
                     promotionType === 'highlight-gold'
                         ? 'linear-gradient(135deg, #fff7cc, #fffbeb)'
                         : '#fff',
-
-                transform:
-                    !isSoftPinned && promotionType === 'top-auction'
-                        ? 'translateY(-2px)'
-                        : 'none',
             }}
         >
 
