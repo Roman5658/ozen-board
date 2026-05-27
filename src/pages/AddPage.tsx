@@ -221,6 +221,7 @@ function AddPage({ t }: Props) {
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault()
         setError(null)
+        let debugStage = "start"
 
         if (
             !title.trim() ||
@@ -264,9 +265,13 @@ function AddPage({ t }: Props) {
         const since = Date.now() - DAY_MS
 
         try {
+            debugStage = "auth check"
+            console.log("[create-ad] auth check start")
             await requireMatchingFirebaseUser(safeUser)
             await assertUserNotBlocked(userId)
+            console.log("[create-ad] auth ok")
         } catch (error) {
+            console.error("[create-ad] failed at", debugStage, error)
             if (isStaleAuthSessionError(error)) {
                 setError(error.message)
             } else {
@@ -278,15 +283,25 @@ function AddPage({ t }: Props) {
 // лимит объявлений
         const MAX_ADS_PER_USER = 10
 
-        const userAdsCount = await getDocs(
-            query(
-                collection(db, "ads"),
-                where("userId", "==", userId),
-                where("createdAt", ">=", since)
+        let userAdsCount
+        try {
+            debugStage = "daily ads limit query"
+            console.log("[create-ad] daily ads limit query start")
+            userAdsCount = await getDocs(
+                query(
+                    collection(db, "ads"),
+                    where("userId", "==", userId),
+                    where("createdAt", ">=", since)
 
 
+                )
             )
-        )
+            console.log("[create-ad] daily ads limit query success")
+        } catch (error) {
+            console.error("[create-ad] failed at", debugStage, error)
+            setError(a.errors.createFailed)
+            return
+        }
 
         if (userAdsCount.size >= MAX_ADS_PER_USER) {
             setError(a.errors.limitReached)
@@ -303,8 +318,13 @@ function AddPage({ t }: Props) {
 
         try {
             setIsSubmitting(true)
+            debugStage = "submit start"
+            console.log("[create-ad] submit start")
             const timestamp = Date.now()
+            debugStage = "get current location"
+            console.log("[create-ad] get location start")
             const location = await getCurrentLocation()
+            console.log("[create-ad] get location success")
 
 
             // upload фото
@@ -312,13 +332,19 @@ function AddPage({ t }: Props) {
             const imageUrls: string[] = []
 
             for (const file of imageFiles) {
+                debugStage = `upload image ${file.name}`
+                console.log("[create-ad] upload image start", file.name)
                 const imageRef = ref(
                     storage,
                     `ads/${userId}/${timestamp}-${file.name}`
                 )
 
                 await uploadBytes(imageRef, file)
+                console.log("[create-ad] upload image success", file.name)
+                debugStage = `get download url ${file.name}`
+                console.log("[create-ad] get download url start", file.name)
                 const imageUrl = await getDownloadURL(imageRef)
+                console.log("[create-ad] get download url success", file.name)
                 imageUrls.push(imageUrl)
             }
             const adData: Omit<Ad, "id"> = {
@@ -344,7 +370,10 @@ function AddPage({ t }: Props) {
 
 
 
+            debugStage = "addDoc ads"
+            console.log("[create-ad] addDoc ads start")
             const docRef = await addDoc(collection(db, "ads"), adData)
+            console.log("[create-ad] addDoc ads success", docRef.id)
 
             if (isPaidPromotion) {
                 if (!paypalOrderId) {
@@ -379,7 +408,7 @@ function AddPage({ t }: Props) {
             sessionStorage.removeItem(FORM_STORAGE_KEY)
             navigate("/")
         } catch (err) {
-            console.error(err)
+            console.error("[create-ad] failed at", debugStage, err)
             setError(a.errors.createFailed)
 
         } finally {

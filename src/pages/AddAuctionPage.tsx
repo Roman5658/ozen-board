@@ -148,10 +148,15 @@ function AddAuctionPage({ t }: Props) {
 
 
     async function createAuction() {
+        let debugStage = "start"
         try {
+            debugStage = "auth check"
+            console.log("[create-auction] auth check start")
             await requireMatchingFirebaseUser(safeUser)
             await assertUserNotBlocked(safeUser.id)
+            console.log("[create-auction] auth ok")
         } catch (error) {
+            console.error("[create-auction] failed at", debugStage, error)
             if (isStaleAuthSessionError(error)) {
                 setError(error.message)
             } else {
@@ -160,13 +165,17 @@ function AddAuctionPage({ t }: Props) {
             return
         }
 
-        const validation = validateForm()
-        if (!validation.ok) {
-            setError(validation.reason)
-            throw new Error(validation.reason)
-        }
+        try {
+            const validation = validateForm()
+            if (!validation.ok) {
+                setError(validation.reason)
+                throw new Error(validation.reason)
+            }
 
+        debugStage = "promotion availability check"
+        console.log("[create-auction] promotion availability check start")
         await checkTopLimitIfNeeded()
+        console.log("[create-auction] promotion availability check success")
 
         const createdAt = Date.now()
         const endsAt = validation.endsAt
@@ -174,12 +183,20 @@ function AddAuctionPage({ t }: Props) {
 
         const imageUrls: string[] = []
         for (const file of imageFiles) {
+            debugStage = `upload image ${file.name}`
+            console.log("[create-auction] upload image start", file.name)
             const imageRef = ref(storage, `auctions/${safeUser.id}/${createdAt}-${file.name}`)
             await uploadBytes(imageRef, file)
+            console.log("[create-auction] upload image success", file.name)
+            debugStage = `get download url ${file.name}`
+            console.log("[create-auction] get download url start", file.name)
             const imageUrl = await getDownloadURL(imageRef)
+            console.log("[create-auction] get download url success", file.name)
             imageUrls.push(imageUrl)
         }
 
+        debugStage = "addDoc auctions"
+        console.log("[create-auction] addDoc auctions start")
         const docRef =    await addDoc(collection(db, "auctions"), {
             title: title.trim(),
             description: description.trim(),
@@ -205,6 +222,7 @@ function AddAuctionPage({ t }: Props) {
             promotionUntil: null,
             promotionQueueAt: null,
         })
+        console.log("[create-auction] addDoc auctions success", docRef.id)
         if (promotion !== "none") {
             if (!paypalOrderId) {
                 setError(t.addAuction.errors.paypalError)
@@ -223,7 +241,11 @@ function AddAuctionPage({ t }: Props) {
             }
         }
 
-        navigate("/auctions")
+            navigate("/auctions")
+        } catch (error) {
+            console.error("[create-auction] failed at", debugStage, error)
+            throw error
+        }
     }
 
     // ===== SUBMIT (ТОЛЬКО для бесплатного) =====
