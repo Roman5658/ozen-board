@@ -54,6 +54,10 @@ export async function requireMatchingFirebaseUser(localUser: LocalAuthIdentity |
     return authUser
 }
 
+export function getFirebaseUserId(user: User): string {
+    return normalize(user.email) || user.uid
+}
+
 export function isStaleAuthSessionError(error: unknown): error is Error {
     return error instanceof Error && error.message === STALE_AUTH_SESSION_MESSAGE
 }

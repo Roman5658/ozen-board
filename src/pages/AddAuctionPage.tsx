@@ -6,7 +6,7 @@ import { PRICES } from "../config/prices"
 import type { translations } from "../app/i18n"
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
-import { isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
+import { getFirebaseUserId, isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
 import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
@@ -148,15 +148,13 @@ function AddAuctionPage({ t }: Props) {
 
 
     async function createAuction() {
-        let debugStage = "start"
+        let verifiedOwnerId = safeUser.id
+
         try {
-            debugStage = "auth check"
-            console.log("[create-auction] auth check start")
-            await requireMatchingFirebaseUser(safeUser)
-            await assertUserNotBlocked(safeUser.id)
-            console.log("[create-auction] auth ok")
+            const authUser = await requireMatchingFirebaseUser(safeUser)
+            verifiedOwnerId = getFirebaseUserId(authUser)
+            await assertUserNotBlocked(verifiedOwnerId)
         } catch (error) {
-            console.error("[create-auction] failed at", debugStage, error)
             if (isStaleAuthSessionError(error)) {
                 setError(error.message)
             } else {
@@ -172,78 +170,65 @@ function AddAuctionPage({ t }: Props) {
                 throw new Error(validation.reason)
             }
 
-        debugStage = "promotion availability check"
-        console.log("[create-auction] promotion availability check start")
-        await checkTopLimitIfNeeded()
-        console.log("[create-auction] promotion availability check success")
+            await checkTopLimitIfNeeded()
 
-        const createdAt = Date.now()
-        const endsAt = validation.endsAt
+            const createdAt = Date.now()
+            const endsAt = validation.endsAt
 
 
-        const imageUrls: string[] = []
-        for (const file of imageFiles) {
-            debugStage = `upload image ${file.name}`
-            console.log("[create-auction] upload image start", file.name)
-            const imageRef = ref(storage, `auctions/${safeUser.id}/${createdAt}-${file.name}`)
-            await uploadBytes(imageRef, file)
-            console.log("[create-auction] upload image success", file.name)
-            debugStage = `get download url ${file.name}`
-            console.log("[create-auction] get download url start", file.name)
-            const imageUrl = await getDownloadURL(imageRef)
-            console.log("[create-auction] get download url success", file.name)
-            imageUrls.push(imageUrl)
-        }
-
-        debugStage = "addDoc auctions"
-        console.log("[create-auction] addDoc auctions start")
-        const docRef =    await addDoc(collection(db, "auctions"), {
-            title: title.trim(),
-            description: description.trim(),
-            category,
-            voivodeship,
-            city,
-
-            startPrice: Number(startPrice),
-            buyNowPrice: null,
-            currentBid: Number(startPrice),
-            bidsCount: 0,
-
-            images: imageUrls,
-
-            ownerId: safeUser.id,
-            ownerName: safeUser.nickname || "User",
-
-            status: isPaidPromotion ? "pending_payment" : "active",
-            createdAt,
-            endsAt,
-
-            promotionType: "none",
-            promotionUntil: null,
-            promotionQueueAt: null,
-        })
-        console.log("[create-auction] addDoc auctions success", docRef.id)
-        if (promotion !== "none") {
-            if (!paypalOrderId) {
-                setError(t.addAuction.errors.paypalError)
-                throw new Error(t.addAuction.errors.paypalError)
+            const imageUrls: string[] = []
+            for (const file of imageFiles) {
+                const imageRef = ref(storage, `auctions/${verifiedOwnerId}/${createdAt}-${file.name}`)
+                await uploadBytes(imageRef, file)
+                const imageUrl = await getDownloadURL(imageRef)
+                imageUrls.push(imageUrl)
             }
 
-            const paymentResult = await verifyPayPalPayment({
-                orderId: paypalOrderId,
-                targetType: "auction",
-                targetId: docRef.id,
-                promotionType: promotion,
+            const docRef = await addDoc(collection(db, "auctions"), {
+                title: title.trim(),
+                description: description.trim(),
+                category,
+                voivodeship,
+                city,
+
+                startPrice: Number(startPrice),
+                buyNowPrice: null,
+                currentBid: Number(startPrice),
+                bidsCount: 0,
+
+                images: imageUrls,
+
+                ownerId: verifiedOwnerId,
+                ownerName: safeUser.nickname || "User",
+
+                status: isPaidPromotion ? "pending_payment" : "active",
+                createdAt,
+                endsAt,
+
+                promotionType: "none",
+                promotionUntil: null,
+                promotionQueueAt: null,
             })
+            if (promotion !== "none") {
+                if (!paypalOrderId) {
+                    setError(t.addAuction.errors.paypalError)
+                    throw new Error(t.addAuction.errors.paypalError)
+                }
 
-            if (!paymentResult.data?.ok) {
-                throw new Error(t.addAuction.errors.paypalError)
+                const paymentResult = await verifyPayPalPayment({
+                    orderId: paypalOrderId,
+                    targetType: "auction",
+                    targetId: docRef.id,
+                    promotionType: promotion,
+                })
+
+                if (!paymentResult.data?.ok) {
+                    throw new Error(t.addAuction.errors.paypalError)
+                }
             }
-        }
 
             navigate("/auctions")
         } catch (error) {
-            console.error("[create-auction] failed at", debugStage, error)
             throw error
         }
     }
