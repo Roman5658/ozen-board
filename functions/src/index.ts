@@ -69,6 +69,71 @@ export const cleanupHiddenChats = onSchedule(
     }
 );
 
+const ADS_ACTIVE_TTL = 30 * DAY;
+
+export const expireOldAds = onSchedule(
+    {
+        schedule: "every day 03:30",
+        timeZone: "Europe/Warsaw",
+    },
+    async () => {
+        const now = Date.now();
+        const cutoff = now - ADS_ACTIVE_TTL;
+        const adsSnap = await db
+            .collection("ads")
+            .where("status", "==", "active")
+            .get();
+
+        let checkedCount = 0;
+        let expiredCount = 0;
+        let skippedWithoutCreatedAt = 0;
+        let batch = db.batch();
+        let batchUpdates = 0;
+
+        const commitBatch = async () => {
+            if (batchUpdates === 0) return;
+
+            await batch.commit();
+            batch = db.batch();
+            batchUpdates = 0;
+        };
+
+        for (const adDoc of adsSnap.docs) {
+            checkedCount++;
+
+            const ad = adDoc.data();
+            const createdAt = toMillis(ad.createdAt);
+
+            if (!createdAt) {
+                skippedWithoutCreatedAt++;
+                continue;
+            }
+
+            if (createdAt > cutoff) continue;
+
+            batch.update(adDoc.ref, {
+                status: "expired",
+                expiredAt: admin.firestore.FieldValue.serverTimestamp(),
+                expirationProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+                expirationReason: "auto_30_days",
+            });
+
+            expiredCount++;
+            batchUpdates++;
+
+            if (batchUpdates >= 450) {
+                await commitBatch();
+            }
+        }
+
+        await commitBatch();
+
+        console.log(
+            `expireOldAds checked=${checkedCount} expired=${expiredCount} skippedWithoutCreatedAt=${skippedWithoutCreatedAt}`
+        );
+    }
+);
+
 type ChatEmailClaim = {
     chatId: string;
     messageId: string;
