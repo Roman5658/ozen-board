@@ -127,30 +127,47 @@ function AdDetailsPage({ t }: Props) {
 
 
     useEffect(() => {
+        let cancelled = false
+
         async function loadAd() {
-            const parsedId = extractIdFromSlug(slugOrId)
-            if (!parsedId) return
+            setLoading(true)
 
-            const ref = doc(db, 'ads', parsedId)
-            const snap = await getDoc(ref)
+            try {
+                const parsedId = extractIdFromSlug(slugOrId)
+                if (!parsedId) {
+                    if (!cancelled) setAd(null)
+                    return
+                }
+
+                const ref = doc(db, 'ads', parsedId)
+                const snap = await getDoc(ref)
 
 
-            if (snap.exists()) {
-                setAd({
-                    id: parsedId, // ✅ string из Firestore
-                    ...(snap.data() as Omit<Ad, 'id'>),
-                })
-                setActiveIndex(0)
+                if (snap.exists()) {
+                    if (!cancelled) {
+                        setAd({
+                            id: parsedId, // ✅ string из Firestore
+                            ...(snap.data() as Omit<Ad, 'id'>),
+                        })
+                        setActiveIndex(0)
+                    }
 
-            } else {
-                setAd(null)
+                } else if (!cancelled) {
+                    setAd(null)
+                }
+            } catch (error) {
+                console.error('[ad details] failed to load ad', error)
+                if (!cancelled) setAd(null)
+            } finally {
+                if (!cancelled) setLoading(false)
             }
-
-
-            setLoading(false)
         }
 
         loadAd()
+
+        return () => {
+            cancelled = true
+        }
     }, [slugOrId])
 
     useEffect(() => {

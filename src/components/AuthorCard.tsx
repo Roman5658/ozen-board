@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { db } from "../app/firebase"
 import type { UserReview } from "../types/userReview"
 import { getLocalUser } from "../data/localUser"
@@ -29,19 +29,33 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
     const [loading, setLoading] = useState(true)
     const [showReviewsList, setShowReviewsList] = useState(false)
     const navigate = useNavigate()
+    const location = useLocation()
     const currentUser = getLocalUser()
     const isMe = currentUser?.id === userId
 
     useEffect(() => { (async () => {
+        let nextUser: PublicUser = { nickname: a.userFallback, karma: 0, phone: null, telegram: null }
+
         try {
             const snap = await getDoc(doc(db, "users", userId))
             if (snap.exists()) {
                 const data = snap.data()
-                setUser({ nickname: data.nickname ?? a.userFallback, karma: typeof data.karma === "number" ? data.karma : 0, phone: data.phone ?? null, telegram: data.telegram ?? null })
+                nextUser = { nickname: data.nickname ?? a.userFallback, karma: typeof data.karma === "number" ? data.karma : 0, phone: data.phone ?? null, telegram: data.telegram ?? null }
             }
+        } catch (error) {
+            console.warn('[author card] failed to load seller profile', error)
+        }
+
+        try {
             const rs = await getDocs(query(collection(db, 'userReviews'), where('targetUserId', '==', userId)))
             setReviews(rs.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
-        } finally { setLoading(false) }
+        } catch (error) {
+            console.warn('[author card] failed to load seller reviews', error)
+            setReviews([])
+        } finally {
+            setUser(nextUser)
+            setLoading(false)
+        }
     })() }, [userId, a.userFallback])
 
     const stats = useMemo(() => {
@@ -69,7 +83,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
     return <div style={{ padding: 12, borderRadius: 12, background: "#f9fafb", border: "1px solid #e5e7eb", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
             <div style={{fontSize: 13, color: "#6b7280"}}>{a.seller}</div>
-            <Link to={`/user/${userId}`} style={{
+            <Link to={`/user/${userId}`} state={adId ? { fromAdPath: location.pathname } : undefined} style={{
                 fontWeight: 700,
                 color: "#1976d2",
                 textDecoration: "none",
@@ -92,7 +106,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
                     style={{ marginTop: 8 }}
                     onClick={() => setShowReviewsList(prev => !prev)}
                 >
-                    {showReviewsList ? "Скрыть отзывы" : "Открыть отзывы"}
+                    {showReviewsList ? a.hideReviews : a.openReviews}
                 </button>
             )}
         </div>
@@ -103,12 +117,12 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
             <button className="btn-secondary" onClick={() => setShowReview(true)}
                     disabled={!adId}>{a.leaveReview}</button>
             <button className="btn-secondary" onClick={onReport}>{a.report}</button>
-            <Link to={`/user/${userId}`} className="btn-secondary">{a.profile}</Link>
+            <Link to={`/user/${userId}`} state={adId ? { fromAdPath: location.pathname } : undefined} className="btn-secondary">{a.profile}</Link>
         </div>}
         {showReview && <div className="card stack12" style={{width: '100%'}}>
             <h4>{a.reviewTitle}</h4>
             <textarea className='input' value={comment} onChange={e => setComment(e.target.value)}
-                      placeholder={'Комментарий (необязательно)'} rows={3}/>
+                      placeholder={a.commentPlaceholder} rows={3}/>
             <div style={{display: 'flex', gap: 8}}>
                 <button className='btn-secondary' onClick={() => setKarmaValue(1)}>+1</button>
                 <button className='btn-secondary' onClick={() => setKarmaValue(-1)}>-1</button>
@@ -127,7 +141,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
                         <div key={r.id} style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: 8 }}>
                             <div style={{ fontWeight: 600 }}>{r.authorUserName ?? r.authorUserId}</div>
                             <div style={{ fontSize: 13, color: "#6b7280" }}>{new Date(r.createdAt).toLocaleDateString()}</div>
-                            <div>Репутация: {r.karmaValue > 0 ? "+1" : "-1"}</div>
+                            <div>{a.reviewKarma}: {r.karmaValue > 0 ? "+1" : "-1"}</div>
                             {r.comment ? <div>{r.comment}</div> : null}
                         </div>
                     ))}

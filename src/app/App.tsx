@@ -144,10 +144,38 @@ function App() {
     })
 
 
+    function getLocalizedPath(pathname: string, next: Lang): string {
+        const routes: Record<Lang, Record<string, string>> = {
+            pl: {
+                '/uk': '/pl',
+                '/uk/': '/pl/',
+                '/uk/ogoloshennya': '/pl/ogloszenia',
+                '/uk/poslugy': '/pl/uslugi',
+                '/uk/orenda': '/pl/wynajem',
+                '/uk/auktsiony': '/pl/aukcje',
+                '/uk/bezpeka': '/pl/bezpieczenstwo',
+            },
+            uk: {
+                '/pl': '/uk',
+                '/pl/': '/uk/',
+                '/pl/ogloszenia': '/uk/ogoloshennya',
+                '/pl/uslugi': '/uk/poslugy',
+                '/pl/wynajem': '/uk/orenda',
+                '/pl/aukcje': '/uk/auktsiony',
+                '/pl/bezpieczenstwo': '/uk/bezpeka',
+            },
+        }
+
+        if (routes[next][pathname]) return routes[next][pathname]
+        if (pathname === '/') return `/${next}/`
+        if (pathname.startsWith('/pl/') || pathname.startsWith('/uk/')) return `/${next}/`
+        return pathname
+    }
+
     function changeLang(next: Lang) {
         setLang(next)
         localStorage.setItem('lang', next)
-        navigate(`/${next}/`)
+        navigate(`${getLocalizedPath(location.pathname, next)}${location.search}${location.hash}`, { replace: true })
     }
 
     useEffect(() => {

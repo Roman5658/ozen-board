@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { db } from '../app/firebase'
@@ -13,6 +13,7 @@ import { translations, DEFAULT_LANG } from '../app/i18n'
 import type { Lang } from '../app/i18n'
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
 import type { UserReview } from '../types/userReview'
+import { getOrCreateChat } from '../data/chats'
 
 
 
@@ -27,6 +28,8 @@ type PublicUser = {
 
 function UserPage() {
     const { id } = useParams<{ id: string }>()
+    const navigate = useNavigate()
+    const location = useLocation()
     const [user, setUser] = useState<PublicUser | null>(null)
     const [loading, setLoading] = useState(true)
     const [ads, setAds] = useState<Ad[]>([])
@@ -40,6 +43,21 @@ function UserPage() {
     const isOwnProfile = currentUser?.id === id
     const lang = (localStorage.getItem('lang') as Lang) || DEFAULT_LANG
     const t = translations[lang]
+    const fromAdPath = typeof (location.state as { fromAdPath?: unknown } | null)?.fromAdPath === 'string'
+        ? (location.state as { fromAdPath: string }).fromAdPath
+        : null
+
+    async function openChat() {
+        if (!currentUser || !id) return
+
+        try {
+            const chatId = await getOrCreateChat(currentUser.id, id)
+            navigate(`/chat/${chatId}`)
+        } catch (error) {
+            console.error('[user profile] failed to open chat', error)
+            alert(t.userPage.chatError)
+        }
+    }
 
 
 
@@ -72,6 +90,9 @@ function UserPage() {
                 } else {
                     setUser(null)
                 }
+            } catch (error) {
+                console.error('[user profile] failed to load user', error)
+                setUser(null)
             } finally {
                 setLoading(false)
             }
@@ -99,6 +120,9 @@ function UserPage() {
                 }))
 
                 setAds(data.filter((ad) => (ad.status ?? 'active') === 'active'))
+            } catch (error) {
+                console.error('[user profile] failed to load ads', error)
+                setAds([])
             } finally {
                 setAdsLoading(false)
             }
@@ -127,6 +151,9 @@ function UserPage() {
                 }))
 
                 setAuctions(data.filter((auction) => (auction.status ?? 'active') === 'active'))
+            } catch (error) {
+                console.error('[user profile] failed to load auctions', error)
+                setAuctions([])
             } finally {
                 setAuctionsLoading(false)
             }
@@ -138,10 +165,15 @@ function UserPage() {
     useEffect(() => {
         if (!id) return
             ;(async () => {
-            const snap = await getDocs(query(collection(db, 'userReviews'), where('targetUserId', '==', id)))
-            setReviews(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
+            try {
+                const snap = await getDocs(query(collection(db, 'userReviews'), where('targetUserId', '==', id)))
+                setReviews(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<UserReview, 'id'>) })))
+            } catch (error) {
+                console.error('[user profile] failed to load reviews', error)
+                setReviews([])
+            }
         })()
-    }, [id])
+    }, [id, t.common.user])
 
     if (loading) {
         return <div className="card">{t.userPage.loading}</div>
@@ -157,21 +189,29 @@ function UserPage() {
     return (
         <div>
             <h2>{t.userPage.title}</h2>
+            {fromAdPath && (
+                <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ marginBottom: 12 }}
+                    onClick={() => navigate(fromAdPath)}
+                >
+                    ← {t.userPage.backToAd}
+                </button>
+            )}
 
             <div style={{marginTop: 12}}>
                 <div><b>{t.userPage.nickname}:</b>
                     {user.nickname}</div>
 
                 <div style={{marginTop: 6}}>
-                    <b>Відгуків:</b> {reviews.length} · <b>Репутація:</b> {reviews.reduce((sum, r) => sum + (r.karmaValue ?? 0), 0)}
+                    <b>{t.userPage.reviews}:</b> {reviews.length} · <b>{t.userPage.reputation}:</b> {reviews.reduce((sum, r) => sum + (r.karmaValue ?? 0), 0)}
                 </div>
                 {isLoggedIn && !isOwnProfile && (
                     <button
                         className="btn-primary"
                         style={{marginTop: 12}}
-                        onClick={() => {
-                            alert('Чати будуть доступні незабаром')
-                        }}
+                        onClick={openChat}
                     >
                         {t.userPage.write}
 
@@ -217,13 +257,13 @@ function UserPage() {
                 )}
             </div>
             <hr style={{margin: '20px 0'}}/>
-            <h3>Відгуки</h3>
-            {reviews.length === 0 ? <div style={{fontSize: 14, color: '#666'}}>Поки немає відгуків</div> :
+            <h3>{t.userPage.reviews}</h3>
+            {reviews.length === 0 ? <div style={{fontSize: 14, color: '#666'}}>{t.userPage.noReviews}</div> :
                 <div className='stack12'>{reviews.map(r => <div key={r.id} className='card'>
                     <div><b>{r.authorUserName ?? r.authorUserId}</b> · {new Date(r.createdAt).toLocaleDateString()}
                     </div>
                     <div>{r.adTitle}</div>
-                    <div>карма: {r.karmaValue > 0 ? '+1' : '-1'}</div>
+                    <div>{t.userPage.reviewKarma}: {r.karmaValue > 0 ? '+1' : '-1'}</div>
                     <div>{r.comment}</div>
                 </div>)}</div>}
 

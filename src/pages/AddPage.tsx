@@ -702,7 +702,7 @@ function AddPage({ t }: Props) {
                             onChange={() => setPromotion('none')}
                             disabled={paymentCompleted || isPaying}
                         />
-                        🆓 Без просування
+                        🆓 {a.promotion.none}
                         <div className="hint">{a.promotion.noneHint}
                         </div>
                     </label>
