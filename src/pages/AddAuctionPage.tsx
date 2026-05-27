@@ -4,7 +4,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { collection, addDoc } from "firebase/firestore"
 import { PRICES } from "../config/prices"
 import type { translations } from "../app/i18n"
-import { db, storage } from "../app/firebase"
+import { auth, db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { getFirebaseUserId, isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
 import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
@@ -184,7 +184,7 @@ function AddAuctionPage({ t }: Props) {
                 imageUrls.push(imageUrl)
             }
 
-            const docRef = await addDoc(collection(db, "auctions"), {
+            const auctionData = {
                 title: title.trim(),
                 description: description.trim(),
                 category,
@@ -208,7 +208,25 @@ function AddAuctionPage({ t }: Props) {
                 promotionType: "none",
                 promotionUntil: null,
                 promotionQueueAt: null,
+            }
+
+            console.log("[create-auction] addDoc auctions payload", {
+                authUid: auth.currentUser?.uid ?? null,
+                authEmail: auth.currentUser?.email ?? null,
+                finalOwnerId: auctionData.ownerId,
+                keys: Object.keys(auctionData),
+                status: auctionData.status,
+                promotion,
+                paymentCompleted,
+                paypalOrderId,
+                promotionFields: {
+                    promotionType: auctionData.promotionType,
+                    promotionUntil: auctionData.promotionUntil,
+                    promotionQueueAt: auctionData.promotionQueueAt,
+                },
             })
+
+            const docRef = await addDoc(collection(db, "auctions"), auctionData)
             if (promotion !== "none") {
                 if (!paypalOrderId) {
                     setError(t.addAuction.errors.paypalError)
