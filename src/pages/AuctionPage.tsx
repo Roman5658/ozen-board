@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
     collection,
     getDocs,
@@ -100,6 +100,7 @@ function rotatePromotedAuctions(auctions: Auction[], rotationBucket: number): Au
 
 function AuctionPage() {
     const navigate = useNavigate()
+    const location = useLocation()
     const { id: slugOrId } = useParams<{ id?: string }>()
 
     const [now] = useState(() => Date.now())
@@ -423,7 +424,7 @@ function AuctionPage() {
                 ? `Licytuj lokalnie. Zobacz aukcję: ${visibleActiveAuction.title} w ${visibleActiveAuction.city}.`
                 : `Бери участь в локальних аукціонах. Переглянь лот: ${visibleActiveAuction.title} у ${visibleActiveAuction.city}.`)
             : (seoLang === 'pl' ? 'Aukcje lokalne.' : 'Локальні аукціони.'),
-        path: visibleActiveAuction ? `/auction/${slugOrId ?? visibleActiveAuction.id}` : '/auctions',
+        path: visibleActiveAuction ? `/auction/${slugOrId ?? visibleActiveAuction.id}` : location.pathname,
         lang: seoLang,
         image: visibleActiveAuction?.images?.[0],
         noindex: !!slugOrId && !visibleActiveAuction,
