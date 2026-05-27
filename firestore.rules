@@ -25,6 +25,7 @@ service cloud.firestore {
       return signedIn() &&
              authEmail() != null &&
              exists(userDocPath()) &&
+             ('status' in get(userDocPath()).data) &&
              get(userDocPath()).data.status == 'blocked';
     }
 

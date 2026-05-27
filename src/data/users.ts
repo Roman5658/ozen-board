@@ -51,6 +51,7 @@ export async function createUser(user: AppUser): Promise<void> {
         uid: user.uid,
         email: normalizedEmail,
         nickname: user.nickname.trim(),
+        status: user.status === "blocked" ? "blocked" : "active",
         karma: user.karma,
         createdAt: user.createdAt,
         phone: user.phone ?? null,

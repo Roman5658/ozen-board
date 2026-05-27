@@ -16,7 +16,7 @@ import type { Ad } from "../types/ad"
 import { verifyPayPalPayment } from "../api/payments"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
-import { auth, db, storage } from "../app/firebase"
+import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { getFirebaseUserId, isStaleAuthSessionError, requireMatchingFirebaseUser } from "../data/authGuard"
 import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
@@ -347,29 +347,6 @@ function AddPage({ t }: Props) {
 
                 // Paid promotion fields are applied only after backend capture.
             }
-
-            const adDebugData = adData as Record<string, unknown>
-            console.log("[create-ad] addDoc ads payload", {
-                authUid: auth.currentUser?.uid ?? null,
-                authEmail: auth.currentUser?.email ?? null,
-                finalUserId: adData.userId,
-                keys: Object.keys(adData),
-                status: adData.status,
-                promotion,
-                paymentCompleted,
-                paypalOrderId,
-                promotionFields: {
-                    pinType: adDebugData.pinType ?? null,
-                    pinnedAt: adDebugData.pinnedAt ?? null,
-                    pinnedUntil: adDebugData.pinnedUntil ?? null,
-                    pinQueueAt: adDebugData.pinQueueAt ?? null,
-                    bumpAt: adDebugData.bumpAt ?? null,
-                    highlightType: adDebugData.highlightType ?? null,
-                    highlightUntil: adDebugData.highlightUntil ?? null,
-                    paidAt: adDebugData.paidAt ?? null,
-                    paymentId: adDebugData.paymentId ?? null,
-                },
-            })
 
             const docRef = await addDoc(collection(db, "ads"), adData)
 
