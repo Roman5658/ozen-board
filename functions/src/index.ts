@@ -73,7 +73,7 @@ const ADS_ACTIVE_TTL = 30 * DAY;
 
 export const expireOldAds = onSchedule(
     {
-        schedule: "every 5 minutes",
+        schedule: "every day 03:30",
         timeZone: "Europe/Warsaw",
     },
     async () => {
