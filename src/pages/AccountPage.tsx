@@ -580,7 +580,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             try {
                                 setResetLoading(true)
                                 await sendPasswordResetEmail(auth, cleanEmail)
-                                setResetMessage("Письмо для восстановления пароля отправлено на email.")
+                                setResetMessage(a.auth.passwordResetSent)
                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                             } catch (error: any) {
                                 const code = error?.code as string | undefined

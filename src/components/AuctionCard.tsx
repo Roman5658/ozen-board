@@ -49,7 +49,7 @@ function AuctionCard({
                         : promotionType === 'top-auction'
                             ? '2px solid #ef4444'
                             : promotionType === 'featured'
-                                ? '2px solid #f59e0b'
+                                ? '2px solid rgb(11 245 99)'
                                 : promotionType === 'highlight-gold'
                                     ? '1px solid #facc15'
                                     : '1px solid #ddd',
@@ -61,7 +61,7 @@ function AuctionCard({
                         : promotionType === 'top-auction'
                             ? 'rgb(128 14 14 / 85%) 0px 20px 20px'
                             : promotionType === 'featured'
-                                ? 'rgba(245, 158, 11, 0.45) 0px 20px 20px'
+                                ? 'rgba(14, 173, 42, 0.45) 0px 20px 20px'
                                 : promotionType === 'highlight-gold'
                                     ? 'rgba(250, 204, 21, 0.45) 0px 20px 20px'
                                     : 'none',
