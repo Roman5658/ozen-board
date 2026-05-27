@@ -40,6 +40,9 @@ function TermsPage({ t }: Props) {
             <h3>{p.sections.usersTitle}</h3>
             <p>{p.sections.usersText}</p>
 
+            <h3>{p.sections.listingLifetimeTitle}</h3>
+            <p>{p.sections.listingLifetimeText}</p>
+
             <h3>{p.sections.auctionsTitle}</h3>
             <p>{p.sections.auctionsText}</p>
 

@@ -231,6 +231,9 @@ export const translations = {
                 usersTitle: '3. Відповідальність користувачів',
                 usersText: 'Користувач сам відповідає за правдивість оголошення, право продавати товар або послугу, фото, опис, ціну, контакти, виконання домовленостей і дотримання законів.',
 
+                listingLifetimeTitle: 'Строк дії оголошень',
+                listingLifetimeText: 'Оголошення активні протягом 30 днів. Після цього вони можуть бути автоматично перенесені в архів або зняті з публічного списку.',
+
                 auctionsTitle: '4. Правила аукціонів',
                 auctionsText: 'Ставки мають бути реальними. Заборонено накручувати ціну, робити фейкові ставки, маніпулювати аукціоном або відмовлятися від домовленості без поважної причини. Продавець відповідає за опис лота і контакт з переможцем.',
 
@@ -424,6 +427,7 @@ export const translations = {
                 'Оплата списується після підтвердження в PayPal або банку.',
                 'Офіційна оплата на Xoven стосується лише просування, а не купівлі товару між користувачами.',
                 'Після оплати потрібно завершити публікацію, натиснувши кнопку створення оголошення або аукціону.',
+                'Оголошення активні протягом 30 днів. Після цього вони можуть бути автоматично перенесені в архів або зняті з публічного списку.',
                 'Якщо ви випадково закрили сторінку, форма і підтверджена оплата повинні відновитися під час повернення.',
                 'Повернення можливе лише при технічній помилці сервісу, а не через помилку користувача.',
                 'Шахрайські оголошення, спам і заборонені товари заборонені.',
@@ -1342,6 +1346,9 @@ export const translations = {
                 usersTitle: '3. Odpowiedzialność użytkowników',
                 usersText: 'Użytkownik odpowiada za prawdziwość ogłoszenia, prawo do sprzedaży towaru lub usługi, zdjęcia, opis, cenę, kontakty, wykonanie ustaleń i przestrzeganie prawa.',
 
+                listingLifetimeTitle: 'Czas aktywności ogłoszeń',
+                listingLifetimeText: 'Ogłoszenia są aktywne przez 30 dni. Po tym czasie mogą zostać automatycznie przeniesione do archiwum lub usunięte z publicznej listy.',
+
                 auctionsTitle: '4. Zasady aukcji',
                 auctionsText: 'Oferty w aukcji powinny być realne. Zabronione jest sztuczne podbijanie ceny, fałszywe licytacje, manipulowanie aukcją lub wycofywanie się z ustaleń bez ważnego powodu. Sprzedawca odpowiada za opis przedmiotu i kontakt ze zwycięzcą.',
 
@@ -1535,6 +1542,7 @@ export const translations = {
                 'Płatność jest pobierana po potwierdzeniu w PayPal lub banku.',
                 'Oficjalna płatność na Xoven dotyczy tylko promowania, a nie zakupu towaru między użytkownikami.',
                 'Po opłaceniu trzeba zakończyć publikację, klikając przycisk utworzenia ogłoszenia lub aukcji.',
+                'Ogłoszenia są aktywne przez 30 dni. Po tym czasie mogą zostać automatycznie przeniesione do archiwum lub usunięte z publicznej listy.',
                 'Jeśli przypadkowo zamkniesz stronę, formularz i potwierdzona płatność powinny zostać przywrócone po powrocie.',
                 'Zwrot jest możliwy tylko przy technicznej awarii serwisu, a nie z powodu błędu użytkownika.',
                 'Oszukańcze ogłoszenia, spam i zakazane towary są zabronione.',
