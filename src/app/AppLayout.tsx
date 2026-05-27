@@ -23,6 +23,10 @@ type Props = {
             cookies: string
             contact: string
         }
+        trustBanner: {
+            line1: string
+            line2: string
+        }
     }
 }
 
@@ -32,6 +36,14 @@ function AppLayout({ children, header, activePath, chatUnreadCount, t }: Props) 
     return (
         <div className="app-root">
             {header}
+
+            <div className="trust-banner" role="note">
+                <span className="trust-banner__icon" aria-hidden="true">✓</span>
+                <span className="trust-banner__text">
+                    <span>{t.trustBanner.line1}</span>
+                    <span>{t.trustBanner.line2}</span>
+                </span>
+            </div>
 
             <main className="app-main">
                 {children}

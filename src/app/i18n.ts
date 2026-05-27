@@ -49,6 +49,10 @@ export const translations = {
         title: 'Xoven',
         subtitle: 'Локальна дошка оголошень',
         warning: 'Будьте обережні під час онлайн-угод. Xoven не займається доставкою і не є гарантом оплати.',
+        trustBanner: {
+            line1: 'На Xoven немає нав’язливої реклами — лише оголошення користувачів.',
+            line2: 'Без казино, фейкових “виграшів” і сміттєвих банерів.',
+        },
 
         langLabel: 'Мова',
         languages: {
@@ -1149,6 +1153,10 @@ export const translations = {
         title: 'Xoven',
         subtitle: 'Lokalna tablica ogłoszeń',
         warning: 'Zachowaj ostrożność podczas transakcji online. Xoven nie obsługuje dostawy i nie jest gwarantem płatności.',
+        trustBanner: {
+            line1: 'Na Xoven nie ma nachalnych reklam — tylko ogłoszenia użytkowników.',
+            line2: 'Bez kasyn, fałszywych „wygranych” i śmieciowych banerów.',
+        },
 
         langLabel: 'Język',
         languages: {
