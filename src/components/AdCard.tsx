@@ -103,7 +103,7 @@ function AdCard(props: Props) {
 
     return (
         <div
-            className="ad-card"
+            className="listing-card"
             style={{
                 border:
                     isTop3
