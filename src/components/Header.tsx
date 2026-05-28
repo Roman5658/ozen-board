@@ -32,7 +32,7 @@ function Header({  lang, languages, chatUnreadCount, chatLabel, onLangChange }: 
 
             }}
         >
-            <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center'}}>
+            <div style={{display: 'flex', justifyContent: 'space-evenly', alignItems: 'center'}}>
                 <div
                     style={{
                         display: 'flex',
