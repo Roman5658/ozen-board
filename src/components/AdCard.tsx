@@ -169,7 +169,7 @@ function AdCard(props: Props) {
                 )}
 
                 {isPinActive && !props.isSoftPinned && (
-                    <span className="listing-badge" style={{ background: '#2563eb' }}>
+                    <span className="listing-badge" style={{ background: '#2563eb',color: '#fff', }}>
                         {ad?.pinType === 'top3'
                             ? props.labels?.top3
                             : props.labels?.top6}
