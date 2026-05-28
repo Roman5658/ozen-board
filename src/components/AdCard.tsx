@@ -169,15 +169,24 @@ function AdCard(props: Props) {
                 )}
 
                 {isPinActive && !props.isSoftPinned && (
-                    <span className="listing-badge" style={{ background: '#2563eb',color: '#fff', }}>
-                        {ad?.pinType === 'top3'
-                            ? props.labels?.top3
-                            : props.labels?.top6}
-                    </span>
+                    <span
+                        className="listing-badge"
+                        style={{
+                            background: '#2563eb',
+                            color: '#fff',
+                            fontWeight: 800,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.35)',
+                            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.45)',
+                        }}
+                    >
+    {ad?.pinType === 'top3'
+        ? props.labels?.top3
+        : props.labels?.top6}
+</span>
                 )}
 
                 {isInPinQueue && props.isMine && (
-                    <span className="listing-badge" style={{ background: '#6b7280' }}>
+                    <span className="listing-badge" style={{background: '#6b7280'}}>
                         {props.labels?.inQueue}
                     </span>
                 )}
