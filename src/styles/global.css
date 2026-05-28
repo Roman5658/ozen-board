@@ -27,7 +27,7 @@ body,
     max-width: 100%;
     overflow-x: hidden;
     background: rgb(244 246 248);
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Inter', sans-serif;
 }
 
 html, body { height:100%; }
