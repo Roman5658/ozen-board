@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import logoBanner from '../assets/xoven-header-logo.png'
 
 type Props = {
     title: string
@@ -17,7 +18,7 @@ type Props = {
 
 
 
-function Header({ title, subtitle,warning, lang, languages, chatUnreadCount, chatLabel, onLangChange }: Props) {
+function Header({  lang, languages, chatUnreadCount, chatLabel, onLangChange }: Props) {
     const [flash, setFlash] = useState<'uk' | 'pl' | null>(null)
     const navigate = useNavigate()
     const badgeText = chatUnreadCount > 99 ? '99+' : String(chatUnreadCount)
@@ -32,19 +33,27 @@ function Header({ title, subtitle,warning, lang, languages, chatUnreadCount, cha
             }}
         >
             <div style={{display: 'flex', justifyContent: 'space-around', alignItems: 'center'}}>
-                <div>
-                    <h1 style={{margin: 0, fontSize: '18px'}}>{title}</h1>
-                    <p style={{
+                <div
+                    style={{
                         display: 'flex',
-                        justifyContent: 'center',
-                        margin: 0,
                         alignItems: 'center',
-                        fontSize: '12px',
-                        color: '#666'
-                    }}>{subtitle}</p>
+                    }}
+                >
+                    <img
+                        src={logoBanner}
+                        alt="Xoven"
+                        className="header-logo"
+
+                    />
                 </div>
 
-                <div style={{display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end'}}>
+                <div style={{
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    justifyContent: 'flex-end'
+                }}>
                     <button
                         type="button"
                         onClick={() => navigate('/account/chats')}
@@ -92,7 +101,6 @@ function Header({ title, subtitle,warning, lang, languages, chatUnreadCount, cha
                             setFlash('uk')
                             onLangChange('uk')
                             setTimeout(() => setFlash(null), 3200)
-
 
 
                         }}
@@ -145,10 +153,7 @@ linear-gradient(
                                     filter: 'blur(1.4px)',
 
 
-
-
                                     animation: 'btnFlash 2.8s linear',
-
 
 
                                     pointerEvents: 'none',
@@ -164,7 +169,6 @@ linear-gradient(
                             setFlash('pl')
                             onLangChange('pl')
                             setTimeout(() => setFlash(null), 3200)
-
 
 
                         }}
@@ -216,8 +220,6 @@ linear-gradient(
                                     filter: 'blur(1.4px)',
 
 
-
-
                                     animation: 'btnFlash 2.8s linear',
 
 
@@ -233,24 +235,24 @@ linear-gradient(
                 </div>
             </div>
 
-            <div
-                style={{
-                    marginTop: '8px',
-                    fontSize: '12px',
-                    color: '#b71c1c',
-                    background: '#fdecea',
-                    padding: '6px 8px',
-                    borderRadius: '6px',
+            {/*<div*/}
+            {/*    style={{*/}
+            {/*        marginTop: '8px',*/}
+            {/*        fontSize: '12px',*/}
+            {/*        color: '#b71c1c',*/}
+            {/*        background: '#fdecea',*/}
+            {/*        padding: '6px 8px',*/}
+            {/*        borderRadius: '6px',*/}
 
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    textAlign: 'center',
-                    gap: '6px',
-                }}
-            >
-                ⚠️ {warning}
-            </div>
+            {/*        display: 'flex',*/}
+            {/*        justifyContent: 'center',*/}
+            {/*        alignItems: 'center',*/}
+            {/*        textAlign: 'center',*/}
+            {/*        gap: '6px',*/}
+            {/*    }}*/}
+            {/*>*/}
+            {/*    ⚠️ {warning}*/}
+            {/*</div>*/}
 
         </header>
     )
