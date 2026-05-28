@@ -28,7 +28,7 @@ function Header({  lang, languages, chatUnreadCount, chatLabel, onLangChange }: 
             style={{
                 padding: '12px 16px',
                 borderBottom: '1px solid #ddd',
-                background: '#fff',
+                background: 'rgb(244 246 248)',
 
             }}
         >

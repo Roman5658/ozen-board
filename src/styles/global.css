@@ -19,12 +19,14 @@
     box-sizing: border-box;
 }
 
+
 html,
 body,
 #root {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    background: rgb(244 246 248);
 }
 
 html, body { height:100%; }
@@ -327,6 +329,7 @@ width: 80%;
     align-items: flex-start;
     gap: 8px;
     flex-wrap: wrap;
+
 }
 
 .ad-title {
@@ -812,6 +815,7 @@ h1, h2, h3, h4, h5, h6 {
     width: min(980px, calc(100% - 16px));
 
 }
+
 
 .bottom-nav {
     pointer-events: auto;
