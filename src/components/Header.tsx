@@ -43,10 +43,11 @@ function Header({  lang, languages, chatUnreadCount, chatLabel, onLangChange }: 
                         src={logoBanner}
                         alt="Xoven"
                         className="header-logo"
-
+                        onClick={() => navigate('/')}
+                        style={{cursor: 'pointer'}}
                     />
                 </div>
-{/*комит*/}
+                {/*комит*/}
                 <div style={{
                     display: 'flex',
                     gap: '10px',
