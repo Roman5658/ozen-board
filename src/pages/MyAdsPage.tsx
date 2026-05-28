@@ -158,7 +158,7 @@ function MyAdsPage() {
                     <Link to={buildAdPath(ad.title, ad.city, ad.id)} style={{ color: 'inherit', fontWeight: 700 }}>
                         {ad.title}
                     </Link>
-                    <span className="ad-badge">{getStatusLabel(ad.status)}</span>
+                    <span className="listing-badge">{getStatusLabel(ad.status)}</span>
                 </div>
 
                 <div style={{ color: '#6b7280' }}>
@@ -240,11 +240,11 @@ function MyAdsPage() {
 
                             {/* СТАТУСИ */}
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                <span className="ad-badge">{getStatusLabel(ad.status)}</span>
+                                <span className="listing-badge">{getStatusLabel(ad.status)}</span>
 
                                 {isPinActive && (
                                     <span
-                                        className="ad-badge"
+                                        className="listing-badge"
                                         style={{ background: '#2563eb' }}
                                     >
                                         {ad.pinType === 'top3' ? 'TOP 3' : 'TOP 6'}
@@ -253,7 +253,7 @@ function MyAdsPage() {
 
                                 {isInQueue && (
                                     <span
-                                        className="ad-badge"
+                                        className="listing-badge"
                                         style={{ background: '#6b7280' }}
                                     >
                                         {myAdsText.topQueue.replace('{{type}}', promotionType)}
@@ -262,7 +262,7 @@ function MyAdsPage() {
 
                                 {isHighlightActive && (
                                     <span
-                                        className="ad-badge"
+                                        className="listing-badge"
                                         style={{
                                             background: '#f59e0b',
                                             color: '#000',

@@ -343,7 +343,7 @@ function AdminAdsListPage() {
                                 {ad.title}
                             </Link>
                             {isNew && (
-                                <span className="ad-badge" style={{ background: "#f59e0b", color: "#111827" }}>
+                                <span className="listing-badge" style={{ background: "#f59e0b", color: "#111827" }}>
                                     Нове
                                 </span>
                             )}

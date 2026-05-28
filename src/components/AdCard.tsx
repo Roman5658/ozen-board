@@ -137,18 +137,18 @@ function AdCard(props: Props) {
                             : undefined,
             }}
         >
-            <div className="ad-image">
+            <div className="listing-image">
                 {preview ? (
                     <img src={preview} alt={title} />
                 ) : (
-                    <div className="ad-image-placeholder">
+                    <div className="listing-image-placeholder">
                         {props.labels?.noPhoto ?? '—'}
                     </div>
                 )}
             </div>
 
-            <div className="ad-header">
-                <h3 className="ad-title">{title}</h3>
+            <div className="listing-header">
+                <h3 className="listing-title">{title}</h3>
 
                 {userId && (
                     <div style={{ fontSize: 13, marginTop: 4 }}>
@@ -169,7 +169,7 @@ function AdCard(props: Props) {
                 )}
 
                 {isPinActive && !props.isSoftPinned && (
-                    <span className="ad-badge" style={{ background: '#2563eb' }}>
+                    <span className="listing-badge" style={{ background: '#2563eb' }}>
                         {ad?.pinType === 'top3'
                             ? props.labels?.top3
                             : props.labels?.top6}
@@ -177,32 +177,32 @@ function AdCard(props: Props) {
                 )}
 
                 {isInPinQueue && props.isMine && (
-                    <span className="ad-badge" style={{ background: '#6b7280' }}>
+                    <span className="listing-badge" style={{ background: '#6b7280' }}>
                         {props.labels?.inQueue}
                     </span>
                 )}
 
                 {isHighlightActive && (
-                    <span className="ad-badge" style={{ background: '#f59e0b', color: '#000' }}>
+                    <span className="listing-badge" style={{ background: '#f59e0b', color: '#000' }}>
                         {props.labels?.gold}
                     </span>
                 )}
 
                 {props.isMine && (
-                    <span className="ad-badge mine">
+                    <span className="listing-badge mine">
                         {props.labels?.mine}
                     </span>
                 )}
             </div>
 
-            {description && <p className="ad-desc">{description}</p>}
+            {description && <p className="listing-desc">{description}</p>}
 
-            <div className="ad-footer">
-                <span className="ad-city">{city}</span>
-                {price && <span className="ad-price">{formatPricePLN(price)}</span>}
+            <div className="listing-footer">
+                <span className="listing-city">{city}</span>
+                {price && <span className="listing-price">{formatPricePLN(price)}</span>}
             </div>
 
-            <div className="ad-meta">
+            <div className="listing-meta">
                 <span>🕒 {formattedDate}</span>
             </div>
 

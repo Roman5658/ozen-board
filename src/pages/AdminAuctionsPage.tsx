@@ -349,7 +349,7 @@ function AdminAuctionsPage() {
                         <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                             <div style={{ fontWeight: 700 }}>{a.title}</div>
                             {isNew && (
-                                <span className="ad-badge" style={{ background: "#f59e0b", color: "#111827" }}>
+                                <span className="listing-badge" style={{ background: "#f59e0b", color: "#111827" }}>
                                     Нове
                                 </span>
                             )}

@@ -680,7 +680,7 @@ export default function AdminReportsPage({ t }: Props) {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                     {isNewReport && (
-                                        <span className='ad-badge' style={{ background: '#f59e0b', color: '#111827' }}>
+                                        <span className='listing-badge' style={{ background: '#f59e0b', color: '#111827' }}>
                                             {text.moderationStatus[moderationStatus] ?? text.status.new}
                                         </span>
                                     )}
@@ -737,7 +737,7 @@ export default function AdminReportsPage({ t }: Props) {
                                     <b>{text.reportedUser}:</b> {reportedUserId}{' '}
                                     <Link to={`/user/${reportedUserId}`}>{text.reporter.openProfile}</Link>
                                     {isReportedUserBlocked && (
-                                        <span className='ad-badge' style={{ marginLeft: 8, background: '#b91c1c' }}>
+                                        <span className='listing-badge' style={{ marginLeft: 8, background: '#b91c1c' }}>
                                             {text.userStatus.blocked}
                                         </span>
                                     )}

@@ -166,7 +166,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                     <Link to={to} style={{ color: "inherit", fontWeight: 700 }}>
                         {item.title}
                     </Link>
-                    <span className="ad-badge">{getOwnerStatusLabel(status)}</span>
+                    <span className="listing-badge">{getOwnerStatusLabel(status)}</span>
                 </div>
 
                 {(item.city || item.voivodeship) && (

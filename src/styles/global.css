@@ -323,7 +323,7 @@ width: 80%;
     background: #fff8e1;
 }
 
-.ad-header {
+.listing-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
@@ -332,7 +332,7 @@ width: 80%;
 
 }
 
-.ad-title {
+.listing-title {
     flex: 1 1 220px;
     min-width: 0;
     font-size: 15px;
@@ -342,7 +342,7 @@ width: 80%;
     word-break: normal;
 }
 
-.ad-badge {
+.listing-badge {
     font-size: 11px;
     font-weight: 600;
     background: #f5b301;
@@ -352,7 +352,7 @@ width: 80%;
     white-space: nowrap;
 }
 
-.ad-desc {
+.listing-desc {
     margin: 8px 0 10px;
     font-size: 13px;
     color: #6b7280;
@@ -367,21 +367,21 @@ width: 80%;
     white-space: normal;
 }
 
-.ad-footer {
+.listing-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-size: 13px;
 }
 
-.ad-city {
+.listing-city {
     color: #6b7280;
 }
 
-.ad-price {
+.listing-price {
     font-weight: 700;
 }
-.ad-image {
+.listing-image {
     width: 100%;
     height: 140px;
     border-radius: 12px;
@@ -389,14 +389,14 @@ width: 80%;
     margin-bottom: 10px;
 }
 
-.ad-image img {
+.listing-image img {
     width: 100%;
     height: 100%;
     object-fit: contain;
     transition: transform 0.2s ease;
 }
 
-.listing-card:hover .ad-image img {
+.listing-card:hover .listing-image img {
     transform: none;
 }
 .btn-primary {
@@ -420,7 +420,7 @@ width: 80%;
     font-weight: 500;
     cursor: pointer;
 }
-.ad-meta {
+.listing-meta {
     display: flex;
     gap: 12px;
     font-size: 11px;
@@ -562,7 +562,7 @@ body {
         grid-template-columns: 1fr;
     }
 }
-.ad-image {
+.listing-image {
     height: 160px;
     background: #f3f4f6;
     border-radius: 12px;
@@ -572,13 +572,13 @@ body {
     justify-content: center;
 }
 
-.ad-image img {
+.listing-image img {
     width: 100%;
     height: 100%;
     object-fit: contain;
 }
 
-.ad-image-placeholder {
+.listing-image-placeholder {
     font-size: 14px;
     color: #9ca3af;
     display: flex;
@@ -597,9 +597,9 @@ h1, h2, h3, h4, h5, h6 {
     word-break: break-word;
 }
 .listing-card,
-.ad-header,
-.ad-footer,
-.ad-desc {
+.listing-header,
+.listing-footer,
+.listing-desc {
     min-width: 0;
 }
 .stack8{
@@ -889,7 +889,7 @@ h1, h2, h3, h4, h5, h6 {
     align-items: flex-start;
 }
 
-.ads-grid--list .ad-image {
+.ads-grid--list .listing-image {
     grid-area: image;
     width: 180px;
     min-width: 180px;
@@ -897,37 +897,37 @@ h1, h2, h3, h4, h5, h6 {
     margin-bottom: 0;
 }
 
-.ads-grid--list .ad-image img {
+.ads-grid--list .listing-image img {
     width: 100%;
     height: 100%;
     object-fit: contain;
 }
 
-.ads-grid--list .ad-header,
-.ads-grid--list .ad-desc,
-.ads-grid--list .ad-footer,
-.ads-grid--list .ad-meta {
+.ads-grid--list .listing-header,
+.ads-grid--list .listing-desc,
+.ads-grid--list .listing-footer,
+.ads-grid--list .listing-meta {
     width: 100%;
     min-width: 0;
 }
 
-.ads-grid--list .ad-header {
+.ads-grid--list .listing-header {
     grid-area: header;
 }
 
-.ads-grid--list .ad-desc {
+.ads-grid--list .listing-desc {
     grid-area: description;
     margin: 0;
 }
 
-.ads-grid--list .ad-footer {
+.ads-grid--list .listing-footer {
     grid-area: footer;
     justify-content: flex-start;
     gap: 18px;
     flex-wrap: wrap;
 }
 
-.ads-grid--list .ad-meta {
+.ads-grid--list .listing-meta {
     grid-area: meta;
     flex-wrap: wrap;
 }
@@ -944,7 +944,7 @@ h1, h2, h3, h4, h5, h6 {
         flex-direction: column;
     }
 
-    .ads-grid--list .ad-image {
+    .ads-grid--list .listing-image {
         width: 100%;
         min-width: 0;
         height: 180px;
