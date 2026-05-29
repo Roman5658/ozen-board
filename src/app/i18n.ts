@@ -825,8 +825,8 @@ export const translations = {
             authRequired: "Спочатку увійдіть в акаунт",
 
             fields: {
-                title: "Наприклад: iPhone 14 Pro 128GB",
-                description: "Опишіть стан, комплектацію, дефекти...",
+                title: "Введіть назву оголошення",
+                description: "Опишіть оголошення, умови, деталі або переваги...",
                 price: "Ціна",
                 contact: "Контакт (телефон / Telegram) — необовʼязково",
                 category: "Категорія",
@@ -1940,8 +1940,8 @@ export const translations = {
             authRequired: "Najpierw zaloguj się na konto",
 
             fields: {
-                title: "Na przykład: iPhone 14 Pro 128GB",
-                description: "Opisz stan, wyposażenie, wady...",
+                title: "Wpisz nazwę ogłoszenia",
+                description: "Opisz ogłoszenie, warunki, szczegóły lub zalety...",
                 price: "Cena",
                 contact: "Kontakt (telefon / Telegram) — opcjonalnie",
                 category: "Kategoria",
