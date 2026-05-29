@@ -110,9 +110,15 @@ function EditAdPage() {
             return;
         }
 
-        const priceNumber = price.trim() ? Number(price) : null;
-        if (price.trim() && Number.isNaN(priceNumber)) {
-            setError("Некоректна ціна");
+        const normalizedPrice = price.trim();
+
+        if (!normalizedPrice) {
+            setError("Вкажіть ціну");
+            return;
+        }
+
+        if (normalizedPrice.length > 40) {
+            setError("Ціна занадто довга");
             return;
         }
 
@@ -124,7 +130,7 @@ function EditAdPage() {
             await updateDoc(ref, {
                 title: title.trim(),
                 description: description.trim(),
-                price: priceNumber,
+                price: normalizedPrice,
                 voivodeship,
                 city,
                 updatedAt: Date.now(),
