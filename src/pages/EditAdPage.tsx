@@ -133,7 +133,6 @@ function EditAdPage() {
                 price: normalizedPrice,
                 voivodeship,
                 city,
-                updatedAt: Date.now(),
             });
 
             navigate(buildAdPath(ad.title, ad.city, ad.id));
