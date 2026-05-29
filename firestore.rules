@@ -40,18 +40,20 @@ return signedIn() && authEmail() in [
 ];
 }
 
-    function isProtectedAdFieldChanged() {
-      return request.resource.data.pinType != resource.data.pinType ||
-             request.resource.data.pinnedAt != resource.data.pinnedAt ||
-             request.resource.data.pinnedUntil != resource.data.pinnedUntil ||
-             request.resource.data.pinQueueAt != resource.data.pinQueueAt ||
-             request.resource.data.bumpAt != resource.data.bumpAt ||
-             request.resource.data.highlightType != resource.data.highlightType ||
-             request.resource.data.highlightUntil != resource.data.highlightUntil ||
-             request.resource.data.paidAt != resource.data.paidAt ||
-             request.resource.data.paymentId != resource.data.paymentId ||
-             request.resource.data.status != resource.data.status;
-    }
+function isProtectedAdFieldChanged() {
+return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+    'pinType',
+    'pinnedAt',
+    'pinnedUntil',
+    'pinQueueAt',
+    'bumpAt',
+    'highlightType',
+    'highlightUntil',
+    'paidAt',
+    'paymentId',
+    'status'
+]);
+}
 
     function isProtectedAuctionFieldChanged() {
       return request.resource.data.promotionType != resource.data.promotionType ||
