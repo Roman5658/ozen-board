@@ -802,6 +802,7 @@ export { sendPaymentReceipt } from "./paypal/sendPaymentReceipt";
 export { sendReportModerationEmails, sendUserUnblockedEmail } from "./moderation/sendModerationEmails";
 export { importOlxLeads } from "./leads/importOlxLeads";
 export { importOtomotoLeads } from "./leads/importOtomotoLeads";
+export { importAllegroLeads } from "./leads/importAllegroLeads";
 export { createManualLead } from "./leads/createManualLead";
 
 /* ======================================================

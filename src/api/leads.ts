@@ -33,6 +33,20 @@ export const importOtomotoLeads = httpsCallable<
     }
 >(functions, "importOtomotoLeads")
 
+export const importAllegroLeads = httpsCallable<
+    {
+        searchUrl: string
+        audience: LeadAudience
+        city: string
+        limit: number
+    },
+    {
+        found: number
+        imported: number
+        duplicates: number
+    }
+>(functions, "importAllegroLeads")
+
 export const createManualLead = httpsCallable<
     {
         source: LeadSource

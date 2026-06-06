@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react"
 import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore"
-import { createManualLead, importOlxLeads, importOtomotoLeads } from "../api/leads"
+import {
+    createManualLead,
+    importAllegroLeads,
+    importOlxLeads,
+    importOtomotoLeads,
+} from "../api/leads"
 import { db } from "../app/firebase"
 import type {
     Lead,
@@ -31,6 +36,7 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 const SOURCE_LABELS: Record<LeadSource, string> = {
     olx: "OLX",
     otomoto: "Otomoto",
+    allegro_lokalnie: "Allegro Lokalnie",
     manual: "Manual",
     other: "Other",
 }
@@ -83,11 +89,15 @@ function AdminLeadsPage() {
         () => {
             if (source === "olx") return buildOlxSearchUrl(category, city)
             if (source === "otomoto") return buildOtomotoSearchUrl(city)
+            if (source === "allegro_lokalnie") return buildAllegroSearchUrl(city)
             return ""
         },
         [category, city, source]
     )
-    const autoImportAvailable = source === "olx" || source === "otomoto"
+    const autoImportAvailable =
+        source === "olx" ||
+        source === "otomoto" ||
+        source === "allegro_lokalnie"
 
     async function loadLeads() {
         setLoading(true)
@@ -163,7 +173,14 @@ function AdminLeadsPage() {
                     city: city.trim(),
                     limit,
                 })
-                : await importOtomotoLeads({
+                : source === "otomoto"
+                    ? await importOtomotoLeads({
+                        searchUrl: searchUrl.trim(),
+                        audience,
+                        city: city.trim(),
+                        limit,
+                    })
+                    : await importAllegroLeads({
                     searchUrl: searchUrl.trim(),
                     audience,
                     city: city.trim(),
@@ -325,7 +342,9 @@ function AdminLeadsPage() {
                             <select className="select" value={source} onChange={event => {
                                 const nextSource = event.target.value as LeadSource
                                 setSource(nextSource)
-                                if (nextSource === "otomoto") setCategory("sales")
+                                if (nextSource === "otomoto" || nextSource === "allegro_lokalnie") {
+                                    setCategory("sales")
+                                }
                                 setMessage("")
                             }}>
                                 {LEAD_SOURCES.map(value => (
@@ -361,7 +380,7 @@ function AdminLeadsPage() {
                             <select
                                 className="select"
                                 value={category}
-                                disabled={source === "otomoto"}
+                                disabled={source === "otomoto" || source === "allegro_lokalnie"}
                                 onChange={event => setCategory(event.target.value as LeadCategory)}
                             >
                                 {LEAD_CATEGORIES.map(value => (
@@ -405,6 +424,8 @@ function AdminLeadsPage() {
                                 ? "Импортировать лиды с OLX"
                                 : source === "otomoto"
                                     ? "Импортировать лиды с Otomoto"
+                                    : source === "allegro_lokalnie"
+                                        ? "Импортировать лиды с Allegro Lokalnie"
                                     : "Автоимпорт недоступен"}
                     </button>
                 </form>
@@ -651,6 +672,12 @@ function buildOlxSearchUrl(category: LeadCategory, city: string): string {
 function buildOtomotoSearchUrl(city: string): string {
     const citySlug = toOlxCitySlug(city)
     return `https://www.otomoto.pl/osobowe${citySlug ? `/${citySlug}` : ""}`
+}
+
+function buildAllegroSearchUrl(city: string): string {
+    const citySlug = toOlxCitySlug(city)
+    const baseUrl = "https://allegrolokalnie.pl/oferty/motoryzacja/samochody-149"
+    return `${baseUrl}${citySlug ? `/${citySlug}` : "/uzywane"}`
 }
 
 function toOlxCitySlug(city: string): string {
