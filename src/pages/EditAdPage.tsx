@@ -10,6 +10,7 @@ import { buildAdPath } from '../utils/slug';
 import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
 import {
     ImageOptimizationError,
+    getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES,
     UnsupportedImageFormatError,
@@ -160,7 +161,7 @@ function EditAdPage() {
             } catch (error) {
                 if (error instanceof UnsupportedImageFormatError) {
                     setError(
-                        `Файл «${error.fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.`,
+                        `Файл «${error.fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.`,
                     );
                     return;
                 }
@@ -180,7 +181,9 @@ function EditAdPage() {
                     `ads/${ad.userId}/${timestamp}-${index}-${file.name}`,
                 );
 
-                await uploadBytes(imageRef, file, { contentType: "image/webp" });
+                await uploadBytes(imageRef, file, {
+                    contentType: getImageUploadContentType(file),
+                });
                 uploadedImages.push(await getDownloadURL(imageRef));
             }
 
@@ -339,7 +342,7 @@ function EditAdPage() {
                                     ? error.fileName
                                     : "";
                                 setError(
-                                    `Файл «${fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.`,
+                                    `Файл «${fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.`,
                                 );
                                 e.currentTarget.value = "";
                                 return;

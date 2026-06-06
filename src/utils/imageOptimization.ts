@@ -1,12 +1,26 @@
 export const MAX_AD_IMAGES = 20;
 export const AD_IMAGE_MAX_WIDTH = 1600;
 export const AD_IMAGE_WEBP_QUALITY = 0.8;
-export const IMAGE_FILE_ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
+export const IMAGE_FILE_ACCEPT = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+    ".heic",
+    ".heif",
+].join(",");
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
     "image/jpeg",
     "image/png",
     "image/webp",
+    "image/heic",
+    "image/heif",
 ]);
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set([
@@ -14,6 +28,18 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set([
     ".jpeg",
     ".png",
     ".webp",
+    ".heic",
+    ".heif",
+]);
+
+const HEIC_IMAGE_MIME_TYPES = new Set([
+    "image/heic",
+    "image/heif",
+]);
+
+const HEIC_IMAGE_EXTENSIONS = new Set([
+    ".heic",
+    ".heif",
 ]);
 
 export class UnsupportedImageFormatError extends Error {
@@ -37,9 +63,8 @@ export class ImageOptimizationError extends Error {
 }
 
 export function validateImageFile(file: File): void {
-    const mimeType = file.type.trim().toLowerCase();
-    const extensionMatch = file.name.trim().toLowerCase().match(/\.[^.]+$/);
-    const extension = extensionMatch?.[0] ?? "";
+    const mimeType = getFileMimeType(file);
+    const extension = getFileExtension(file);
 
     if (
         !ALLOWED_IMAGE_MIME_TYPES.has(mimeType) ||
@@ -53,10 +78,20 @@ export function validateImageFiles(files: readonly File[]): void {
     files.forEach(validateImageFile);
 }
 
+export function getImageUploadContentType(file: File): string {
+    const extension = getFileExtension(file);
+
+    if (extension === ".heif") return "image/heif";
+    if (extension === ".heic") return "image/heic";
+
+    return getFileMimeType(file);
+}
+
 export async function optimizeAdImage(file: File): Promise<File> {
     validateImageFile(file);
 
     let image: DecodedImage | null = null;
+    const isHeicImage = isHeicOrHeifImage(file);
 
     try {
         image = await decodeImage(file);
@@ -86,6 +121,20 @@ export async function optimizeAdImage(file: File): Promise<File> {
             lastModified: Date.now(),
         });
     } catch (error) {
+        if (isHeicImage) {
+            const fallbackFile = createHeicFallbackFile(file);
+            console.warn(
+                `[imageOptimization] WebP conversion failed for ${file.name}. ` +
+                `Uploading the original iPhone image as ${fallbackFile.type}.`,
+                error,
+            );
+            return fallbackFile;
+        }
+
+        console.error(
+            `[imageOptimization] WebP conversion failed for ${file.name}.`,
+            error,
+        );
         throw new ImageOptimizationError(file.name, error);
     } finally {
         image?.dispose();
@@ -108,6 +157,42 @@ type DecodedImage = {
     height: number;
     dispose: () => void;
 };
+
+function getFileMimeType(file: File): string {
+    return file.type.trim().toLowerCase();
+}
+
+function getFileExtension(file: File): string {
+    const extensionMatch = file.name.trim().toLowerCase().match(/\.[^.]+$/);
+    return extensionMatch?.[0] ?? "";
+}
+
+function isHeicOrHeifImage(file: File): boolean {
+    return (
+        HEIC_IMAGE_MIME_TYPES.has(getFileMimeType(file)) ||
+        HEIC_IMAGE_EXTENSIONS.has(getFileExtension(file))
+    );
+}
+
+function createHeicFallbackFile(file: File): File {
+    const originalExtension = getFileExtension(file);
+    const originalMimeType = getFileMimeType(file);
+    const extension = originalExtension === ".heif" || originalMimeType === "image/heif"
+        ? ".heif"
+        : ".heic";
+    const contentType = extension === ".heif" ? "image/heif" : "image/heic";
+    const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
+    const fileName = `${baseName}${extension}`;
+
+    if (file.name === fileName && file.type === contentType) {
+        return file;
+    }
+
+    return new File([file], fileName, {
+        type: contentType,
+        lastModified: file.lastModified,
+    });
+}
 
 async function decodeImage(file: File): Promise<DecodedImage> {
     if (typeof createImageBitmap === "function") {

@@ -14,6 +14,7 @@ import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 import { verifyPayPalPayment } from "../api/payments"
 import {
     ImageOptimizationError,
+    getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES as MAX_AUCTION_IMAGES,
     UnsupportedImageFormatError,
@@ -226,7 +227,9 @@ function AddAuctionPage({ t }: Props) {
                 storage,
                 `auctions/${verifiedOwnerId}/${createdAt}-${index}-${file.name}`
             )
-            await uploadBytes(imageRef, file, { contentType: "image/webp" })
+            await uploadBytes(imageRef, file, {
+                contentType: getImageUploadContentType(file),
+            })
             const imageUrl = await getDownloadURL(imageRef)
             imageUrls.push(imageUrl)
         }

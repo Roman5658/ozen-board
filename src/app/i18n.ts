@@ -857,7 +857,7 @@ export const translations = {
                 createFailed: "Помилка при створенні оголошення",
                 maxImages: "Максимум {{limit}} фото",
                 imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
-                unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.",
+                unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.",
             },
 
             cooldown: {
@@ -946,7 +946,7 @@ export const translations = {
                 tooLong: "Аукціон може тривати максимум 10 днів",
                 maxImages: "Максимум {{limit}} фото",
                 imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
-                unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.",
+                unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.",
                 paypalFirst: "Спочатку виконайте оплату PayPal нижче",
                 paypalError: "Помилка оплати PayPal",
                 createFailed: "Помилка при створенні аукціону",
@@ -1991,7 +1991,7 @@ export const translations = {
                 createFailed: "Błąd podczas tworzenia ogłoszenia",
                 maxImages: "Maksymalnie {{limit}} zdjęć",
                 imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
-                unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG i WebP.",
+                unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG, WebP, HEIC i HEIF.",
             },
 
             cooldown: {
@@ -2079,7 +2079,7 @@ export const translations = {
                 tooLong: "Aukcja może trwać maksymalnie 10 dni",
                 maxImages: "Maksymalnie {{limit}} zdjęć",
                 imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
-                unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG i WebP.",
+                unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG, WebP, HEIC i HEIF.",
                 paypalFirst: "Najpierw dokonaj płatności PayPal poniżej",
                 paypalError: "Błąd płatności PayPal",
                 createFailed: "Błąd podczas tworzenia aukcji",

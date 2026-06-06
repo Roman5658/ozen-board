@@ -25,6 +25,7 @@ import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
 import {
     ImageOptimizationError,
+    getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES,
     UnsupportedImageFormatError,
@@ -363,7 +364,9 @@ function AddPage({ t }: Props) {
                     `ads/${verifiedUserId}/${timestamp}-${index}-${file.name}`
                 )
 
-                await uploadBytes(imageRef, file, { contentType: "image/webp" })
+                await uploadBytes(imageRef, file, {
+                    contentType: getImageUploadContentType(file),
+                })
                 const imageUrl = await getDownloadURL(imageRef)
                 imageUrls.push(imageUrl)
             }
