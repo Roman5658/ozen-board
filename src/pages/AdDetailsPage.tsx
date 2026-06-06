@@ -6,6 +6,7 @@ import { PRICES } from "../config/prices"
 import { formatPricePLN } from "../utils/formatPricePLN"
 import type { translations } from "../app/i18n"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
+import ImageLightbox from "../components/ImageLightbox"
 
 import { buildSeoDescription, useSeo, BASE_URL } from '../utils/seo'
 import { addDoc, collection } from "firebase/firestore"
@@ -521,32 +522,14 @@ function AdDetailsPage({ t }: Props) {
 
                 </div>
             </div>
-            {isImageOpen && mainImage && (
-                <div
-                    onClick={() => setIsImageOpen(false)}
-                    style={{
-                        position: 'fixed',
-                        inset: 0,
-                        background: 'rgba(0,0,0,0.8)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        zIndex: 1000,
-                        cursor: 'zoom-out',
-                    }}
-                >
-                    <img
-                        src={mainImage}
-                        alt={ad.title}
-                        onError={handleListingImageError}
-                        style={{
-                            maxWidth: '90%',
-                            maxHeight: '90%',
-                            objectFit: 'contain',
-                            borderRadius: '12px',
-                        }}
-                    />
-                </div>
+            {isImageOpen && (
+                <ImageLightbox
+                    images={images}
+                    currentIndex={activeIndex}
+                    title={ad.title}
+                    onIndexChange={setActiveIndex}
+                    onClose={() => setIsImageOpen(false)}
+                />
             )}
 
             {isReportOpen && ad && (
