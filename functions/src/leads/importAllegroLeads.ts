@@ -299,7 +299,7 @@ async function fetchPublicAllegroSearchPage(searchUrl: string): Promise<string> 
                 "resource-exhausted",
                 response.status === 429
                     ? "Allegro Lokalnie zwróciło 429. Import zatrzymano bez ponawiania; użyj ręcznego dodawania leada."
-                    : "Allegro Lokalnie odrzuciło żądanie. Import zatrzymano bez ponawiania i bez obchodzenia zabezpieczeń."
+                    : "Allegro Lokalnie odrzuciło publiczne żądanie Cloud Function (403). Automatyczny import jest niedostępny; użyj ręcznego dodawania leada."
             );
         }
         if (!response.ok) {

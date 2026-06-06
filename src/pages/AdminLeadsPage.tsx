@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react"
 import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore"
 import {
     createManualLead,
-    importAllegroLeads,
     importOlxLeads,
     importOtomotoLeads,
 } from "../api/leads"
@@ -89,15 +88,13 @@ function AdminLeadsPage() {
         () => {
             if (source === "olx") return buildOlxSearchUrl(category, city)
             if (source === "otomoto") return buildOtomotoSearchUrl(city)
-            if (source === "allegro_lokalnie") return buildAllegroSearchUrl(city)
             return ""
         },
         [category, city, source]
     )
     const autoImportAvailable =
         source === "olx" ||
-        source === "otomoto" ||
-        source === "allegro_lokalnie"
+        source === "otomoto"
 
     async function loadLeads() {
         setLoading(true)
@@ -180,12 +177,8 @@ function AdminLeadsPage() {
                         city: city.trim(),
                         limit,
                     })
-                    : await importAllegroLeads({
-                    searchUrl: searchUrl.trim(),
-                    audience,
-                    city: city.trim(),
-                    limit,
-                })
+                    : null
+            if (!result) return
             const data = result.data
             setMessage(`Найдено: ${data.found}. Добавлено: ${data.imported}. Дубликаты: ${data.duplicates}.`)
             await loadLeads()
@@ -425,7 +418,7 @@ function AdminLeadsPage() {
                                 : source === "otomoto"
                                     ? "Импортировать лиды с Otomoto"
                                     : source === "allegro_lokalnie"
-                                        ? "Импортировать лиды с Allegro Lokalnie"
+                                        ? "Только ручное добавление"
                                     : "Автоимпорт недоступен"}
                     </button>
                 </form>
@@ -436,12 +429,12 @@ function AdminLeadsPage() {
                     </div>
                 )}
                 {source === "allegro_lokalnie" && (
-                    <div className="admin-leads-source-hint">
-                        Allegro Lokalnie: публичные продажи товаров. Без города используется широкий поиск
-                        подержанных товаров. При ошибке 429 добавьте ссылку вручную ниже.
+                    <div className="admin-leads-notice">
+                        Allegro Lokalnie блокирует серверные запросы Cloud Functions (HTTP 403).
+                        Автоматический импорт отключён без обхода защиты. Добавьте публичную ссылку вручную ниже.
                     </div>
                 )}
-                {!autoImportAvailable && (
+                {!autoImportAvailable && source !== "allegro_lokalnie" && (
                     <div className="admin-leads-notice">
                         Для источника {SOURCE_LABELS[source]} доступно только ручное добавление лида.
                     </div>
@@ -686,17 +679,6 @@ function buildOtomotoSearchUrl(city: string): string {
         `https://www.otomoto.pl/osobowe/uzywane${citySlug ? `/${citySlug}` : ""}`
     )
     url.searchParams.set("search[private_business]", "private")
-    return url.toString()
-}
-
-function buildAllegroSearchUrl(city: string): string {
-    const citySlug = toOlxCitySlug(city)
-    const url = new URL(
-        citySlug
-            ? `https://allegrolokalnie.pl/oferty/${citySlug}`
-            : "https://allegrolokalnie.pl/oferty/q/u%C5%BCywane"
-    )
-    url.searchParams.set("zrodlo", "lokalnie")
     return url.toString()
 }
 
