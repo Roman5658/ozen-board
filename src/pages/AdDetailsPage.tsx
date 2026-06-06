@@ -7,7 +7,7 @@ import { formatPricePLN } from "../utils/formatPricePLN"
 import type { translations } from "../app/i18n"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
-import { useSeo, BASE_URL } from '../utils/seo'
+import { buildSeoDescription, useSeo, BASE_URL } from '../utils/seo'
 import { addDoc, collection } from "firebase/firestore"
 import { getLocalUser, isAdmin } from "../data/localUser"
 import AuthorCard from "../components/AuthorCard"
@@ -189,37 +189,44 @@ function AdDetailsPage({ t }: Props) {
         return a.notFound
     }
     const lang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
-    const seoTitle = visibleAd
-        ? (lang === 'pl' ? `${visibleAd.title} ${visibleAd.city} | Xoven` : `Купити ${visibleAd.title} ${visibleAd.city} | Xoven`)
+    const publicAd = ad?.status === 'active' ? ad : null
+    const canonicalPath = ad
+        ? buildAdPath(ad.title, ad.city, ad.id)
+        : `/ad/${slugOrId ?? ''}`
+    const formattedPrice = publicAd ? formatPricePLN(publicAd.price) : ''
+    const seoTitle = publicAd
+        ? `${publicAd.title}${publicAd.city ? ` — ${publicAd.city}` : ''} | Xoven`
         : (lang === 'pl' ? 'Ogłoszenie | Xoven' : 'Оголошення | Xoven')
-    const seoDescription = visibleAd
-        ? (lang === 'pl'
-            ? `Kupuj i sprzedawaj lokalnie. Zobacz ogłoszenie: ${visibleAd.title} w ${visibleAd.city}.`
-            : `Купуй та продавай локально. Переглянь оголошення: ${visibleAd.title} у ${visibleAd.city}.`)
+    const seoDescription = publicAd
+        ? buildSeoDescription(
+            publicAd.description,
+            [
+                formattedPrice ? `${lang === 'pl' ? 'Cena' : 'Ціна'}: ${formattedPrice}` : undefined,
+                publicAd.city ? `${lang === 'pl' ? 'Lokalizacja' : 'Місто'}: ${publicAd.city}` : undefined,
+            ],
+            lang === 'pl' ? 'Ogłoszenie na Xoven.' : 'Оголошення на Xoven.',
+        )
         : (lang === 'pl' ? 'Darmowe ogłoszenia.' : 'Безкоштовні оголошення.')
 
     useSeo({
         title: seoTitle,
         description: seoDescription,
-        path: `/ad/${slugOrId ?? ''}`,
+        path: canonicalPath,
         lang,
-        image: visibleAd ? getAdImages(visibleAd)[0] : undefined,
-        noindex: !visibleAd,
-        alternates: [
-            { hreflang: 'pl-PL', href: `${BASE_URL}/pl/ogloszenia` },
-            { hreflang: 'uk-UA', href: `${BASE_URL}/uk/ogoloshennya` },
-            { hreflang: 'x-default', href: `${BASE_URL}/pl/ogloszenia` },
-        ],
-        jsonLd: visibleAd ? {
+        image: publicAd ? getAdImages(publicAd)[0] : undefined,
+        ogType: 'product',
+        noindex: !publicAd,
+        jsonLd: publicAd ? {
             '@context': 'https://schema.org',
             '@type': 'Offer',
-            name: visibleAd.title,
-            description: visibleAd.description,
-            price: visibleAd.price ?? 0,
+            name: publicAd.title,
+            description: publicAd.description,
+            price: publicAd.price ?? 0,
             priceCurrency: 'PLN',
             areaServed: 'PL',
-            url: `${BASE_URL}${buildAdPath(visibleAd.title, visibleAd.city, visibleAd.id)}`,
-            image: getAdImages(visibleAd)[0],
+            availability: 'https://schema.org/InStock',
+            url: `${BASE_URL}${buildAdPath(publicAd.title, publicAd.city, publicAd.id)}`,
+            image: getAdImages(publicAd)[0],
         } : undefined,
     })
 

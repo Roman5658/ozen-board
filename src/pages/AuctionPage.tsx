@@ -28,7 +28,8 @@ import { translations, DEFAULT_LANG } from '../app/i18n'
 import type { Lang } from '../app/i18n'
 import type { Auction } from '../types/auction'
 import { buildAuctionPath, extractIdFromSlug } from '../utils/slug'
-import { useSeo, BASE_URL } from '../utils/seo'
+import { buildSeoDescription, useSeo, BASE_URL } from '../utils/seo'
+import { formatPricePLN } from '../utils/formatPricePLN'
 import { getUserPublicNicknames } from '../data/usersPublic'
 import { CITIES_BY_VOIVODESHIP } from '../data/cities'
 
@@ -415,36 +416,51 @@ function AuctionPage() {
         }
     }, [slugOrId, visibleActiveAuction, navigate])
     const seoLang = (localStorage.getItem('lang') === 'pl' ? 'pl' : 'uk') as 'pl' | 'uk'
+    const publicAuction = activeAuction?.status === 'active' && activeAuction.endsAt > now
+        ? activeAuction
+        : null
+    const auctionCanonicalPath = activeAuction
+        ? buildAuctionPath(activeAuction.title, activeAuction.city, activeAuction.id)
+        : location.pathname
+    const auctionSeoDescription = publicAuction
+        ? buildSeoDescription(
+            publicAuction.description,
+            [
+                `${seoLang === 'pl' ? 'Aktualna cena' : 'Поточна ціна'}: ${formatPricePLN(publicAuction.currentBid)}`,
+                `${seoLang === 'pl' ? 'Cena wywoławcza' : 'Стартова ціна'}: ${formatPricePLN(publicAuction.startPrice)}`,
+                publicAuction.city ? `${seoLang === 'pl' ? 'Lokalizacja' : 'Місто'}: ${publicAuction.city}` : undefined,
+            ],
+            seoLang === 'pl' ? 'Aukcja na Xoven.' : 'Аукціон на Xoven.',
+        )
+        : (seoLang === 'pl' ? 'Aukcje lokalne.' : 'Локальні аукціони.')
+
     useSeo({
-        title: visibleActiveAuction
-            ? (seoLang === 'pl' ? `${visibleActiveAuction.title} ${visibleActiveAuction.city} | Xoven` : `Купити ${visibleActiveAuction.title} ${visibleActiveAuction.city} | Xoven`)
+        title: publicAuction
+            ? `${publicAuction.title} — ${seoLang === 'pl' ? 'aukcja' : 'аукціон'}${publicAuction.city ? `, ${publicAuction.city}` : ''} | Xoven`
             : (seoLang === 'pl' ? 'Aukcje | Xoven' : 'Аукціони | Xoven'),
-        description: visibleActiveAuction
-            ? (seoLang === 'pl'
-                ? `Licytuj lokalnie. Zobacz aukcję: ${visibleActiveAuction.title} w ${visibleActiveAuction.city}.`
-                : `Бери участь в локальних аукціонах. Переглянь лот: ${visibleActiveAuction.title} у ${visibleActiveAuction.city}.`)
-            : (seoLang === 'pl' ? 'Aukcje lokalne.' : 'Локальні аукціони.'),
-        path: visibleActiveAuction ? `/auction/${slugOrId ?? visibleActiveAuction.id}` : location.pathname,
+        description: auctionSeoDescription,
+        path: auctionCanonicalPath,
         lang: seoLang,
-        image: visibleActiveAuction?.images?.[0],
-        noindex: !!slugOrId && !visibleActiveAuction,
-        alternates: [
+        image: publicAuction?.images?.[0],
+        ogType: slugOrId ? 'product' : 'website',
+        noindex: !!slugOrId && !publicAuction,
+        alternates: slugOrId ? [] : [
             { hreflang: 'pl-PL', href: `${BASE_URL}/pl/aukcje` },
             { hreflang: 'uk-UA', href: `${BASE_URL}/uk/auktsiony` },
             { hreflang: 'x-default', href: `${BASE_URL}/pl/aukcje` },
         ],
-        jsonLd: visibleActiveAuction ? {
+        jsonLd: publicAuction ? {
             '@context': 'https://schema.org',
             '@type': 'Product',
-            name: visibleActiveAuction.title,
-            description: visibleActiveAuction.description,
-            image: visibleActiveAuction.images?.[0],
+            name: publicAuction.title,
+            description: publicAuction.description,
+            image: publicAuction.images?.[0],
             offers: {
                 '@type': 'Offer',
                 priceCurrency: 'PLN',
-                price: visibleActiveAuction.currentBid,
+                price: publicAuction.currentBid,
                 availability: 'https://schema.org/InStock',
-                url: `${BASE_URL}${buildAuctionPath(visibleActiveAuction.title, visibleActiveAuction.city, visibleActiveAuction.id)}`,
+                url: `${BASE_URL}${buildAuctionPath(publicAuction.title, publicAuction.city, publicAuction.id)}`,
             },
         } : undefined,
     })

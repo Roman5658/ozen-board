@@ -112,12 +112,16 @@ function App() {
     const navigate = useNavigate()
     const noindexPrefixes = ['/admin', '/account', '/my-ads', '/add', '/edit', '/chat']
     const noindex = noindexPrefixes.some((prefix) => location.pathname.startsWith(prefix))
+    const hasDedicatedDetailSeo =
+        location.pathname.startsWith('/ad/') ||
+        location.pathname.startsWith('/auction/')
     const appSeo = getAppSeo(location.pathname, lang, t)
     useSeo({
         title: appSeo.title,
         description: appSeo.description,
         path: location.pathname,
         lang: lang,
+        enabled: !hasDedicatedDetailSeo,
         alternates: appSeo.alternates,
         noindex,
         jsonLd: [

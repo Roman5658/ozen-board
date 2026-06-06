@@ -8,11 +8,51 @@ type SeoPayload = {
     description: string
     path: string
     lang: 'pl' | 'uk'
+    enabled?: boolean
     image?: string
+    ogType?: 'website' | 'product'
     alternates?: Array<{ hreflang: string; href: string }>
     noindex?: boolean
     jsonLd?: object | object[]
 }
+
+function normalizeSeoText(value?: string): string {
+    return (value ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function truncateSeoText(value: string, maxLength: number): string {
+    const normalized = normalizeSeoText(value)
+    if (normalized.length <= maxLength) return normalized
+
+    const sliced = normalized.slice(0, Math.max(1, maxLength - 1)).trimEnd()
+    const wordBoundary = sliced.lastIndexOf(' ')
+    const text = wordBoundary >= Math.floor(maxLength * 0.6)
+        ? sliced.slice(0, wordBoundary)
+        : sliced
+
+    return `${text.replace(/[.,;:!?-]+$/g, '')}…`
+}
+
+export function buildSeoDescription(
+    content: string | undefined,
+    details: Array<string | undefined>,
+    fallback: string,
+    maxLength = 160,
+): string {
+    const base = normalizeSeoText(content) || normalizeSeoText(fallback)
+    const suffixParts = details.map(normalizeSeoText).filter(Boolean)
+    const suffix = suffixParts.length > 0 ? `${suffixParts.join('. ')}.` : ''
+
+    if (!suffix) return truncateSeoText(base, maxLength)
+
+    const baseLimit = maxLength - suffix.length - 1
+    if (baseLimit < 20) {
+        return truncateSeoText(`${base} ${suffix}`, maxLength)
+    }
+
+    return `${truncateSeoText(base, baseLimit)} ${suffix}`
+}
+
 function normalizePath(path: string) {
     return path === '/' ? '/' : path.replace(/\/+$/, '')
 }
@@ -53,6 +93,8 @@ function setJsonLd(data?: object | object[]) {
 
 export function useSeo(payload: SeoPayload) {
     useEffect(() => {
+        if (payload.enabled === false) return
+
         document.documentElement.lang = payload.lang
         document.title = payload.title
 
@@ -72,7 +114,7 @@ export function useSeo(payload: SeoPayload) {
         setOrCreateMeta('property', 'og:url', url)
         setOrCreateMeta('property', 'og:locale', ogLocale)
         setOrCreateMeta('property', 'og:locale:alternate', alternateLocale)
-        setOrCreateMeta('property', 'og:type', 'website')
+        setOrCreateMeta('property', 'og:type', payload.ogType ?? 'website')
         setOrCreateMeta('name', 'twitter:card', 'summary_large_image')
         setOrCreateMeta('name', 'twitter:title', payload.title)
         setOrCreateMeta('name', 'twitter:description', payload.description)
