@@ -3,10 +3,19 @@ import type { SyntheticEvent } from "react";
 import defaultListingImage from "../assets/default-listing.png";
 
 export function getAdImages(ad: Ad): string[] {
-    return getListingImages(ad.images, ad.image);
+    const storedImages = getStoredAdImages(ad);
+    return storedImages.length > 0 ? storedImages : [defaultListingImage];
 }
 
-export function getListingImages(images?: string[], legacyImage?: string): string[] {
+export function getStoredAdImages(ad: Pick<Ad, "images" | "image">): string[] {
+    return getListingImages(ad.images, ad.image, false);
+}
+
+export function getListingImages(
+    images?: string[],
+    legacyImage?: string,
+    includeFallback = true,
+): string[] {
     const validImages = Array.isArray(images)
         ? images.filter((image): image is string => typeof image === "string" && image.trim().length > 0)
         : [];
@@ -14,7 +23,7 @@ export function getListingImages(images?: string[], legacyImage?: string): strin
     if (validImages.length > 0) return validImages;
     if (legacyImage?.trim()) return [legacyImage];
 
-    return [defaultListingImage];
+    return includeFallback ? [defaultListingImage] : [];
 }
 
 export function handleListingImageError(event: SyntheticEvent<HTMLImageElement>) {

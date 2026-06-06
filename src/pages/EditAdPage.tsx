@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "../app/firebase";
+import { deleteField, doc, getDoc, updateDoc } from "firebase/firestore";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { db, storage } from "../app/firebase";
 import { getLocalUser } from "../data/localUser";
 import { CITIES_BY_VOIVODESHIP } from "../data/cities";
 import type { Ad } from "../types/ad";
 import { buildAdPath } from '../utils/slug';
+import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
 
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP;
 
 function EditAdPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const user = getLocalUser();
+    const user = useMemo(() => getLocalUser(), []);
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -26,12 +28,25 @@ function EditAdPage() {
     const [price, setPrice] = useState("");
     const [voivodeship, setVoivodeship] = useState("");
     const [city, setCity] = useState("");
+    const [sellerContact, setSellerContact] = useState("");
+    const [existingImages, setExistingImages] = useState<string[]>([]);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
 
     const cityOptions = useMemo(() => {
         const key = voivodeship as VoivodeshipKey;
         return [...(CITIES_BY_VOIVODESHIP[key] ?? [])];
     }, [voivodeship]);
 
+    const imagePreviews = useMemo(
+        () => imageFiles.map((file) => URL.createObjectURL(file)),
+        [imageFiles],
+    );
+
+    useEffect(() => {
+        return () => {
+            imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [imagePreviews]);
 
     useEffect(() => {
         async function load() {
@@ -84,6 +99,8 @@ function EditAdPage() {
                 setPrice(loaded.price ? String(loaded.price) : "");
                 setVoivodeship(loaded.voivodeship ?? "");
                 setCity(loaded.city ?? "");
+                setSellerContact(loaded.sellerContact ?? "");
+                setExistingImages(getStoredAdImages(loaded));
             } catch (e) {
                 console.error(e);
                 setError("Помилка завантаження оголошення");
@@ -93,7 +110,7 @@ function EditAdPage() {
         }
 
         load();
-    }, [id]);
+    }, [id, user]);
 
     async function handleSave(e: React.FormEvent) {
         e.preventDefault();
@@ -125,17 +142,34 @@ function EditAdPage() {
         try {
             setSaving(true);
 
-            const ref = doc(db, "ads", ad.id);
+            const adRef = doc(db, "ads", ad.id);
+            const timestamp = Date.now();
+            const uploadedImages: string[] = [];
 
-            await updateDoc(ref, {
+            for (const [index, file] of imageFiles.entries()) {
+                const imageRef = ref(
+                    storage,
+                    `ads/${ad.userId}/${timestamp}-${index}-${file.name}`,
+                );
+
+                await uploadBytes(imageRef, file);
+                uploadedImages.push(await getDownloadURL(imageRef));
+            }
+
+            const nextImages = [...existingImages, ...uploadedImages];
+            const normalizedContact = sellerContact.trim();
+
+            await updateDoc(adRef, {
                 title: title.trim(),
                 description: description.trim(),
                 price: normalizedPrice,
                 voivodeship,
                 city,
+                sellerContact: normalizedContact || deleteField(),
+                ...(uploadedImages.length > 0 ? { images: nextImages } : {}),
             });
 
-            navigate(buildAdPath(ad.title, ad.city, ad.id));
+            navigate(buildAdPath(title.trim(), city, ad.id));
         } catch (e) {
             console.error(e);
             setError("Помилка збереження");
@@ -146,7 +180,7 @@ function EditAdPage() {
 
     if (loading) return <div className="card">Завантаження…</div>;
 
-    if (error) {
+    if (error && !ad) {
         return (
             <div className="card stack12">
                 <div style={{ color: "#b91c1c" }}>{error}</div>
@@ -185,6 +219,14 @@ function EditAdPage() {
                     inputMode="decimal"
                 />
 
+                <input
+                    className="input"
+                    placeholder="Контакт (телефон / Telegram) — необовʼязково"
+                    value={sellerContact}
+                    onChange={(e) => setSellerContact(e.target.value)}
+                    maxLength={120}
+                />
+
                 <select
                     className="input"
                     value={voivodeship}
@@ -216,6 +258,117 @@ function EditAdPage() {
                     </select>
                 )}
 
+                <div className="stack8">
+                    <strong style={{ fontSize: 14 }}>Фото</strong>
+
+                    {existingImages.length > 0 && (
+                        <>
+                            <div style={{ fontSize: 12, color: "#64748b" }}>
+                                Поточні фото будуть збережені.
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                {existingImages.map((image, index) => (
+                                    <img
+                                        key={`${image}-${index}`}
+                                        src={image}
+                                        alt={`Поточне фото ${index + 1}`}
+                                        onError={handleListingImageError}
+                                        style={{
+                                            width: 80,
+                                            height: 80,
+                                            objectFit: "cover",
+                                            borderRadius: 8,
+                                            border: "1px solid #e5e7eb",
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+
+                    {existingImages.length === 0 && imageFiles.length === 0 && (
+                        <div style={{ fontSize: 12, color: "#64748b" }}>
+                            В оголошенні немає фото. Фото не обовʼязкове.
+                        </div>
+                    )}
+
+                    <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        disabled={saving || existingImages.length + imageFiles.length >= 5}
+                        onChange={(e) => {
+                            const newFiles = Array.from(e.target.files ?? []);
+
+                            if (existingImages.length + imageFiles.length + newFiles.length > 5) {
+                                setError("Максимум 5 фото");
+                                e.currentTarget.value = "";
+                                return;
+                            }
+
+                            setError(null);
+                            setImageFiles((current) => [...current, ...newFiles]);
+                            e.currentTarget.value = "";
+                        }}
+                    />
+
+                    {imagePreviews.length > 0 && (
+                        <>
+                            <div style={{ fontSize: 12, color: "#64748b" }}>
+                                Нові фото будуть додані після збереження.
+                            </div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                {imagePreviews.map((image, index) => (
+                                    <div
+                                        key={image}
+                                        style={{
+                                            position: "relative",
+                                            width: 80,
+                                            height: 80,
+                                            borderRadius: 8,
+                                            overflow: "hidden",
+                                            border: "1px solid #e5e7eb",
+                                        }}
+                                    >
+                                        <img
+                                            src={image}
+                                            alt={`Нове фото ${index + 1}`}
+                                            style={{
+                                                width: "100%",
+                                                height: "100%",
+                                                objectFit: "cover",
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            aria-label="Видалити нове фото"
+                                            onClick={() => {
+                                                setImageFiles((current) =>
+                                                    current.filter((_, fileIndex) => fileIndex !== index),
+                                                );
+                                            }}
+                                            style={{
+                                                position: "absolute",
+                                                top: 4,
+                                                right: 4,
+                                                width: 22,
+                                                height: 22,
+                                                borderRadius: "50%",
+                                                border: "none",
+                                                background: "rgba(0,0,0,0.6)",
+                                                color: "#fff",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
                 {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
 
                 <div style={{ display: "flex", gap: 8 }}>
@@ -233,9 +386,6 @@ function EditAdPage() {
                     </button>
                 </div>
 
-                <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    Фото та інші поля додамо наступним кроком.
-                </div>
             </form>
         </div>
     );
