@@ -40,13 +40,13 @@ export const importOlxLeads = onCall(
     async (request) => {
         const adminEmail = requireAdminEmail(request.auth);
         const data = (request.data ?? {}) as Record<string, unknown>;
-        const searchUrl = requireOlxSearchUrl(data.searchUrl);
         const audience = requireAudience(data.audience);
         const category = requireCategory(data.category);
         const city = optionalText(data.city, "city", 120);
+        const searchUrl = requireMatchingOlxSearchUrl(data.searchUrl, category, city);
         const limit = requireLimit(data.limit);
         const html = await fetchPublicOlxSearchPage(searchUrl);
-        const listings = extractPublicOlxListings(html, searchUrl).slice(0, limit);
+        const listings = extractPublicOlxListings(html, searchUrl, category).slice(0, limit);
 
         let imported = 0;
         let duplicates = 0;
@@ -136,7 +136,57 @@ function requireOlxSearchUrl(value: unknown): string {
     }
 
     url.hash = "";
+    url.search = "";
     return url.toString();
+}
+
+function requireMatchingOlxSearchUrl(
+    value: unknown,
+    category: LeadCategory,
+    city: string
+): string {
+    const searchUrl = requireOlxSearchUrl(value);
+    const expectedUrl = buildOlxSearchUrl(category, city);
+
+    if (searchUrl !== expectedUrl) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Adres wyszukiwania OLX nie odpowiada wybranej kategorii lub miastu."
+        );
+    }
+
+    return expectedUrl;
+}
+
+export function buildOlxSearchUrl(category: LeadCategory, city: string): string {
+    const categoryPath: Record<LeadCategory, string> = {
+        jobs: "praca",
+        sales: "",
+        services: "uslugi",
+        rent: "nieruchomosci/mieszkania/wynajem",
+        other: "",
+    };
+    const citySlug = toOlxCitySlug(city);
+    const pathParts = [categoryPath[category], citySlug].filter(Boolean);
+    return `https://www.olx.pl/${pathParts.length > 0 ? `${pathParts.join("/")}/` : ""}`;
+}
+
+function toOlxCitySlug(city: string): string {
+    if (!city.trim()) return "";
+
+    const slug = city
+        .trim()
+        .toLowerCase()
+        .replace(/ł/g, "l")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    if (!slug) {
+        throw new HttpsError("invalid-argument", "Nieprawidłowa nazwa miasta.");
+    }
+    return slug;
 }
 
 function requireAudience(value: unknown): LeadAudience {
@@ -237,13 +287,17 @@ async function fetchPublicOlxSearchPage(searchUrl: string): Promise<string> {
     }
 }
 
-export function extractPublicOlxListings(html: string, searchUrl: string): PublicOlxListing[] {
+export function extractPublicOlxListings(
+    html: string,
+    searchUrl: string,
+    category: LeadCategory
+): PublicOlxListing[] {
     const listings = new Map<string, PublicOlxListing>();
     const anchorPattern = /<a\b[^>]*\bhref=(["'])([^"']+)\1[^>]*>([\s\S]*?)<\/a>/gi;
     let match: RegExpExecArray | null;
 
     while ((match = anchorPattern.exec(html)) !== null) {
-        const listingUrl = normalizePublicListingUrl(match[2], searchUrl);
+        const listingUrl = normalizePublicListingUrl(match[2], searchUrl, category);
         if (!listingUrl) continue;
 
         const innerHtml = match[3];
@@ -261,7 +315,11 @@ export function extractPublicOlxListings(html: string, searchUrl: string): Publi
     return Array.from(listings.values());
 }
 
-function normalizePublicListingUrl(href: string, searchUrl: string): string | null {
+function normalizePublicListingUrl(
+    href: string,
+    searchUrl: string,
+    category: LeadCategory
+): string | null {
     let url: URL;
 
     try {
@@ -272,7 +330,22 @@ function normalizePublicListingUrl(href: string, searchUrl: string): string | nu
 
     const hostname = url.hostname.toLowerCase();
     if (hostname !== "olx.pl" && hostname !== "www.olx.pl") return null;
-    if (!url.pathname.toLowerCase().startsWith("/d/oferta/")) return null;
+
+    const pathname = url.pathname.toLowerCase();
+    const categoryId = pathname.match(/-cid(\d+)-/i)?.[1] ?? "";
+    const isJob = pathname.startsWith("/oferta/praca/") && categoryId === "4";
+    const isRegularListing = pathname.startsWith("/d/oferta/");
+
+    if (category === "jobs" && !isJob) return null;
+    if (category === "services" && (!isRegularListing || categoryId !== "4371")) return null;
+    if (category === "rent" && (!isRegularListing || categoryId !== "3")) return null;
+    if (
+        category === "sales" &&
+        (!isRegularListing || categoryId === "3" || categoryId === "4" || categoryId === "4371")
+    ) {
+        return null;
+    }
+    if (category === "other" && !isJob && !isRegularListing) return null;
 
     url.protocol = "https:";
     url.hostname = "www.olx.pl";

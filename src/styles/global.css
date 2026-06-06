@@ -1066,7 +1066,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .admin-leads-form__grid--import {
-    grid-template-columns: minmax(120px, 0.7fr) minmax(180px, 1fr) minmax(260px, 2fr);
+    grid-template-columns: minmax(120px, 0.7fr) minmax(260px, 2.3fr);
 }
 
 .admin-leads-field--wide {

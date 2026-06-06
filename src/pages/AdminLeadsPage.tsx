@@ -30,9 +30,7 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
     olx: "OLX",
-    allegro_lokalnie: "Allegro Lokalnie",
-    otomoto: "Otomoto",
-    facebook: "Facebook",
+    manual: "Manual",
     other: "Other",
 }
 
@@ -43,28 +41,6 @@ const CATEGORY_LABELS: Record<LeadCategory, string> = {
     rent: "Аренда",
     other: "Другое",
 }
-
-const SEARCH_PRESETS: Array<{
-    id: string
-    label: string
-    source: LeadSource
-    url: string
-    category?: LeadCategory
-    city?: string
-}> = [
-    { id: "olx-poland", label: "OLX cała Polska", source: "olx", url: "https://www.olx.pl/" },
-    { id: "olx-jobs", label: "OLX praca", source: "olx", url: "https://www.olx.pl/praca/", category: "jobs" },
-    { id: "olx-sales", label: "OLX sprzedaż", source: "olx", url: "https://www.olx.pl/oferty/", category: "sales" },
-    { id: "olx-services", label: "OLX usługi", source: "olx", url: "https://www.olx.pl/uslugi/", category: "services" },
-    { id: "olx-wroclaw", label: "OLX Wrocław", source: "olx", url: "https://www.olx.pl/wroclaw/", city: "Wrocław" },
-    { id: "olx-warszawa", label: "OLX Warszawa", source: "olx", url: "https://www.olx.pl/warszawa/", city: "Warszawa" },
-    { id: "olx-gdansk", label: "OLX Gdańsk", source: "olx", url: "https://www.olx.pl/gdansk/", city: "Gdańsk" },
-    { id: "olx-torun", label: "OLX Toruń", source: "olx", url: "https://www.olx.pl/torun/", city: "Toruń" },
-    { id: "olx-kalisz", label: "OLX Kalisz", source: "olx", url: "https://www.olx.pl/kalisz/", city: "Kalisz" },
-    { id: "allegro", label: "Allegro Lokalnie", source: "allegro_lokalnie", url: "https://allegrolokalnie.pl/" },
-    { id: "otomoto", label: "Otomoto", source: "otomoto", url: "https://www.otomoto.pl/" },
-    { id: "facebook", label: "Facebook groups manual", source: "facebook", url: "https://www.facebook.com/groups/" },
-]
 
 const LEAD_SOURCES = Object.keys(SOURCE_LABELS) as LeadSource[]
 const LEAD_CATEGORIES = Object.keys(CATEGORY_LABELS) as LeadCategory[]
@@ -81,8 +57,6 @@ function AdminLeadsPage() {
     const [manualMessage, setManualMessage] = useState("")
 
     const [source, setSource] = useState<LeadSource>("olx")
-    const [selectedPreset, setSelectedPreset] = useState("")
-    const [searchUrl, setSearchUrl] = useState("")
     const [audience, setAudience] = useState<LeadAudience>("pl")
     const [category, setCategory] = useState<LeadCategory>("other")
     const [city, setCity] = useState("")
@@ -104,6 +78,10 @@ function AdminLeadsPage() {
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
     const [cityFilter, setCityFilter] = useState("all")
     const [searchFilter, setSearchFilter] = useState("")
+    const searchUrl = useMemo(
+        () => source === "olx" ? buildOlxSearchUrl(category, city) : "",
+        [category, city, source]
+    )
 
     async function loadLeads() {
         setLoading(true)
@@ -159,20 +137,6 @@ function AdminLeadsPage() {
         sourceFilter,
         statusFilter,
     ])
-
-    function applyPreset(presetId: string) {
-        setSelectedPreset(presetId)
-        const preset = SEARCH_PRESETS.find(item => item.id === presetId)
-        if (!preset) return
-
-        setSource(preset.source)
-        setSearchUrl(preset.url)
-        if (preset.category) setCategory(preset.category)
-        setCity(preset.city ?? "")
-        setMessage(preset.source === "olx"
-            ? ""
-            : "Для этого источника автоматический импорт пока не реализован. Добавьте ссылку вручную ниже.")
-    }
 
     async function handleImport(event: React.FormEvent) {
         event.preventDefault()
@@ -347,21 +311,10 @@ function AdminLeadsPage() {
                             <span>Source</span>
                             <select className="select" value={source} onChange={event => {
                                 setSource(event.target.value as LeadSource)
-                                setSelectedPreset("")
                                 setMessage("")
                             }}>
                                 {LEAD_SOURCES.map(value => (
                                     <option key={value} value={value}>{SOURCE_LABELS[value]}</option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label className="admin-leads-field admin-leads-field--preset">
-                            <span>Готовые ссылки</span>
-                            <select className="select" value={selectedPreset} onChange={event => applyPreset(event.target.value)}>
-                                <option value="">Выберите пресет</option>
-                                {SEARCH_PRESETS.map(preset => (
-                                    <option key={preset.id} value={preset.id}>{preset.label}</option>
                                 ))}
                             </select>
                         </label>
@@ -371,13 +324,10 @@ function AdminLeadsPage() {
                             <input
                                 className="input"
                                 type="url"
-                                required
+                                required={source === "olx"}
                                 value={searchUrl}
-                                onChange={event => {
-                                    setSearchUrl(event.target.value)
-                                    setSelectedPreset("")
-                                }}
-                                placeholder="https://..."
+                                readOnly
+                                placeholder={source === "olx" ? "https://www.olx.pl/" : "Используйте ручное добавление ниже"}
                             />
                         </label>
                     </div>
@@ -424,14 +374,18 @@ function AdminLeadsPage() {
                         </label>
                     </div>
 
-                    <button className="btn-primary admin-leads-import__button" type="submit" disabled={importing}>
-                        {importing ? "Импорт..." : source === "olx" ? "Импортировать публичные ссылки" : "Проверить доступность импорта"}
+                    <button
+                        className="btn-primary admin-leads-import__button"
+                        type="submit"
+                        disabled={importing || source !== "olx"}
+                    >
+                        {importing ? "Импорт..." : source === "olx" ? "Импортировать лиды с OLX" : "Автоимпорт недоступен"}
                     </button>
                 </form>
 
                 {source !== "olx" && (
                     <div className="admin-leads-notice">
-                        Автоматический импорт для {SOURCE_LABELS[source]} пока не реализован. Без логина и парсинга приватных страниц используйте ручное добавление.
+                        Для источника {SOURCE_LABELS[source]} доступно только ручное добавление лида.
                     </div>
                 )}
                 {message && <div className="admin-leads-message">{message}</div>}
@@ -604,7 +558,7 @@ function AdminLeadsPage() {
                                                 {new Date(lead.createdAt).toLocaleString()}
                                             </div>
                                         </td>
-                                        <td>{SOURCE_LABELS[lead.source ?? "olx"]}</td>
+                                        <td>{formatLeadSource(lead.source)}</td>
                                         <td>{lead.audience.toUpperCase()}</td>
                                         <td>{CATEGORY_LABELS[lead.category]}</td>
                                         <td>{formatLeadCity(lead.city)}</td>
@@ -629,7 +583,7 @@ function AdminLeadsPage() {
                                     </span>
                                 </div>
                                 <div className="admin-lead-card__meta">
-                                    <span>{SOURCE_LABELS[lead.source ?? "olx"]}</span>
+                                    <span>{formatLeadSource(lead.source)}</span>
                                     <span>{lead.audience.toUpperCase()}</span>
                                     <span>{CATEGORY_LABELS[lead.category]}</span>
                                     <span>{formatLeadCity(lead.city)}</span>
@@ -649,6 +603,34 @@ function AdminLeadsPage() {
 
 function formatLeadCity(city?: string): string {
     return city?.trim() || "Вся Польша"
+}
+
+function formatLeadSource(source?: string): string {
+    return SOURCE_LABELS[source as LeadSource] ?? source ?? "OLX"
+}
+
+function buildOlxSearchUrl(category: LeadCategory, city: string): string {
+    const categoryPath: Record<LeadCategory, string> = {
+        jobs: "praca",
+        sales: "",
+        services: "uslugi",
+        rent: "nieruchomosci/mieszkania/wynajem",
+        other: "",
+    }
+    const citySlug = toOlxCitySlug(city)
+    const pathParts = [categoryPath[category], citySlug].filter(Boolean)
+    return `https://www.olx.pl/${pathParts.length > 0 ? `${pathParts.join("/")}/` : ""}`
+}
+
+function toOlxCitySlug(city: string): string {
+    return city
+        .trim()
+        .toLowerCase()
+        .replace(/ł/g, "l")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
 }
 
 function buildLeadMessage(lead: Lead): string {

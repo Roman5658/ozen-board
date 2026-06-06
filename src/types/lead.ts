@@ -1,5 +1,5 @@
 export type LeadAudience = "pl" | "ua"
-export type LeadSource = "olx" | "allegro_lokalnie" | "otomoto" | "facebook" | "other"
+export type LeadSource = "olx" | "manual" | "other"
 export type LeadCategory = "jobs" | "sales" | "services" | "rent" | "other"
 export type LeadStatus = "new" | "wrote" | "replied" | "posted" | "rejected"
 
