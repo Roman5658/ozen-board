@@ -117,18 +117,18 @@ function AdminLeadsPage() {
     }
 
     return (
-        <div className="stack12">
-            <div>
+        <div className="admin-leads-page stack12">
+            <div className="admin-leads-header">
                 <h2 className="h2">Lead Manager</h2>
-                <div style={{ color: "#64748b", fontSize: 14 }}>
+                <div className="admin-leads-subtitle">
                     Ручная работа с публичными ссылками. Сообщения автоматически не отправляются.
                 </div>
             </div>
 
-            <section className="card stack12">
-                <h3 className="h3">Импорт лидов с OLX</h3>
-                <form onSubmit={handleImport} className="stack12">
-                    <label className="stack8">
+            <section className="card admin-leads-import">
+                <h3 className="admin-leads-import__title">Импорт лидов с OLX</h3>
+                <form onSubmit={handleImport} className="admin-leads-form">
+                    <label className="admin-leads-field admin-leads-field--url">
                         <span>OLX search URL</span>
                         <input
                             className="input"
@@ -140,12 +140,8 @@ function AdminLeadsPage() {
                         />
                     </label>
 
-                    <div style={{
-                        display: "grid",
-                        gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                        gap: 12,
-                    }}>
-                        <label className="stack8">
+                    <div className="admin-leads-form__grid">
+                        <label className="admin-leads-field">
                             <span>Аудитория</span>
                             <select className="select" value={audience} onChange={event => setAudience(event.target.value as LeadAudience)}>
                                 <option value="pl">PL</option>
@@ -153,7 +149,7 @@ function AdminLeadsPage() {
                             </select>
                         </label>
 
-                        <label className="stack8">
+                        <label className="admin-leads-field">
                             <span>Категория</span>
                             <select className="select" value={category} onChange={event => setCategory(event.target.value as LeadCategory)}>
                                 {Object.entries(CATEGORY_LABELS).map(([value, label]) => (
@@ -162,12 +158,12 @@ function AdminLeadsPage() {
                             </select>
                         </label>
 
-                        <label className="stack8">
+                        <label className="admin-leads-field">
                             <span>Город</span>
                             <input className="input" required value={city} onChange={event => setCity(event.target.value)} />
                         </label>
 
-                        <label className="stack8">
+                        <label className="admin-leads-field">
                             <span>Лимит</span>
                             <input
                                 className="input"
@@ -181,15 +177,15 @@ function AdminLeadsPage() {
                         </label>
                     </div>
 
-                    <button className="btn-primary" type="submit" disabled={importing} style={{ width: "fit-content" }}>
+                    <button className="btn-primary admin-leads-import__button" type="submit" disabled={importing}>
                         {importing ? "Импорт..." : "Импортировать публичные ссылки"}
                     </button>
                 </form>
 
-                {message && <div style={{ fontSize: 14 }}>{message}</div>}
+                {message && <div className="admin-leads-message">{message}</div>}
             </section>
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <div className="admin-leads-summary">
                 {(Object.keys(STATUS_LABELS) as LeadStatus[]).map(status => (
                     <span
                         key={status}
@@ -205,52 +201,53 @@ function AdminLeadsPage() {
             {!loading && leads.length === 0 && <div className="card">Лидов пока нет.</div>}
 
             {!loading && leads.length > 0 && (
-                <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1050 }}>
+                <>
+                <div className="admin-leads-table-wrap">
+                    <table className="admin-leads-table">
                         <thead>
-                            <tr style={{ textAlign: "left", borderBottom: "1px solid #cbd5e1" }}>
-                                <th style={cellStyle}>Лид</th>
-                                <th style={cellStyle}>Аудитория</th>
-                                <th style={cellStyle}>Категория</th>
-                                <th style={cellStyle}>Город</th>
-                                <th style={cellStyle}>Статус</th>
-                                <th style={cellStyle}>Действия</th>
+                            <tr>
+                                <th>Лид</th>
+                                <th>Аудитория</th>
+                                <th>Категория</th>
+                                <th>Город</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
                             </tr>
                         </thead>
                         <tbody>
                             {leads.map(lead => (
-                                <tr key={lead.id} style={{ borderBottom: "1px solid #e2e8f0", verticalAlign: "top" }}>
-                                    <td style={cellStyle}>
-                                        <div style={{ fontWeight: 700, maxWidth: 340 }}>{lead.title}</div>
-                                        <div style={{ fontSize: 12, color: "#64748b", marginTop: 5 }}>
+                                <tr key={lead.id}>
+                                    <td>
+                                        <div className="admin-lead-title">{lead.title}</div>
+                                        <div className="admin-lead-date">
                                             {new Date(lead.createdAt).toLocaleString()}
                                         </div>
                                     </td>
-                                    <td style={cellStyle}>{lead.audience.toUpperCase()}</td>
-                                    <td style={cellStyle}>{CATEGORY_LABELS[lead.category]}</td>
-                                    <td style={cellStyle}>{lead.city}</td>
-                                    <td style={cellStyle}>
+                                    <td>{lead.audience.toUpperCase()}</td>
+                                    <td>{CATEGORY_LABELS[lead.category]}</td>
+                                    <td>{lead.city}</td>
+                                    <td>
                                         <span className="listing-badge" style={{ background: "#eef2f7", color: "#334155" }}>
                                             {STATUS_LABELS[lead.status]}
                                         </span>
                                     </td>
-                                    <td style={cellStyle}>
-                                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxWidth: 520 }}>
+                                    <td>
+                                        <div className="admin-lead-actions">
                                             <a
-                                                className="btn-secondary"
+                                                className="btn-secondary admin-lead-action"
                                                 href={lead.listingUrl}
                                                 target="_blank"
                                                 rel="noreferrer"
                                             >
-                                                Открыть объявление
+                                                Открыть
                                             </a>
-                                            <button className="btn-secondary" type="button" onClick={() => void copyLeadMessage(lead)}>
-                                                {copiedLeadId === lead.id ? "Скопировано" : "Скопировать сообщение"}
+                                            <button className="btn-secondary admin-lead-action" type="button" onClick={() => void copyLeadMessage(lead)}>
+                                                {copiedLeadId === lead.id ? "Скопировано" : "Копировать"}
                                             </button>
                                             {STATUS_ACTIONS.map(action => (
                                                 <button
                                                     key={action.status}
-                                                    className={lead.status === action.status ? "btn-primary" : "btn-secondary"}
+                                                    className={`${lead.status === action.status ? "btn-primary" : "btn-secondary"} admin-lead-action`}
                                                     type="button"
                                                     onClick={() => void setLeadStatus(lead, action.status)}
                                                 >
@@ -264,13 +261,53 @@ function AdminLeadsPage() {
                         </tbody>
                     </table>
                 </div>
+                <div className="admin-leads-cards">
+                    {leads.map(lead => (
+                        <article className="card admin-lead-card" key={lead.id}>
+                            <div className="admin-lead-card__header">
+                                <div className="admin-lead-title">{lead.title}</div>
+                                <span className="listing-badge" style={{ background: "#eef2f7", color: "#334155" }}>
+                                    {STATUS_LABELS[lead.status]}
+                                </span>
+                            </div>
+                            <div className="admin-lead-card__meta">
+                                <span>{lead.audience.toUpperCase()}</span>
+                                <span>{CATEGORY_LABELS[lead.category]}</span>
+                                <span>{lead.city}</span>
+                            </div>
+                            <div className="admin-lead-date">
+                                {new Date(lead.createdAt).toLocaleString()}
+                            </div>
+                            <div className="admin-lead-actions">
+                                <a
+                                    className="btn-secondary admin-lead-action"
+                                    href={lead.listingUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    Открыть
+                                </a>
+                                <button className="btn-secondary admin-lead-action" type="button" onClick={() => void copyLeadMessage(lead)}>
+                                    {copiedLeadId === lead.id ? "Скопировано" : "Копировать"}
+                                </button>
+                                {STATUS_ACTIONS.map(action => (
+                                    <button
+                                        key={action.status}
+                                        className={`${lead.status === action.status ? "btn-primary" : "btn-secondary"} admin-lead-action`}
+                                        type="button"
+                                        onClick={() => void setLeadStatus(lead, action.status)}
+                                    >
+                                        {action.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </article>
+                    ))}
+                </div>
+                </>
             )}
         </div>
     )
-}
-
-const cellStyle: React.CSSProperties = {
-    padding: "10px 8px",
 }
 
 function buildLeadMessage(lead: Lead): string {

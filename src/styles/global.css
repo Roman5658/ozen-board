@@ -974,3 +974,334 @@ h1, h2, h3, h4, h5, h6 {
         border-radius: 10px;
     }
 }
+
+/* Admin layout */
+.admin-layout {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+}
+
+.admin-sidebar {
+    flex: 0 0 190px;
+    width: 190px;
+    min-width: 190px;
+    padding: 14px 12px;
+    border-right: 1px solid #e5e7eb;
+    background: #fafafa;
+}
+
+.admin-sidebar__title {
+    margin: 0 8px 12px;
+    font-size: 17px;
+}
+
+.admin-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.admin-nav a {
+    display: block;
+    padding: 7px 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.25;
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+.admin-nav a:hover,
+.admin-nav a.active {
+    background: #e8eef5;
+}
+
+.admin-content {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    padding: 16px;
+    padding-bottom: calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom));
+}
+
+/* Lead Manager */
+.admin-leads-page {
+    width: 100%;
+    min-width: 0;
+}
+
+.admin-leads-header .h2 {
+    margin-bottom: 4px;
+}
+
+.admin-leads-subtitle {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.admin-leads-import {
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+}
+
+.admin-leads-import__title {
+    margin: 0 0 10px;
+    font-size: 15px;
+}
+
+.admin-leads-form {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-leads-form__grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(110px, 1fr));
+    gap: 10px;
+}
+
+.admin-leads-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.admin-leads-field .input,
+.admin-leads-field .select {
+    height: 40px;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 7px;
+}
+
+.admin-leads-import__button {
+    width: fit-content;
+    min-height: 36px;
+    padding: 8px 13px;
+    border-radius: 7px;
+    font-size: 13px;
+}
+
+.admin-leads-message {
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.admin-leads-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.admin-leads-table-wrap {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.admin-leads-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 12px;
+}
+
+.admin-leads-table th,
+.admin-leads-table td {
+    padding: 7px 6px;
+    text-align: left;
+    vertical-align: top;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.admin-leads-table th {
+    border-bottom: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 11px;
+}
+
+.admin-leads-table td {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-leads-table tr:last-child td {
+    border-bottom: 0;
+}
+
+.admin-leads-table th:nth-child(1) { width: 25%; }
+.admin-leads-table th:nth-child(2) { width: 7%; }
+.admin-leads-table th:nth-child(3) { width: 10%; }
+.admin-leads-table th:nth-child(4) { width: 10%; }
+.admin-leads-table th:nth-child(5) { width: 10%; }
+.admin-leads-table th:nth-child(6) { width: 38%; }
+
+.admin-lead-title {
+    min-width: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
+.admin-lead-date {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.admin-lead-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-width: 0;
+}
+
+.admin-lead-actions .admin-lead-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-height: 30px;
+    max-width: 100%;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    line-height: 1.15;
+    white-space: nowrap;
+}
+
+.admin-lead-actions .btn-secondary {
+    background: #fff;
+    border-color: #cbd5e1;
+}
+
+.admin-leads-cards {
+    display: none;
+}
+
+.admin-lead-card {
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.admin-lead-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.admin-lead-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 10px;
+    margin-top: 6px;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.admin-lead-card .admin-lead-actions {
+    margin-top: 9px;
+}
+
+@media (max-width: 900px) {
+    .admin-sidebar {
+        flex-basis: 170px;
+        width: 170px;
+        min-width: 170px;
+        padding-inline: 9px;
+    }
+
+    .admin-content {
+        padding: 12px;
+        padding-bottom: calc(var(--bottom-nav-height) + 28px + env(safe-area-inset-bottom));
+    }
+
+    .admin-leads-form__grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+
+    .admin-leads-table-wrap {
+        display: none;
+    }
+
+    .admin-leads-cards {
+        display: grid;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 700px) {
+    .admin-layout {
+        display: block;
+    }
+
+    .admin-sidebar {
+        width: 100%;
+        min-width: 0;
+        padding: 8px;
+        border-right: 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .admin-sidebar__title {
+        margin: 0 6px 7px;
+        font-size: 15px;
+    }
+
+    .admin-nav {
+        flex-direction: row;
+        gap: 4px;
+        overflow-x: auto;
+        padding-bottom: 3px;
+        scrollbar-width: thin;
+    }
+
+    .admin-nav a {
+        flex: 0 0 auto;
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .admin-content {
+        padding: 10px 8px;
+        padding-bottom: calc(var(--bottom-nav-height) + 30px + env(safe-area-inset-bottom));
+    }
+}
+
+@media (max-width: 520px) {
+    .admin-leads-form__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-leads-import__button {
+        width: 100% !important;
+        max-width: none;
+    }
+
+    .admin-lead-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admin-lead-actions .admin-lead-action {
+        width: 100% !important;
+        max-width: none;
+        min-width: 0;
+        white-space: normal;
+    }
+}
