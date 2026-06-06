@@ -9,7 +9,6 @@ import type { Ad } from "../types/ad";
 import { buildAdPath } from '../utils/slug';
 import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
 import {
-    ImageOptimizationError,
     getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES,
@@ -166,13 +165,7 @@ function EditAdPage() {
                     return;
                 }
 
-                const fileName = error instanceof ImageOptimizationError ? error.fileName : "";
-                setError(
-                    fileName
-                        ? `Не вдалося стиснути фото «${fileName}». Виберіть інший файл.`
-                        : "Не вдалося стиснути фото. Виберіть інший файл.",
-                );
-                return;
+                throw error;
             }
 
             for (const [index, file] of optimizedImages.entries()) {

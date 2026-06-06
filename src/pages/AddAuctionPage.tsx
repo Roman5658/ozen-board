@@ -13,7 +13,6 @@ import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 import { verifyPayPalPayment } from "../api/payments"
 import {
-    ImageOptimizationError,
     getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES as MAX_AUCTION_IMAGES,
@@ -214,12 +213,7 @@ function AddAuctionPage({ t }: Props) {
                 )
             }
 
-            const fileName = error instanceof ImageOptimizationError ? error.fileName : ""
-            throw new Error(
-                fileName
-                    ? t.addAuction.errors.imageOptimizationFailed.replace("{{file}}", fileName)
-                    : t.addAuction.errors.imageOptimizationFailed.replace("{{file}}", "")
-            )
+            throw error
         }
 
         for (const [index, file] of optimizedImages.entries()) {

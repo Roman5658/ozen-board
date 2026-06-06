@@ -24,7 +24,6 @@ import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
 import {
-    ImageOptimizationError,
     getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES,
@@ -347,15 +346,7 @@ function AddPage({ t }: Props) {
                     return
                 }
 
-                const fileName = error instanceof ImageOptimizationError
-                    ? error.fileName
-                    : ""
-                setError(
-                    fileName
-                        ? a.errors.imageOptimizationFailed.replace("{{file}}", fileName)
-                        : a.errors.imageOptimizationFailed.replace("{{file}}", "")
-                )
-                return
+                throw error
             }
 
             for (const [index, file] of optimizedImages.entries()) {

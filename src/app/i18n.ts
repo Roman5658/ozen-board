@@ -856,7 +856,6 @@ export const translations = {
                 paymentNotConfirmed: "Оплата не підтверджена",
                 createFailed: "Помилка при створенні оголошення",
                 maxImages: "Максимум {{limit}} фото",
-                imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
                 unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.",
             },
 
@@ -945,7 +944,6 @@ export const translations = {
                 pastDate: "Дата завершення має бути пізніше сьогодні",
                 tooLong: "Аукціон може тривати максимум 10 днів",
                 maxImages: "Максимум {{limit}} фото",
-                imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
                 unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.",
                 paypalFirst: "Спочатку виконайте оплату PayPal нижче",
                 paypalError: "Помилка оплати PayPal",
@@ -1990,7 +1988,6 @@ export const translations = {
                 paymentNotConfirmed: "Płatność nie została potwierdzona",
                 createFailed: "Błąd podczas tworzenia ogłoszenia",
                 maxImages: "Maksymalnie {{limit}} zdjęć",
-                imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
                 unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG, WebP, HEIC i HEIF.",
             },
 
@@ -2078,7 +2075,6 @@ export const translations = {
                 pastDate: "Data zakończenia musi być późniejsza niż dzisiaj",
                 tooLong: "Aukcja może trwać maksymalnie 10 dni",
                 maxImages: "Maksymalnie {{limit}} zdjęć",
-                imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
                 unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG, WebP, HEIC i HEIF.",
                 paypalFirst: "Najpierw dokonaj płatności PayPal poniżej",
                 paypalError: "Błąd płatności PayPal",

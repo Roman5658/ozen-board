@@ -32,14 +32,13 @@ const ALLOWED_IMAGE_EXTENSIONS = new Set([
     ".heif",
 ]);
 
-const HEIC_IMAGE_MIME_TYPES = new Set([
-    "image/heic",
-    "image/heif",
-]);
-
-const HEIC_IMAGE_EXTENSIONS = new Set([
-    ".heic",
-    ".heif",
+const IMAGE_MIME_TYPE_BY_EXTENSION = new Map([
+    [".jpg", "image/jpeg"],
+    [".jpeg", "image/jpeg"],
+    [".png", "image/png"],
+    [".webp", "image/webp"],
+    [".heic", "image/heic"],
+    [".heif", "image/heif"],
 ]);
 
 export class UnsupportedImageFormatError extends Error {
@@ -52,23 +51,16 @@ export class UnsupportedImageFormatError extends Error {
     }
 }
 
-export class ImageOptimizationError extends Error {
-    readonly fileName: string;
-
-    constructor(fileName: string, cause?: unknown) {
-        super(`Failed to optimize image: ${fileName}`, { cause });
-        this.name = "ImageOptimizationError";
-        this.fileName = fileName;
-    }
-}
-
 export function validateImageFile(file: File): void {
     const mimeType = getFileMimeType(file);
     const extension = getFileExtension(file);
+    const hasAllowedMimeType = ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
+    const hasAllowedExtension = ALLOWED_IMAGE_EXTENSIONS.has(extension);
 
     if (
-        !ALLOWED_IMAGE_MIME_TYPES.has(mimeType) ||
-        !ALLOWED_IMAGE_EXTENSIONS.has(extension)
+        (mimeType !== "" && !hasAllowedMimeType) ||
+        (extension !== "" && !hasAllowedExtension) ||
+        (!hasAllowedMimeType && !hasAllowedExtension)
     ) {
         throw new UnsupportedImageFormatError(file.name);
     }
@@ -79,19 +71,25 @@ export function validateImageFiles(files: readonly File[]): void {
 }
 
 export function getImageUploadContentType(file: File): string {
+    const mimeType = getFileMimeType(file);
     const extension = getFileExtension(file);
 
-    if (extension === ".heif") return "image/heif";
-    if (extension === ".heic") return "image/heic";
+    if (ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) {
+        return mimeType;
+    }
 
-    return getFileMimeType(file);
+    const inferredMimeType = IMAGE_MIME_TYPE_BY_EXTENSION.get(extension);
+    if (inferredMimeType) {
+        return inferredMimeType;
+    }
+
+    throw new UnsupportedImageFormatError(file.name);
 }
 
 export async function optimizeAdImage(file: File): Promise<File> {
     validateImageFile(file);
 
     let image: DecodedImage | null = null;
-    const isHeicImage = isHeicOrHeifImage(file);
 
     try {
         image = await decodeImage(file);
@@ -121,21 +119,13 @@ export async function optimizeAdImage(file: File): Promise<File> {
             lastModified: Date.now(),
         });
     } catch (error) {
-        if (isHeicImage) {
-            const fallbackFile = createHeicFallbackFile(file);
-            console.warn(
-                `[imageOptimization] WebP conversion failed for ${file.name}. ` +
-                `Uploading the original iPhone image as ${fallbackFile.type}.`,
-                error,
-            );
-            return fallbackFile;
-        }
-
-        console.error(
-            `[imageOptimization] WebP conversion failed for ${file.name}.`,
+        const fallbackFile = createOriginalImageFallback(file);
+        console.warn(
+            `[imageOptimization] WebP conversion failed for ${file.name}. ` +
+            `Uploading the original safe image as ${fallbackFile.type}.`,
             error,
         );
-        throw new ImageOptimizationError(file.name, error);
+        return fallbackFile;
     } finally {
         image?.dispose();
     }
@@ -167,28 +157,14 @@ function getFileExtension(file: File): string {
     return extensionMatch?.[0] ?? "";
 }
 
-function isHeicOrHeifImage(file: File): boolean {
-    return (
-        HEIC_IMAGE_MIME_TYPES.has(getFileMimeType(file)) ||
-        HEIC_IMAGE_EXTENSIONS.has(getFileExtension(file))
-    );
-}
+function createOriginalImageFallback(file: File): File {
+    const contentType = getImageUploadContentType(file);
 
-function createHeicFallbackFile(file: File): File {
-    const originalExtension = getFileExtension(file);
-    const originalMimeType = getFileMimeType(file);
-    const extension = originalExtension === ".heif" || originalMimeType === "image/heif"
-        ? ".heif"
-        : ".heic";
-    const contentType = extension === ".heif" ? "image/heif" : "image/heic";
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "image";
-    const fileName = `${baseName}${extension}`;
-
-    if (file.name === fileName && file.type === contentType) {
+    if (file.type === contentType) {
         return file;
     }
 
-    return new File([file], fileName, {
+    return new File([file], file.name, {
         type: contentType,
         lastModified: file.lastModified,
     });
