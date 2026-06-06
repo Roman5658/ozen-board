@@ -1,6 +1,30 @@
 export const MAX_AD_IMAGES = 20;
 export const AD_IMAGE_MAX_WIDTH = 1600;
 export const AD_IMAGE_WEBP_QUALITY = 0.8;
+export const IMAGE_FILE_ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
+
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+]);
+
+const ALLOWED_IMAGE_EXTENSIONS = new Set([
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp",
+]);
+
+export class UnsupportedImageFormatError extends Error {
+    readonly fileName: string;
+
+    constructor(fileName: string) {
+        super(`Unsupported image format: ${fileName}`);
+        this.name = "UnsupportedImageFormatError";
+        this.fileName = fileName;
+    }
+}
 
 export class ImageOptimizationError extends Error {
     readonly fileName: string;
@@ -12,10 +36,25 @@ export class ImageOptimizationError extends Error {
     }
 }
 
-export async function optimizeAdImage(file: File): Promise<File> {
-    if (!file.type.startsWith("image/")) {
-        throw new ImageOptimizationError(file.name);
+export function validateImageFile(file: File): void {
+    const mimeType = file.type.trim().toLowerCase();
+    const extensionMatch = file.name.trim().toLowerCase().match(/\.[^.]+$/);
+    const extension = extensionMatch?.[0] ?? "";
+
+    if (
+        !ALLOWED_IMAGE_MIME_TYPES.has(mimeType) ||
+        !ALLOWED_IMAGE_EXTENSIONS.has(extension)
+    ) {
+        throw new UnsupportedImageFormatError(file.name);
     }
+}
+
+export function validateImageFiles(files: readonly File[]): void {
+    files.forEach(validateImageFile);
+}
+
+export async function optimizeAdImage(file: File): Promise<File> {
+    validateImageFile(file);
 
     let image: DecodedImage | null = null;
 

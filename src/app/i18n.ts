@@ -857,6 +857,7 @@ export const translations = {
                 createFailed: "Помилка при створенні оголошення",
                 maxImages: "Максимум {{limit}} фото",
                 imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
+                unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.",
             },
 
             cooldown: {
@@ -928,6 +929,7 @@ export const translations = {
                 buyNowPrice: "Купити зараз (необовʼязково)",
                 endsAt: "Дата завершення",
                 maxDaysHint: "Максимум 10 днів від сьогодні",
+                photoOptimizationHint: "Фото будуть автоматично стиснуті перед завантаженням. Максимум {{limit}} фото.",
             },
 
             categories: {
@@ -942,7 +944,9 @@ export const translations = {
                 invalidDate: "Некоректна дата завершення",
                 pastDate: "Дата завершення має бути пізніше сьогодні",
                 tooLong: "Аукціон може тривати максимум 10 днів",
-                maxImages: "Максимум 5 фото",
+                maxImages: "Максимум {{limit}} фото",
+                imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
+                unsupportedImageFormat: "Файл «{{file}}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.",
                 paypalFirst: "Спочатку виконайте оплату PayPal нижче",
                 paypalError: "Помилка оплати PayPal",
                 createFailed: "Помилка при створенні аукціону",
@@ -1987,6 +1991,7 @@ export const translations = {
                 createFailed: "Błąd podczas tworzenia ogłoszenia",
                 maxImages: "Maksymalnie {{limit}} zdjęć",
                 imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
+                unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG i WebP.",
             },
 
             cooldown: {
@@ -2057,6 +2062,7 @@ export const translations = {
                 buyNowPrice: "Kup teraz (opcjonalnie)",
                 endsAt: "Data zakończenia",
                 maxDaysHint: "Maksymalnie 10 dni od dziś",
+                photoOptimizationHint: "Zdjęcia zostaną automatycznie skompresowane przed przesłaniem. Maksymalnie {{limit}} zdjęć.",
             },
 
             categories: {
@@ -2071,7 +2077,9 @@ export const translations = {
                 invalidDate: "Nieprawidłowa data zakończenia",
                 pastDate: "Data zakończenia musi być późniejsza niż dzisiaj",
                 tooLong: "Aukcja może trwać maksymalnie 10 dni",
-                maxImages: "Maksymalnie 5 zdjęć",
+                maxImages: "Maksymalnie {{limit}} zdjęć",
+                imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
+                unsupportedImageFormat: "Plik „{{file}}” nie jest obsługiwany. Dozwolone są tylko JPG, JPEG, PNG i WebP.",
                 paypalFirst: "Najpierw dokonaj płatności PayPal poniżej",
                 paypalError: "Błąd płatności PayPal",
                 createFailed: "Błąd podczas tworzenia aukcji",

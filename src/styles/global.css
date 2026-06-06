@@ -492,6 +492,25 @@ width: 80%;
     overflow: hidden;
     touch-action: none;
     user-select: none;
+    cursor: zoom-in;
+}
+
+.image-lightbox__stage--zoomed {
+    cursor: grab;
+}
+
+.image-lightbox__stage--panning {
+    cursor: grabbing;
+}
+
+.image-lightbox__zoom-surface {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center;
+    will-change: transform;
 }
 
 .image-lightbox__image {
@@ -501,10 +520,12 @@ width: 80%;
     object-fit: contain;
     user-select: none;
     animation: image-lightbox-slide 180ms ease-out;
+    pointer-events: none;
 }
 
 .image-lightbox__close,
-.image-lightbox__arrow {
+.image-lightbox__arrow,
+.image-lightbox__zoom-controls {
     position: absolute;
     z-index: 2;
     width: 48px;
@@ -520,15 +541,63 @@ width: 80%;
 }
 
 .image-lightbox__close:hover,
-.image-lightbox__arrow:hover {
+.image-lightbox__arrow:hover,
+.image-lightbox__zoom-controls button:hover:not(:disabled) {
     background: rgba(30, 41, 59, 0.95);
 }
 
 .image-lightbox__close:focus-visible,
 .image-lightbox__arrow:focus-visible,
+.image-lightbox__zoom-controls button:focus-visible,
 .image-lightbox__thumbnail:focus-visible {
     outline: 2px solid #fff;
     outline-offset: 2px;
+}
+
+.image-lightbox__zoom-controls {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    z-index: 3;
+    width: auto;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 8px;
+}
+
+.image-lightbox__zoom-controls button {
+    width: 38px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.image-lightbox__zoom-controls button:last-child {
+    width: 44px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.image-lightbox__zoom-controls button:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.image-lightbox__zoom-controls span {
+    min-width: 48px;
+    color: #fff;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
 }
 
 .image-lightbox__close {
@@ -628,6 +697,25 @@ width: 80%;
     .image-lightbox__close {
         top: max(8px, env(safe-area-inset-top));
         right: 10px;
+    }
+
+    .image-lightbox__zoom-controls {
+        top: max(9px, env(safe-area-inset-top));
+        left: 8px;
+        height: 42px;
+    }
+
+    .image-lightbox__zoom-controls button {
+        width: 36px;
+        height: 34px;
+    }
+
+    .image-lightbox__zoom-controls button:last-child {
+        width: 40px;
+    }
+
+    .image-lightbox__zoom-controls span {
+        min-width: 42px;
     }
 
     .image-lightbox__arrow {

@@ -10,8 +10,11 @@ import { buildAdPath } from '../utils/slug';
 import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
 import {
     ImageOptimizationError,
+    IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES,
+    UnsupportedImageFormatError,
     optimizeAdImages,
+    validateImageFiles,
 } from "../utils/imageOptimization";
 
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP;
@@ -155,6 +158,13 @@ function EditAdPage() {
             try {
                 optimizedImages = await optimizeAdImages(imageFiles);
             } catch (error) {
+                if (error instanceof UnsupportedImageFormatError) {
+                    setError(
+                        `Файл «${error.fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.`,
+                    );
+                    return;
+                }
+
                 const fileName = error instanceof ImageOptimizationError ? error.fileName : "";
                 setError(
                     fileName
@@ -316,11 +326,24 @@ function EditAdPage() {
 
                     <input
                         type="file"
-                        accept="image/*"
+                        accept={IMAGE_FILE_ACCEPT}
                         multiple
                         disabled={saving || existingImages.length + imageFiles.length >= MAX_AD_IMAGES}
                         onChange={(e) => {
                             const newFiles = Array.from(e.target.files ?? []);
+
+                            try {
+                                validateImageFiles(newFiles);
+                            } catch (error) {
+                                const fileName = error instanceof UnsupportedImageFormatError
+                                    ? error.fileName
+                                    : "";
+                                setError(
+                                    `Файл «${fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG і WebP.`,
+                                );
+                                e.currentTarget.value = "";
+                                return;
+                            }
 
                             if (existingImages.length + imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
                                 setError(`Максимум ${MAX_AD_IMAGES} фото`);

@@ -11,9 +11,15 @@ import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
-
-
 import { verifyPayPalPayment } from "../api/payments"
+import {
+    ImageOptimizationError,
+    IMAGE_FILE_ACCEPT,
+    MAX_AD_IMAGES as MAX_AUCTION_IMAGES,
+    UnsupportedImageFormatError,
+    optimizeAdImages,
+    validateImageFiles,
+} from "../utils/imageOptimization"
 
 type Category = "sell" | "buy" | "service" | "rent"
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP
@@ -39,6 +45,10 @@ function AddAuctionPage({ t }: Props) {
     const [city, setCity] = useState("")
     const [startPrice, setStartPrice] = useState("")
     const [imageFiles, setImageFiles] = useState<File[]>([])
+    const imagePreviews = useMemo(
+        () => imageFiles.map((file) => URL.createObjectURL(file)),
+        [imageFiles]
+    )
     const [endsAtDate, setEndsAtDate] = useState("")
 
     const [error, setError] = useState<string | null>(null)
@@ -68,6 +78,12 @@ function AddAuctionPage({ t }: Props) {
         setPaypalOrderId(null)
         setIsPaying(false)
     }, [promotion])
+
+    useEffect(() => {
+        return () => {
+            imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+        }
+    }, [imagePreviews])
 // 👇 ПОТОМ любая логика и return
     const user = getLocalUser()
     if (!user) {
@@ -95,6 +111,15 @@ function AddAuctionPage({ t }: Props) {
         ) {
             return { ok: false, reason: t.addAuction.errors.required }
 
+        }
+        if (imageFiles.length > MAX_AUCTION_IMAGES) {
+            return {
+                ok: false,
+                reason: t.addAuction.errors.maxImages.replace(
+                    "{{limit}}",
+                    String(MAX_AUCTION_IMAGES)
+                ),
+            }
         }
 
         const createdAt = Date.now()
@@ -163,76 +188,95 @@ function AddAuctionPage({ t }: Props) {
             return
         }
 
-        try {
-            const validation = validateForm()
-            if (!validation.ok) {
-                setError(validation.reason)
-                throw new Error(validation.reason)
-            }
-
-            await checkTopLimitIfNeeded()
-
-            const createdAt = Date.now()
-            const endsAt = validation.endsAt
-
-
-            const imageUrls: string[] = []
-            for (const file of imageFiles) {
-                const imageRef = ref(storage, `auctions/${verifiedOwnerId}/${createdAt}-${file.name}`)
-                await uploadBytes(imageRef, file)
-                const imageUrl = await getDownloadURL(imageRef)
-                imageUrls.push(imageUrl)
-            }
-
-            const auctionData = {
-                title: title.trim(),
-                description: description.trim(),
-                category,
-                voivodeship,
-                city,
-
-                startPrice: Number(startPrice),
-                buyNowPrice: null,
-                currentBid: Number(startPrice),
-                bidsCount: 0,
-
-                images: imageUrls,
-
-                ownerId: verifiedOwnerId,
-                ownerName: safeUser.nickname || "User",
-
-                status: isPaidPromotion ? "pending_payment" : "active",
-                createdAt,
-                endsAt,
-
-                promotionType: "none",
-                promotionUntil: null,
-                promotionQueueAt: null,
-            }
-
-            const docRef = await addDoc(collection(db, "auctions"), auctionData)
-            if (promotion !== "none") {
-                if (!paypalOrderId) {
-                    setError(t.addAuction.errors.paypalError)
-                    throw new Error(t.addAuction.errors.paypalError)
-                }
-
-                const paymentResult = await verifyPayPalPayment({
-                    orderId: paypalOrderId,
-                    targetType: "auction",
-                    targetId: docRef.id,
-                    promotionType: promotion,
-                })
-
-                if (!paymentResult.data?.ok) {
-                    throw new Error(t.addAuction.errors.paypalError)
-                }
-            }
-
-            navigate("/auctions")
-        } catch (error) {
-            throw error
+        const validation = validateForm()
+        if (!validation.ok) {
+            setError(validation.reason)
+            throw new Error(validation.reason)
         }
+
+        await checkTopLimitIfNeeded()
+
+        const createdAt = Date.now()
+        const endsAt = validation.endsAt
+        const imageUrls: string[] = []
+        let optimizedImages: File[] = []
+
+        try {
+            optimizedImages = await optimizeAdImages(imageFiles)
+        } catch (error) {
+            if (error instanceof UnsupportedImageFormatError) {
+                throw new Error(
+                    t.addAuction.errors.unsupportedImageFormat.replace(
+                        "{{file}}",
+                        error.fileName
+                    )
+                )
+            }
+
+            const fileName = error instanceof ImageOptimizationError ? error.fileName : ""
+            throw new Error(
+                fileName
+                    ? t.addAuction.errors.imageOptimizationFailed.replace("{{file}}", fileName)
+                    : t.addAuction.errors.imageOptimizationFailed.replace("{{file}}", "")
+            )
+        }
+
+        for (const [index, file] of optimizedImages.entries()) {
+            const imageRef = ref(
+                storage,
+                `auctions/${verifiedOwnerId}/${createdAt}-${index}-${file.name}`
+            )
+            await uploadBytes(imageRef, file, { contentType: "image/webp" })
+            const imageUrl = await getDownloadURL(imageRef)
+            imageUrls.push(imageUrl)
+        }
+
+        const auctionData = {
+            title: title.trim(),
+            description: description.trim(),
+            category,
+            voivodeship,
+            city,
+
+            startPrice: Number(startPrice),
+            buyNowPrice: null,
+            currentBid: Number(startPrice),
+            bidsCount: 0,
+
+            images: imageUrls,
+
+            ownerId: verifiedOwnerId,
+            ownerName: safeUser.nickname || "User",
+
+            status: isPaidPromotion ? "pending_payment" : "active",
+            createdAt,
+            endsAt,
+
+            promotionType: "none",
+            promotionUntil: null,
+            promotionQueueAt: null,
+        }
+
+        const docRef = await addDoc(collection(db, "auctions"), auctionData)
+        if (promotion !== "none") {
+            if (!paypalOrderId) {
+                setError(t.addAuction.errors.paypalError)
+                throw new Error(t.addAuction.errors.paypalError)
+            }
+
+            const paymentResult = await verifyPayPalPayment({
+                orderId: paypalOrderId,
+                targetType: "auction",
+                targetId: docRef.id,
+                promotionType: promotion,
+            })
+
+            if (!paymentResult.data?.ok) {
+                throw new Error(t.addAuction.errors.paypalError)
+            }
+        }
+
+        navigate("/auctions")
     }
 
     // ===== SUBMIT (ТОЛЬКО для бесплатного) =====
@@ -321,13 +365,43 @@ function AddAuctionPage({ t }: Props) {
                 <input className="input" type="date" value={endsAtDate}
                        onChange={(e) => setEndsAtDate(e.target.value)}/>
                 <div style={{fontSize: 13, color: "#6b7280"}}>{t.addAuction.fields.maxDaysHint}</div>
+                <div style={{fontSize: 12, color: "#64748b"}}>
+                    {t.addAuction.fields.photoOptimizationHint.replace(
+                        "{{limit}}",
+                        String(MAX_AUCTION_IMAGES)
+                    )}
+                </div>
 
-                <input type="file" accept="image/*" multiple onChange={(e) => {
+                <input type="file" accept={IMAGE_FILE_ACCEPT} multiple onChange={(e) => {
                     const newFiles = Array.from(e.target.files ?? [])
-                    if (imageFiles.length + newFiles.length > 5) {
-                        setError(t.addAuction.errors.maxImages)
+
+                    try {
+                        validateImageFiles(newFiles)
+                    } catch (error) {
+                        const fileName = error instanceof UnsupportedImageFormatError
+                            ? error.fileName
+                            : ""
+                        setError(
+                            t.addAuction.errors.unsupportedImageFormat.replace(
+                                "{{file}}",
+                                fileName
+                            )
+                        )
+                        e.currentTarget.value = ""
                         return
                     }
+
+                    if (imageFiles.length + newFiles.length > MAX_AUCTION_IMAGES) {
+                        setError(
+                            t.addAuction.errors.maxImages.replace(
+                                "{{limit}}",
+                                String(MAX_AUCTION_IMAGES)
+                            )
+                        )
+                        e.currentTarget.value = ""
+                        return
+                    }
+                    setError(null)
                     setImageFiles((prev) => [...prev, ...newFiles])
                     e.currentTarget.value = ""
                 }}/>
@@ -335,13 +409,12 @@ function AddAuctionPage({ t }: Props) {
 
                 {imageFiles.length > 0 && (
                     <div style={{display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8}}>
-                        {imageFiles.map((file, index) => {
-                            const url = URL.createObjectURL(file)
-                            return <div key={index} style={{ position: "relative", width: 80, height: 80, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
+                        {imagePreviews.map((url, index) => (
+                            <div key={index} style={{ position: "relative", width: 80, height: 80, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb" }}>
                                 <img src={url} alt={`preview-${index}`} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                 <button type="button" onClick={() => setImageFiles((prev) => prev.filter((_, i) => i !== index))} style={{ position: "absolute", top: 4, right: 4, width: 22, height: 22, borderRadius: "50%", border: "none", background: "rgba(0,0,0,0.6)", color: "#fff", cursor: "pointer", fontSize: 14, lineHeight: "22px", textAlign: "center" }} aria-label="Видалити фото">×</button>
                             </div>
-                        })}
+                        ))}
                     </div>
                 )}
 

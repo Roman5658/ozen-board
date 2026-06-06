@@ -25,8 +25,11 @@ import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
 import {
     ImageOptimizationError,
+    IMAGE_FILE_ACCEPT,
     MAX_AD_IMAGES,
+    UnsupportedImageFormatError,
     optimizeAdImages,
+    validateImageFiles,
 } from "../utils/imageOptimization"
 type Props = {
     t: (typeof translations)[keyof typeof translations]
@@ -333,7 +336,19 @@ function AddPage({ t }: Props) {
             try {
                 optimizedImages = await optimizeAdImages(imageFiles)
             } catch (error) {
-                const fileName = error instanceof ImageOptimizationError ? error.fileName : ""
+                if (error instanceof UnsupportedImageFormatError) {
+                    setError(
+                        a.errors.unsupportedImageFormat.replace(
+                            "{{file}}",
+                            error.fileName
+                        )
+                    )
+                    return
+                }
+
+                const fileName = error instanceof ImageOptimizationError
+                    ? error.fileName
+                    : ""
                 setError(
                     fileName
                         ? a.errors.imageOptimizationFailed.replace("{{file}}", fileName)
@@ -536,10 +551,26 @@ function AddPage({ t }: Props) {
                     </div>
                     <input
                         type="file"
-                        accept="image/*"
+                        accept={IMAGE_FILE_ACCEPT}
                         multiple
                         onChange={(e) => {
                             const newFiles = Array.from(e.target.files ?? [])
+
+                            try {
+                                validateImageFiles(newFiles)
+                            } catch (error) {
+                                const fileName = error instanceof UnsupportedImageFormatError
+                                    ? error.fileName
+                                    : ""
+                                setError(
+                                    a.errors.unsupportedImageFormat.replace(
+                                        "{{file}}",
+                                        fileName
+                                    )
+                                )
+                                e.currentTarget.value = ""
+                                return
+                            }
 
                             if (imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
                                 setError(
