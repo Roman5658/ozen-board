@@ -808,6 +808,7 @@ export { importOlxLeads } from "./leads/importOlxLeads";
 export { importOtomotoLeads } from "./leads/importOtomotoLeads";
 export { importAllegroLeads } from "./leads/importAllegroLeads";
 export { createManualLead } from "./leads/createManualLead";
+export { hardDeleteOldListings } from "./listings/hardDeleteOldListings";
 
 /* ======================================================
    ADS — автоматическая ротация PIN (TOP3 / TOP6)
