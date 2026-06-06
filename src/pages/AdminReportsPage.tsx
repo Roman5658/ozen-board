@@ -424,6 +424,7 @@ export default function AdminReportsPage({ t }: Props) {
         }
 
         setProcessingAction(true)
+        let blockedUserDocIdForEmail: string | null = null
         try {
             if (moderationForm.action === 'block_user') {
                 if (!reportedUserId) {
@@ -437,13 +438,27 @@ export default function AdminReportsPage({ t }: Props) {
                     return
                 }
 
-                await updateDoc(doc(db, 'users', userDocId), {
+                const userRef = doc(db, 'users', userDocId)
+                const userSnap = await getDoc(userRef)
+                const userData = userSnap.data()
+                const userWasBlocked =
+                    userData?.blocked === true ||
+                    userData?.status === 'blocked' ||
+                    userData?.status === 'restricted'
+                await updateDoc(userRef, {
                     status: 'blocked',
                     blockedAt: now,
                     blockedBy: processedBy,
                     blockedReason: actionReason,
+                    ...(!userWasBlocked ? {
+                        blockEmailSent: false,
+                        blockEmailSentAt: null,
+                        blockEmailSendingAt: null,
+                        blockEmailError: null,
+                    } : {}),
                     updatedAt: now,
                 })
+                if (!userWasBlocked) blockedUserDocIdForEmail = userDocId
                 setReportedUsers(prev => ({
                     ...prev,
                     [reportedUserId]: {
@@ -458,7 +473,18 @@ export default function AdminReportsPage({ t }: Props) {
             await updateDoc(doc(db, 'reports', moderationForm.report.id), patch)
             setReports(prev => prev.map(r => r.id === moderationForm.report.id ? { ...r, ...patch } : r))
             setModerationForm(null)
-            alert(text.alerts.actionSaved)
+            if (blockedUserDocIdForEmail) {
+                const emailResult = await waitForBlockEmailResult(blockedUserDocIdForEmail)
+                alert(formatBlockResult(
+                    text.alerts.userBlocked,
+                    emailResult,
+                    text.alerts.blockEmailSent,
+                    text.alerts.blockEmailFailed,
+                    text.alerts.blockEmailPending
+                ))
+            } else {
+                alert(text.alerts.actionSaved)
+            }
         } catch {
             alert(text.alerts.updateError)
         } finally {
@@ -862,4 +888,38 @@ export default function AdminReportsPage({ t }: Props) {
             </div>
         )}
     </div>
+}
+
+type BlockEmailResult =
+    | { status: "sent" }
+    | { status: "failed"; error: string }
+    | { status: "pending" }
+
+async function waitForBlockEmailResult(userDocId: string): Promise<BlockEmailResult> {
+    for (let attempt = 0; attempt < 15; attempt++) {
+        await new Promise(resolve => window.setTimeout(resolve, 1000))
+        try {
+            const snap = await getDoc(doc(db, "users", userDocId))
+            const data = snap.data()
+            if (data?.blockEmailSent === true || data?.blockEmailSentAt) return { status: "sent" }
+            if (typeof data?.blockEmailError === "string" && data.blockEmailError.trim()) {
+                return { status: "failed", error: data.blockEmailError.trim() }
+            }
+        } catch {
+            // The account is already blocked; a transient status read must not report an update failure.
+        }
+    }
+    return { status: "pending" }
+}
+
+function formatBlockResult(
+    blockedMessage: string,
+    result: BlockEmailResult,
+    sentMessage: string,
+    failedMessage: string,
+    pendingMessage: string
+): string {
+    if (result.status === "sent") return `${blockedMessage}\n${sentMessage}`
+    if (result.status === "failed") return `${blockedMessage}\n${failedMessage}: ${result.error}`
+    return `${blockedMessage}\n${pendingMessage}`
 }

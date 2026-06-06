@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { collection, doc, getDocs, query, updateDoc, where } from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from "firebase/firestore"
 import { db } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { buildAdPath, buildAuctionPath } from "../utils/slug"
@@ -359,6 +359,10 @@ export default function AdminUsersPage({ t }: Props) {
             blockedAt: Date.now(),
             blockedReason: reason,
             blockedBy: adminId,
+            blockEmailSent: false,
+            blockEmailSentAt: null,
+            blockEmailSendingAt: null,
+            blockEmailError: null,
             updatedAt: Date.now(),
         }
 
@@ -368,7 +372,14 @@ export default function AdminUsersPage({ t }: Props) {
             setUsers((current) => current.map((user) => (
                 user.id === selectedUser.id ? { ...user, ...patch } : user
             )))
-            alert(text.blockedAlert)
+            const emailResult = await waitForBlockEmailResult(selectedUser.id)
+            alert(formatBlockResult(
+                text.blockedAlert,
+                emailResult,
+                text.blockEmailSent,
+                text.blockEmailFailed,
+                text.blockEmailPending
+            ))
         } catch {
             setError(text.loadError)
         } finally {
@@ -667,4 +678,38 @@ export default function AdminUsersPage({ t }: Props) {
             )}
         </div>
     )
+}
+
+type BlockEmailResult =
+    | { status: "sent" }
+    | { status: "failed"; error: string }
+    | { status: "pending" }
+
+async function waitForBlockEmailResult(userDocId: string): Promise<BlockEmailResult> {
+    for (let attempt = 0; attempt < 15; attempt++) {
+        await new Promise(resolve => window.setTimeout(resolve, 1000))
+        try {
+            const snap = await getDoc(doc(db, "users", userDocId))
+            const data = snap.data()
+            if (data?.blockEmailSent === true || data?.blockEmailSentAt) return { status: "sent" }
+            if (typeof data?.blockEmailError === "string" && data.blockEmailError.trim()) {
+                return { status: "failed", error: data.blockEmailError.trim() }
+            }
+        } catch {
+            // The account is already blocked; a transient status read must not report an update failure.
+        }
+    }
+    return { status: "pending" }
+}
+
+function formatBlockResult(
+    blockedMessage: string,
+    result: BlockEmailResult,
+    sentMessage: string,
+    failedMessage: string,
+    pendingMessage: string
+): string {
+    if (result.status === "sent") return `${blockedMessage}\n${sentMessage}`
+    if (result.status === "failed") return `${blockedMessage}\n${failedMessage}: ${result.error}`
+    return `${blockedMessage}\n${pendingMessage}`
 }

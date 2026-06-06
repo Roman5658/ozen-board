@@ -30,6 +30,7 @@ type ReportEmailClaim = {
 
 const SUPPORT_MESSAGE_UK = "Якщо ви вважаєте це помилкою, зверніться до підтримки через платформу Xoven.";
 const SUPPORT_MESSAGE_PL = "Jeśli uważasz, że to pomyłka, skontaktuj się z pomocą przez platformę Xoven.";
+const BLOCK_EMAIL_CLAIM_TTL_MS = 10 * 60_000;
 
 export const sendReportModerationEmails = onDocumentUpdated(
     {
@@ -59,7 +60,8 @@ export const sendReportModerationEmails = onDocumentUpdated(
             const currentAction = getModerationAction(report.moderationAction);
             if (!currentAction || !report.processedAt) return null;
 
-            const shouldEmailReportedUser = currentAction === "warning" || currentAction === "block_user";
+            // Account blocks are emailed by sendUserBlockedEmail from the user status transition.
+            const shouldEmailReportedUser = currentAction === "warning";
             const reporterAlreadySent = report.reporterModerationEmailSent === true &&
                 report.reporterModerationEmailAction === currentAction;
             const reportedAlreadySent = report.reportedUserModerationEmailSent === true &&
@@ -100,7 +102,7 @@ export const sendReportModerationEmails = onDocumentUpdated(
                 });
             }
 
-            if ((claim.action === "warning" || claim.action === "block_user") && claim.reportedUserId) {
+            if (claim.action === "warning" && claim.reportedUserId) {
                 const reported = await getUserContact(claim.reportedUserId);
                 if (reported.email) {
                     await sendReportedUserEmail(resend, from, reported.email, claim);
@@ -123,6 +125,128 @@ export const sendReportModerationEmails = onDocumentUpdated(
                 moderationEmailSendingAt: null,
                 moderationEmailError: message,
                 moderationEmailLastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        }
+    }
+);
+
+export const sendUserBlockedEmail = onDocumentUpdated(
+    {
+        document: "users/{userId}",
+        secrets: [RESEND_API_KEY],
+    },
+    async (event) => {
+        const before = event.data?.before.data() ?? null;
+        const after = event.data?.after.data() ?? null;
+        if (!after || !becameBlocked(before, after)) return;
+
+        const userRef = db.collection("users").doc(event.params.userId);
+        const claim = await db.runTransaction(async (transaction) => {
+            const snap = await transaction.get(userRef);
+            if (!snap.exists) return null;
+
+            const user = snap.data() ?? {};
+            if (!isBlockedUser(user)) return null;
+            if (user.blockEmailSent === true || user.blockEmailSentAt) return null;
+
+            const sendingAt = toMillis(user.blockEmailSendingAt);
+            if (sendingAt && Date.now() - sendingAt < BLOCK_EMAIL_CLAIM_TTL_MS) return null;
+
+            transaction.update(userRef, {
+                blockEmailSendingAt: admin.firestore.FieldValue.serverTimestamp(),
+                blockEmailError: null,
+            });
+
+            return {
+                userId: event.params.userId,
+                uid: getString(user.uid),
+                email: getString(user.email),
+                reason: getString(user.blockedReason),
+            };
+        });
+
+        if (!claim) return;
+
+        try {
+            const to = await resolveUserEmail(claim.userId, claim.uid, claim.email);
+            if (!to) {
+                throw new Error("Nie znaleziono adresu email zablokowanego użytkownika.");
+            }
+
+            const resend = new Resend(RESEND_API_KEY.value());
+            const from = requireEnv("RECEIPTS_FROM_EMAIL");
+            const result = await resend.emails.send({
+                from,
+                to,
+                subject: "Xoven — акаунт було обмежено / konto zostało ograniczone",
+                text: [
+                    "PL",
+                    "Dzień dobry,",
+                    "",
+                    "Twoje konto na Xoven zostało tymczasowo ograniczone z powodu naruszenia zasad platformy lub zgłoszeń użytkowników.",
+                    claim.reason ? `Powód: ${claim.reason}.` : "",
+                    "",
+                    "Jeśli uważasz, że to pomyłka, skontaktuj się z administracją Xoven: support@xoven.pl.",
+                    "",
+                    "Xoven.pl",
+                    "",
+                    "---",
+                    "",
+                    "UK",
+                    "Добрий день,",
+                    "",
+                    "Ваш акаунт на Xoven тимчасово обмежено через порушення правил платформи або скарги користувачів.",
+                    claim.reason ? `Причина: ${claim.reason}.` : "",
+                    "",
+                    "Якщо ви вважаєте, що це помилка, зверніться до адміністрації Xoven: support@xoven.pl.",
+                    "",
+                    "Xoven.pl",
+                ].filter(Boolean).join("\n"),
+                html: `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111827;">
+                        <h2>Xoven</h2>
+                        <h3>PL</h3>
+                        <p>Dzień dobry,</p>
+                        <p>Twoje konto na Xoven zostało tymczasowo ograniczone z powodu naruszenia zasad platformy lub zgłoszeń użytkowników.</p>
+                        ${claim.reason ? `<p><b>Powód:</b> ${escapeHtml(claim.reason)}</p>` : ""}
+                        <p>Jeśli uważasz, że to pomyłka, skontaktuj się z administracją Xoven:
+                            <a href="mailto:support@xoven.pl">support@xoven.pl</a>.
+                        </p>
+                        <p>Xoven.pl</p>
+                        <hr>
+                        <h3>UK</h3>
+                        <p>Добрий день,</p>
+                        <p>Ваш акаунт на Xoven тимчасово обмежено через порушення правил платформи або скарги користувачів.</p>
+                        ${claim.reason ? `<p><b>Причина:</b> ${escapeHtml(claim.reason)}</p>` : ""}
+                        <p>Якщо ви вважаєте, що це помилка, зверніться до адміністрації Xoven:
+                            <a href="mailto:support@xoven.pl">support@xoven.pl</a>.
+                        </p>
+                        <p>Xoven.pl</p>
+                    </div>
+                `,
+            });
+
+            if (result.error) throw new Error(result.error.message);
+
+            await userRef.update({
+                blockEmailSent: true,
+                blockEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+                blockEmailSendingAt: null,
+                blockEmailError: null,
+            });
+            console.log("Block email sent", {
+                userId: claim.userId,
+                to,
+                resendEmailId: result.data?.id ?? null,
+            });
+        } catch (error) {
+            const message = getErrorMessage(error);
+            console.error(`Block email failed for user ${claim.userId}:`, message);
+            await userRef.update({
+                blockEmailSent: false,
+                blockEmailSendingAt: null,
+                blockEmailError: message,
+                blockEmailLastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
             });
         }
     }
@@ -189,6 +313,39 @@ export const sendUserUnblockedEmail = onDocumentUpdated(
         }
     }
 );
+
+function becameBlocked(
+    before: FirebaseFirestore.DocumentData | null,
+    after: FirebaseFirestore.DocumentData
+): boolean {
+    return !isBlockedUser(before) && isBlockedUser(after);
+}
+
+function isBlockedUser(user: FirebaseFirestore.DocumentData | null): boolean {
+    return user?.blocked === true || user?.status === "blocked" || user?.status === "restricted";
+}
+
+async function resolveUserEmail(
+    userId: string,
+    uid: string | null,
+    email: string | null
+): Promise<string | null> {
+    if (email) return email.trim().toLowerCase();
+    if (userId.includes("@")) return userId.trim().toLowerCase();
+
+    for (const candidateUid of [uid, userId]) {
+        if (!candidateUid) continue;
+        try {
+            const authUser = await admin.auth().getUser(candidateUid);
+            if (authUser.email) return authUser.email.trim().toLowerCase();
+        } catch (error) {
+            const code = (error as { code?: string })?.code ?? "";
+            if (code !== "auth/user-not-found") throw error;
+        }
+    }
+
+    return null;
+}
 
 async function sendReporterEmail(resend: Resend, from: string, to: string, claim: ReportEmailClaim) {
     const result = await resend.emails.send({
