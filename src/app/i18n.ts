@@ -843,6 +843,7 @@ export const translations = {
                 price: "Ціна",
                 contact: "Контакт (телефон / Telegram) — необовʼязково",
                 photoOptional: "Фото не обовʼязкове",
+                photoOptimizationHint: "Фото будуть автоматично стиснуті перед завантаженням. Максимум {{limit}} фото.",
                 category: "Категорія",
                 voivodeship: "Воєводство",
                 city: "Місто",
@@ -854,7 +855,8 @@ export const translations = {
                 limitReached: "Досягнуто ліміт оголошень (10)",
                 paymentNotConfirmed: "Оплата не підтверджена",
                 createFailed: "Помилка при створенні оголошення",
-                maxImages: "Максимум 5 фото",
+                maxImages: "Максимум {{limit}} фото",
+                imageOptimizationFailed: "Не вдалося стиснути фото «{{file}}». Виберіть інший файл.",
             },
 
             cooldown: {
@@ -1971,6 +1973,7 @@ export const translations = {
                 price: "Cena",
                 contact: "Kontakt (telefon / Telegram) — opcjonalnie",
                 photoOptional: "Zdjęcie nie jest wymagane",
+                photoOptimizationHint: "Zdjęcia zostaną automatycznie skompresowane przed przesłaniem. Maksymalnie {{limit}} zdjęć.",
                 category: "Kategoria",
                 voivodeship: "Województwo",
                 city: "Miasto",
@@ -1982,7 +1985,8 @@ export const translations = {
                 limitReached: "Osiągnięto limit ogłoszeń (10)",
                 paymentNotConfirmed: "Płatność nie została potwierdzona",
                 createFailed: "Błąd podczas tworzenia ogłoszenia",
-                maxImages: "Maksymalnie 5 zdjęć",
+                maxImages: "Maksymalnie {{limit}} zdjęć",
+                imageOptimizationFailed: "Nie udało się skompresować zdjęcia „{{file}}”. Wybierz inny plik.",
             },
 
             cooldown: {

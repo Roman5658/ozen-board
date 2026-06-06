@@ -8,6 +8,11 @@ import { CITIES_BY_VOIVODESHIP } from "../data/cities";
 import type { Ad } from "../types/ad";
 import { buildAdPath } from '../utils/slug';
 import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
+import {
+    ImageOptimizationError,
+    MAX_AD_IMAGES,
+    optimizeAdImages,
+} from "../utils/imageOptimization";
 
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP;
 
@@ -145,14 +150,27 @@ function EditAdPage() {
             const adRef = doc(db, "ads", ad.id);
             const timestamp = Date.now();
             const uploadedImages: string[] = [];
+            let optimizedImages: File[] = [];
 
-            for (const [index, file] of imageFiles.entries()) {
+            try {
+                optimizedImages = await optimizeAdImages(imageFiles);
+            } catch (error) {
+                const fileName = error instanceof ImageOptimizationError ? error.fileName : "";
+                setError(
+                    fileName
+                        ? `Не вдалося стиснути фото «${fileName}». Виберіть інший файл.`
+                        : "Не вдалося стиснути фото. Виберіть інший файл.",
+                );
+                return;
+            }
+
+            for (const [index, file] of optimizedImages.entries()) {
                 const imageRef = ref(
                     storage,
                     `ads/${ad.userId}/${timestamp}-${index}-${file.name}`,
                 );
 
-                await uploadBytes(imageRef, file);
+                await uploadBytes(imageRef, file, { contentType: "image/webp" });
                 uploadedImages.push(await getDownloadURL(imageRef));
             }
 
@@ -292,16 +310,20 @@ function EditAdPage() {
                         </div>
                     )}
 
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                        Фото будуть автоматично стиснуті перед завантаженням. Максимум {MAX_AD_IMAGES} фото.
+                    </div>
+
                     <input
                         type="file"
                         accept="image/*"
                         multiple
-                        disabled={saving || existingImages.length + imageFiles.length >= 5}
+                        disabled={saving || existingImages.length + imageFiles.length >= MAX_AD_IMAGES}
                         onChange={(e) => {
                             const newFiles = Array.from(e.target.files ?? []);
 
-                            if (existingImages.length + imageFiles.length + newFiles.length > 5) {
-                                setError("Максимум 5 фото");
+                            if (existingImages.length + imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
+                                setError(`Максимум ${MAX_AD_IMAGES} фото`);
                                 e.currentTarget.value = "";
                                 return;
                             }

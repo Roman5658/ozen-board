@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 
 import { Link, useNavigate } from "react-router-dom"
 import {
@@ -23,6 +23,11 @@ import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
+import {
+    ImageOptimizationError,
+    MAX_AD_IMAGES,
+    optimizeAdImages,
+} from "../utils/imageOptimization"
 type Props = {
     t: (typeof translations)[keyof typeof translations]
 }
@@ -47,6 +52,10 @@ function AddPage({ t }: Props) {
     const [city, setCity] = useState("")
     const [price, setPrice] = useState("")
     const [imageFiles, setImageFiles] = useState<File[]>([])
+    const imagePreviews = useMemo(
+        () => imageFiles.map((file) => URL.createObjectURL(file)),
+        [imageFiles]
+    )
 
     const [sellerContact, setSellerContact] = useState("")
 
@@ -61,6 +70,12 @@ function AddPage({ t }: Props) {
         | 'highlight-gold'
 
     const [promotion, setPromotion] = useState<PromotionType>('none')
+
+    useEffect(() => {
+        return () => {
+            imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+        }
+    }, [imagePreviews])
 
 
 
@@ -313,14 +328,27 @@ function AddPage({ t }: Props) {
             // upload фото
             // upload фото (мульти)
             const imageUrls: string[] = []
+            let optimizedImages: File[] = []
 
-            for (const file of imageFiles) {
+            try {
+                optimizedImages = await optimizeAdImages(imageFiles)
+            } catch (error) {
+                const fileName = error instanceof ImageOptimizationError ? error.fileName : ""
+                setError(
+                    fileName
+                        ? a.errors.imageOptimizationFailed.replace("{{file}}", fileName)
+                        : a.errors.imageOptimizationFailed.replace("{{file}}", "")
+                )
+                return
+            }
+
+            for (const [index, file] of optimizedImages.entries()) {
                 const imageRef = ref(
                     storage,
-                    `ads/${verifiedUserId}/${timestamp}-${file.name}`
+                    `ads/${verifiedUserId}/${timestamp}-${index}-${file.name}`
                 )
 
-                await uploadBytes(imageRef, file)
+                await uploadBytes(imageRef, file, { contentType: "image/webp" })
                 const imageUrl = await getDownloadURL(imageRef)
                 imageUrls.push(imageUrl)
             }
@@ -500,6 +528,12 @@ function AddPage({ t }: Props) {
                     <div style={{fontSize: 12, color: "#64748b"}}>
                         {a.fields.photoOptional}
                     </div>
+                    <div style={{fontSize: 12, color: "#64748b"}}>
+                        {a.fields.photoOptimizationHint.replace(
+                            "{{limit}}",
+                            String(MAX_AD_IMAGES)
+                        )}
+                    </div>
                     <input
                         type="file"
                         accept="image/*"
@@ -507,12 +541,18 @@ function AddPage({ t }: Props) {
                         onChange={(e) => {
                             const newFiles = Array.from(e.target.files ?? [])
 
-                            if (imageFiles.length + newFiles.length > 5) {
-                                setError(a.errors.maxImages)
-
+                            if (imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
+                                setError(
+                                    a.errors.maxImages.replace(
+                                        "{{limit}}",
+                                        String(MAX_AD_IMAGES)
+                                    )
+                                )
+                                e.currentTarget.value = ""
                                 return
                             }
 
+                            setError(null)
                             setImageFiles((prev) => [...prev, ...newFiles])
 
                             // важно: чтобы можно было выбрать те же файлы ещё раз
@@ -530,10 +570,7 @@ function AddPage({ t }: Props) {
                             marginTop: "8px",
                         }}
                     >
-                        {imageFiles.map((file, index) => {
-                            const url = URL.createObjectURL(file)
-
-                            return (
+                        {imagePreviews.map((url, index) => (
                                 <div
                                     key={index}
                                     style={{
@@ -580,8 +617,7 @@ function AddPage({ t }: Props) {
                                         ×
                                     </button>
                                 </div>
-                            )
-                        })}
+                            ))}
                     </div>
                 )}
 
