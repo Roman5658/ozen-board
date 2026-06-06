@@ -25,6 +25,8 @@ export type Ad = {
     removedBy?: string | null
     ownerNotificationStatus?: "unread" | "read" | null
     ownerNotificationMessage?: string | null
+    adminViewedAt?: number | null
+    adminViewedBy?: string | null
     // оплата и продвижение
     paidAt?: number
     paymentId?: string

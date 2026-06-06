@@ -31,7 +31,8 @@ function ContactPage({ t }: Props) {
 
             <ul>
                 <li>
-                    <strong>{c.emailLabel}:</strong> ozenenesis@gmail.com
+                    <strong>{c.emailLabel}:</strong>{' '}
+                    <a href="mailto:support@xoven.pl">support@xoven.pl</a>
                 </li>
                 <li>
                     <strong>{c.telegramLabel}:</strong> @we3bl

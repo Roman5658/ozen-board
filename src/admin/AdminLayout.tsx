@@ -23,6 +23,7 @@ export default function AdminLayout() {
                         <NavLink to="/admin/users">Користувачі</NavLink>
                         <NavLink to="/admin/payments">Платежі</NavLink>
                         <NavLink to="/admin/backups">Резервні копії</NavLink>
+                        <NavLink to="/admin/leads">Lead Manager</NavLink>
                         <NavLink to="/admin/ads">Черги</NavLink>
                         <NavLink to="/admin/ads/list">Усі оголошення</NavLink>
 

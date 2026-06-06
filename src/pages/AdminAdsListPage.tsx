@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { collection, getDocs, writeBatch, doc } from "firebase/firestore"
+import { collection, getDocs, writeBatch, doc, updateDoc } from "firebase/firestore"
 import { Link } from "react-router-dom"
 
 import { db } from "../app/firebase"
@@ -8,7 +8,6 @@ import { getLocalUser } from "../data/localUser"
 import { buildAdPath } from "../utils/slug"
 import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
 
-const ADMIN_READ_ADS_KEY = "xoven_admin_read_ads_v1"
 const PAGE_SIZE = 30
 
 function formatDate(ts?: number) {
@@ -93,15 +92,6 @@ function AdminAdsListPage() {
     const [statusFilter, setStatusFilter] = useState("all")
     const [page, setPage] = useState(1)
     const [now, setNow] = useState(() => Date.now())
-    const [readAdIds, setReadAdIds] = useState<string[]>(() => {
-        try {
-            const raw = localStorage.getItem(ADMIN_READ_ADS_KEY)
-            const parsed = raw ? JSON.parse(raw) : []
-            return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []
-        } catch {
-            return []
-        }
-    })
 
     useEffect(() => {
         async function loadAds() {
@@ -121,22 +111,46 @@ function AdminAdsListPage() {
         loadAds()
     }, [])
 
-    function isAdRead(adId: string) {
-        return readAdIds.includes(adId)
+    async function markAdRead(adId: string) {
+        const ad = ads.find(item => item.id === adId)
+        if (!ad || ad.adminViewedAt) return
+
+        const adminViewedAt = Date.now()
+        const adminViewedBy = getAdminActorId()
+        try {
+            await updateDoc(doc(db, "ads", adId), { adminViewedAt, adminViewedBy })
+            setAds(current => current.map(item =>
+                item.id === adId ? { ...item, adminViewedAt, adminViewedBy } : item
+            ))
+        } catch (error) {
+            console.error("[admin ads] failed to persist viewed state", error)
+        }
     }
 
-    function saveReadAdIds(ids: string[]) {
-        localStorage.setItem(ADMIN_READ_ADS_KEY, JSON.stringify(ids))
-        setReadAdIds(ids)
-    }
+    async function markAllAdsRead() {
+        const unreadAds = ads.filter(ad => !ad.adminViewedAt)
+        if (unreadAds.length === 0) return
 
-    function markAdRead(adId: string) {
-        if (isAdRead(adId)) return
-        saveReadAdIds([...readAdIds, adId])
-    }
+        const adminViewedAt = Date.now()
+        const adminViewedBy = getAdminActorId()
 
-    function markAllAdsRead() {
-        saveReadAdIds(Array.from(new Set([...readAdIds, ...ads.map(ad => ad.id)])))
+        try {
+            for (let index = 0; index < unreadAds.length; index += 450) {
+                const batch = writeBatch(db)
+                unreadAds.slice(index, index + 450).forEach(ad => {
+                    batch.update(doc(db, "ads", ad.id), { adminViewedAt, adminViewedBy })
+                })
+                await batch.commit()
+            }
+
+            const unreadIds = new Set(unreadAds.map(ad => ad.id))
+            setAds(current => current.map(ad =>
+                unreadIds.has(ad.id) ? { ...ad, adminViewedAt, adminViewedBy } : ad
+            ))
+        } catch (error) {
+            console.error("[admin ads] failed to mark all ads as viewed", error)
+            alert("Не вдалося зберегти стан перегляду оголошень")
+        }
     }
 
     const cityOptions = useMemo(
@@ -167,16 +181,14 @@ function AdminAdsListPage() {
             .filter(ad => categoryFilter === "all" || ad.category === categoryFilter)
             .filter(ad => statusFilter === "all" || (ad.status ?? "active") === statusFilter)
             .filter(ad => !q || getSearchableText(ad).includes(q))
-        const readIds = new Set(readAdIds)
-
         return [...base].sort((a, b) => {
-            const aNew = !readIds.has(a.id)
-            const bNew = !readIds.has(b.id)
+            const aNew = !a.adminViewedAt
+            const bNew = !b.adminViewedAt
             if (aNew && !bNew) return -1
             if (!aNew && bNew) return 1
             return (b.createdAt ?? 0) - (a.createdAt ?? 0)
         })
-    }, [ads, categoryFilter, cityFilter, readAdIds, search, statusFilter, voivodeshipFilter])
+    }, [ads, categoryFilter, cityFilter, search, statusFilter, voivodeshipFilter])
 
     const pagedAds = useMemo(
         () => paginateItems(filteredAds, page, PAGE_SIZE),
@@ -245,7 +257,7 @@ function AdminAdsListPage() {
                 Зняти ВСІ оголошення з публікації
             </button>
             {ads.length > 0 && (
-                <button className="btn-secondary" onClick={markAllAdsRead}>
+                <button className="btn-secondary" onClick={() => void markAllAdsRead()}>
                     Позначити всі прочитаними
                 </button>
             )}
@@ -319,7 +331,7 @@ function AdminAdsListPage() {
             {pagedAds.map(ad => {
                 const inTop = ad.pinnedUntil && ad.pinnedUntil > now
                 const inQueue = !inTop && ad.pinQueueAt
-                const isNew = !isAdRead(ad.id)
+                const isNew = !ad.adminViewedAt
 
                 let promo = "—"
                 if (inTop) promo = `TOP (${ad.pinType})`
@@ -337,7 +349,7 @@ function AdminAdsListPage() {
                         <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                             <Link
                                 to={`/admin/ads/${ad.id}`}
-                                onClick={() => markAdRead(ad.id)}
+                                onClick={() => void markAdRead(ad.id)}
                                 style={{ fontWeight: 700 }}
                             >
                                 {ad.title}
@@ -375,7 +387,7 @@ function AdminAdsListPage() {
                             {isNew && (
                                 <button
                                     className="btn-secondary"
-                                    onClick={() => markAdRead(ad.id)}
+                                    onClick={() => void markAdRead(ad.id)}
                                     style={{ width: "fit-content" }}
                                 >
                                     Позначити прочитаним
@@ -385,7 +397,7 @@ function AdminAdsListPage() {
                             <Link
                                 className="btn-secondary"
                                 to={buildAdPath(ad.title, ad.city, ad.id)}
-                                onClick={() => markAdRead(ad.id)}
+                                onClick={() => void markAdRead(ad.id)}
                                 style={{
                                     display: "inline-flex",
                                     alignItems: "center",

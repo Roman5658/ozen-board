@@ -33,10 +33,24 @@ function AdminAdDetailsPage() {
             const snap = await getDoc(ref)
 
             if (snap.exists()) {
-                setAd({
+                const loadedAd = {
                     id: snap.id,
                     ...(snap.data() as Omit<Ad, "id">),
-                })
+                }
+
+                if (!loadedAd.adminViewedAt) {
+                    const adminViewedAt = Date.now()
+                    const adminViewedBy = getAdminActorId()
+                    try {
+                        await updateDoc(ref, { adminViewedAt, adminViewedBy })
+                        loadedAd.adminViewedAt = adminViewedAt
+                        loadedAd.adminViewedBy = adminViewedBy
+                    } catch (error) {
+                        console.error("[admin ad details] failed to persist viewed state", error)
+                    }
+                }
+
+                setAd(loadedAd)
             } else {
                 setAd(null)
             }

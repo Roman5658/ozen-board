@@ -180,7 +180,6 @@ function AdDetailsPage({ t }: Props) {
     const isOwner = !!currentUser && !!ad && String(currentUser.id) === String(ad.userId)
     const isRestrictedAd = ['hidden', 'deleted', 'removed', 'expired'].includes(ad?.status ?? '')
     const canViewRestrictedAd = isOwner || isAdmin()
-    const visibleAd = ad && (!isRestrictedAd || canViewRestrictedAd) ? ad : null
     function getRestrictedAdMessage(status?: string) {
         if (status === 'hidden') return a.statusMessages.hidden
         if (status === 'deleted') return a.statusMessages.deleted

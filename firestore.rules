@@ -51,7 +51,9 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
     'highlightUntil',
     'paidAt',
     'paymentId',
-    'status'
+    'status',
+    'adminViewedAt',
+    'adminViewedBy'
 ]);
 }
 
@@ -149,7 +151,9 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
         'highlightType',
         'highlightUntil',
         'paidAt',
-        'paymentId'
+        'paymentId',
+        'adminViewedAt',
+        'adminViewedBy'
       ]);
     }
 
@@ -340,6 +344,11 @@ allow delete: if isAdmin();
         isAdmin()
       );
       allow create, update, delete: if isAdmin();
+    }
+
+    match /leads/{leadId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if false;
     }
 
     match /{document=**} {

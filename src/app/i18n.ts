@@ -214,7 +214,7 @@ export const translations = {
                 deletionText: 'Для видалення акаунта або персональних даних зв’яжіться з нами. Після перевірки ми видалимо або анонімізуємо дані, які більше не потрібні для платежів, безпеки, скарг або юридичних обов’язків.',
 
                 contactsTitle: '15. Запити щодо приватності',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
+                contactsText: 'Email: support@xoven.pl\nTelegram: @w3bl',
             },
         },
         terms: {
@@ -269,7 +269,7 @@ export const translations = {
                     'Умови користування можуть оновлюватися у разі змін у роботі сервісу. Актуальна версія завжди доступна на цій сторінці.',
 
                 contactsTitle: '11. Контакти',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
+                contactsText: 'Email: support@xoven.pl\nTelegram: @w3bl',
             },
         },
         cookies: {
@@ -1329,7 +1329,7 @@ export const translations = {
                 deletionText: 'Aby usunąć konto lub dane osobowe, skontaktuj się z nami. Po weryfikacji usuniemy lub zanonimizujemy dane, które nie są już potrzebne do płatności, bezpieczeństwa, zgłoszeń lub obowiązków prawnych.',
 
                 contactsTitle: '15. Kontakt w sprawach prywatności',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
+                contactsText: 'Email: support@xoven.pl\nTelegram: @w3bl',
             },
         },
         terms: {
@@ -1384,7 +1384,7 @@ export const translations = {
                     'Warunki korzystania mogą ulec zmianie w przypadku zmian w działaniu serwisu. Aktualna wersja jest zawsze dostępna na tej stronie.',
 
                 contactsTitle: '11. Kontakt',
-                contactsText: 'Email: ozenenesis@gmail.com\nTelegram: @w3bl',
+                contactsText: 'Email: support@xoven.pl\nTelegram: @w3bl',
             },
         },
         cookies: {

@@ -42,6 +42,7 @@ import AdminPaymentsPage from "../pages/AdminPaymentsPage"
 import AdminAuctionsPage from "../pages/AdminAuctionsPage"
 import AdminUsersPage from "../pages/AdminUsersPage"
 import AdminBackupPage from "../pages/AdminBackupPage"
+import AdminLeadsPage from "../pages/AdminLeadsPage"
 
 function getAppSeo(pathname: string, lang: Lang, t: (typeof translations)[Lang]) {
     const homeAlternates = [
@@ -284,6 +285,7 @@ function App() {
                     <Route path="users" element={<AdminUsersPage t={t} />} />
                     <Route path="payments" element={<AdminPaymentsPage />} />
                     <Route path="backups" element={<AdminBackupPage />} />
+                    <Route path="leads" element={<AdminLeadsPage />} />
                 </Route>
             </Routes>
 
