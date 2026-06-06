@@ -338,6 +338,7 @@ function AddPage({ t }: Props) {
                 city,
                 price: price.trim(),
                 images: imageUrls,
+                ...(sellerContact.trim() ? { sellerContact: sellerContact.trim() } : {}),
 
                 userId: verifiedUserId,
                 createdAt: timestamp,
@@ -497,7 +498,7 @@ function AddPage({ t }: Props) {
                 <input
                     className="input"
                     placeholder={a.fields.contact}
-
+                    maxLength={120}
                     value={sellerContact}
                     onChange={(e) => setSellerContact(e.target.value)}
                 />

@@ -427,6 +427,46 @@ width: 80%;
     font-size: 11px;
     color: #6b7280;
 }
+
+.ad-contact {
+    display: grid;
+    gap: 6px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.ad-contact__title {
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ad-contact__link,
+.ad-contact__value {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    color: #111827;
+    font-size: 14px;
+}
+
+.ad-contact__link {
+    width: fit-content;
+    color: #0f5ea8;
+    text-decoration: none;
+}
+
+.ad-contact__link:hover {
+    text-decoration: underline;
+}
+
+.ad-contact__link strong,
+.ad-contact__value strong {
+    overflow-wrap: anywhere;
+}
+
 .app-main {
     flex: 1;
     max-width: 1100px;

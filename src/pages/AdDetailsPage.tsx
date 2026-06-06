@@ -35,6 +35,7 @@ function AdDetailsPage({ t }: Props) {
     const [activeIndex, setActiveIndex] = useState(0)
     const images = ad ? getAdImages(ad) : []
     const mainImage = images[activeIndex]
+    const sellerContact = ad ? getSellerContact(ad.sellerContact) : null
 
     const [payAction, setPayAction] = useState<
         null | "bump" | "top3" | "top6" | "gold"
@@ -313,6 +314,22 @@ function AdDetailsPage({ t }: Props) {
                     onReport={() => setIsReportOpen(true)}
                     t={t}
                 />
+                {sellerContact && (
+                    <section className="ad-contact">
+                        <div className="ad-contact__title">{a.contact.title}</div>
+                        {sellerContact.href ? (
+                            <a className="ad-contact__link" href={sellerContact.href}>
+                                <span>{sellerContact.type === "phone" ? a.contact.phone : a.contact.telegram}</span>
+                                <strong>{sellerContact.label}</strong>
+                            </a>
+                        ) : (
+                            <div className="ad-contact__value">
+                                <span>{a.contact.other}</span>
+                                <strong>{sellerContact.label}</strong>
+                            </div>
+                        )}
+                    </section>
+                )}
                 {isOwner && (
                     <div className="ad-owner-panel card stack12">
                         <div style={{fontWeight: 700}}>{a.ownerPanel.title}</div>
@@ -618,6 +635,60 @@ function AdDetailsPage({ t }: Props) {
 
         </div>
     )
+}
+
+type SellerContact = {
+    type: "phone" | "telegram" | "other"
+    label: string
+    href: string | null
+}
+
+function getSellerContact(value?: string): SellerContact | null {
+    const contact = value?.trim()
+    if (!contact) return null
+
+    const telegramUsername = getTelegramUsername(contact)
+    if (telegramUsername) {
+        return {
+            type: "telegram",
+            label: `@${telegramUsername}`,
+            href: `https://t.me/${telegramUsername}`,
+        }
+    }
+
+    const phoneNumber = contact.replace(/[\s().-]/g, "")
+    if (/^\+?\d{6,15}$/.test(phoneNumber)) {
+        return {
+            type: "phone",
+            label: contact,
+            href: `tel:${phoneNumber}`,
+        }
+    }
+
+    return {
+        type: "other",
+        label: contact,
+        href: null,
+    }
+}
+
+function getTelegramUsername(value: string): string | null {
+    const directMatch = value.match(/^@([A-Za-z0-9_]{5,32})$/)
+    if (directMatch) return directMatch[1]
+
+    const prefixedMatch = value.match(/^telegram\s*:\s*@?([A-Za-z0-9_]{5,32})$/i)
+    if (prefixedMatch) return prefixedMatch[1]
+
+    try {
+        const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`)
+        const hostname = url.hostname.toLowerCase()
+        if (hostname !== "t.me" && hostname !== "telegram.me") return null
+
+        const username = url.pathname.split("/").filter(Boolean)[0] ?? ""
+        return /^[A-Za-z0-9_]{5,32}$/.test(username) ? username : null
+    } catch {
+        return null
+    }
 }
 
 export default AdDetailsPage

@@ -798,6 +798,12 @@ export const translations = {
 
             noImage: "Фото відсутнє",
             noDescription: "Опис відсутній",
+            contact: {
+                title: "Контакт",
+                phone: "Телефон",
+                telegram: "Telegram",
+                other: "Контактні дані",
+            },
 
             ownerPanel: {
                 title: "Керування оголошенням",
@@ -1920,6 +1926,12 @@ export const translations = {
 
             noImage: "Brak zdjęcia",
             noDescription: "Brak opisu",
+            contact: {
+                title: "Kontakt",
+                phone: "Telefon",
+                telegram: "Telegram",
+                other: "Dane kontaktowe",
+            },
 
             ownerPanel: {
                 title: "Zarządzanie ogłoszeniem",
