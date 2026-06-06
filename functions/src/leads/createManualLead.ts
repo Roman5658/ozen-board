@@ -13,7 +13,7 @@ const ADMIN_EMAILS = new Set([
 ]);
 
 type LeadAudience = "pl" | "ua";
-type LeadSource = "olx" | "manual" | "other";
+type LeadSource = "olx" | "otomoto" | "manual" | "other";
 type LeadCategory = "jobs" | "sales" | "services" | "rent" | "other";
 
 export const createManualLead = onCall(
@@ -88,7 +88,7 @@ function requireAdminEmail(auth: { token: Record<string, unknown> } | undefined)
 }
 
 function requireSource(value: unknown): LeadSource {
-    if (value === "olx" || value === "manual" || value === "other") {
+    if (value === "olx" || value === "otomoto" || value === "manual" || value === "other") {
         return value;
     }
     throw new HttpsError("invalid-argument", "Nieprawidłowe źródło leada.");

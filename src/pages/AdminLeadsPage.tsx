@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { collection, deleteDoc, doc, getDocs, orderBy, query, updateDoc } from "firebase/firestore"
-import { createManualLead, importOlxLeads } from "../api/leads"
+import { createManualLead, importOlxLeads, importOtomotoLeads } from "../api/leads"
 import { db } from "../app/firebase"
 import type {
     Lead,
@@ -30,6 +30,7 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 
 const SOURCE_LABELS: Record<LeadSource, string> = {
     olx: "OLX",
+    otomoto: "Otomoto",
     manual: "Manual",
     other: "Other",
 }
@@ -79,9 +80,14 @@ function AdminLeadsPage() {
     const [cityFilter, setCityFilter] = useState("all")
     const [searchFilter, setSearchFilter] = useState("")
     const searchUrl = useMemo(
-        () => source === "olx" ? buildOlxSearchUrl(category, city) : "",
+        () => {
+            if (source === "olx") return buildOlxSearchUrl(category, city)
+            if (source === "otomoto") return buildOtomotoSearchUrl(city)
+            return ""
+        },
         [category, city, source]
     )
+    const autoImportAvailable = source === "olx" || source === "otomoto"
 
     async function loadLeads() {
         setLoading(true)
@@ -142,26 +148,33 @@ function AdminLeadsPage() {
         event.preventDefault()
         setMessage("")
 
-        if (source !== "olx") {
+        if (!autoImportAvailable) {
             setMessage(`${SOURCE_LABELS[source]}: автоматический импорт пока не реализован. Используйте ручное добавление лида.`)
             return
         }
 
         setImporting(true)
         try {
-            const result = await importOlxLeads({
-                searchUrl: searchUrl.trim(),
-                audience,
-                category,
-                city: city.trim(),
-                limit,
-            })
+            const result = source === "olx"
+                ? await importOlxLeads({
+                    searchUrl: searchUrl.trim(),
+                    audience,
+                    category,
+                    city: city.trim(),
+                    limit,
+                })
+                : await importOtomotoLeads({
+                    searchUrl: searchUrl.trim(),
+                    audience,
+                    city: city.trim(),
+                    limit,
+                })
             const data = result.data
             setMessage(`Найдено: ${data.found}. Добавлено: ${data.imported}. Дубликаты: ${data.duplicates}.`)
             await loadLeads()
         } catch (error) {
-            console.error("[admin leads] OLX import failed", error)
-            setMessage(getErrorMessage(error))
+            console.error(`[admin leads] ${source} import failed`, error)
+            setMessage(getImportErrorMessage(error, source))
         } finally {
             setImporting(false)
         }
@@ -310,7 +323,9 @@ function AdminLeadsPage() {
                         <label className="admin-leads-field">
                             <span>Source</span>
                             <select className="select" value={source} onChange={event => {
-                                setSource(event.target.value as LeadSource)
+                                const nextSource = event.target.value as LeadSource
+                                setSource(nextSource)
+                                if (nextSource === "otomoto") setCategory("sales")
                                 setMessage("")
                             }}>
                                 {LEAD_SOURCES.map(value => (
@@ -324,10 +339,10 @@ function AdminLeadsPage() {
                             <input
                                 className="input"
                                 type="url"
-                                required={source === "olx"}
+                                required={autoImportAvailable}
                                 value={searchUrl}
                                 readOnly
-                                placeholder={source === "olx" ? "https://www.olx.pl/" : "Используйте ручное добавление ниже"}
+                                placeholder={autoImportAvailable ? "https://..." : "Используйте ручное добавление ниже"}
                             />
                         </label>
                     </div>
@@ -343,7 +358,12 @@ function AdminLeadsPage() {
 
                         <label className="admin-leads-field">
                             <span>Категория</span>
-                            <select className="select" value={category} onChange={event => setCategory(event.target.value as LeadCategory)}>
+                            <select
+                                className="select"
+                                value={category}
+                                disabled={source === "otomoto"}
+                                onChange={event => setCategory(event.target.value as LeadCategory)}
+                            >
                                 {LEAD_CATEGORIES.map(value => (
                                     <option key={value} value={value}>{CATEGORY_LABELS[value]}</option>
                                 ))}
@@ -377,13 +397,19 @@ function AdminLeadsPage() {
                     <button
                         className="btn-primary admin-leads-import__button"
                         type="submit"
-                        disabled={importing || source !== "olx"}
+                        disabled={importing || !autoImportAvailable}
                     >
-                        {importing ? "Импорт..." : source === "olx" ? "Импортировать лиды с OLX" : "Автоимпорт недоступен"}
+                        {importing
+                            ? "Импорт..."
+                            : source === "olx"
+                                ? "Импортировать лиды с OLX"
+                                : source === "otomoto"
+                                    ? "Импортировать лиды с Otomoto"
+                                    : "Автоимпорт недоступен"}
                     </button>
                 </form>
 
-                {source !== "olx" && (
+                {!autoImportAvailable && (
                     <div className="admin-leads-notice">
                         Для источника {SOURCE_LABELS[source]} доступно только ручное добавление лида.
                     </div>
@@ -622,6 +648,11 @@ function buildOlxSearchUrl(category: LeadCategory, city: string): string {
     return `https://www.olx.pl/${pathParts.length > 0 ? `${pathParts.join("/")}/` : ""}`
 }
 
+function buildOtomotoSearchUrl(city: string): string {
+    const citySlug = toOlxCitySlug(city)
+    return `https://www.otomoto.pl/osobowe${citySlug ? `/${citySlug}` : ""}`
+}
+
 function toOlxCitySlug(city: string): string {
     return city
         .trim()
@@ -647,6 +678,34 @@ function getErrorMessage(error: unknown): string {
         if (message) return message
     }
     return "Не удалось выполнить действие."
+}
+
+function getImportErrorMessage(error: unknown, source: LeadSource): string {
+    const sourceName = SOURCE_LABELS[source]
+    const code = error && typeof error === "object" && "code" in error
+        ? String((error as { code?: unknown }).code ?? "")
+        : ""
+
+    if (code.includes("resource-exhausted")) {
+        return `${sourceName} временно ограничил запрос. Импорт остановлен без повторных попыток.`
+    }
+    if (code.includes("deadline-exceeded")) {
+        return `${sourceName} не ответил вовремя. Попробуйте позже.`
+    }
+    if (code.includes("unavailable")) {
+        return `Не удалось открыть публичную страницу ${sourceName}. Попробуйте позже.`
+    }
+    if (code.includes("failed-precondition")) {
+        return `${sourceName} вернул неподходящую страницу или временную ошибку. Проверьте город и попробуйте позже.`
+    }
+    if (code.includes("invalid-argument")) {
+        return `Не удалось сформировать корректный публичный поиск ${sourceName}. Проверьте введённый город.`
+    }
+    if (code.includes("internal")) {
+        return `Не удалось сохранить импортированные лиды ${sourceName}.`
+    }
+
+    return getErrorMessage(error)
 }
 
 export default AdminLeadsPage

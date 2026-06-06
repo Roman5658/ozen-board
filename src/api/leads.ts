@@ -19,6 +19,20 @@ export const importOlxLeads = httpsCallable<
     }
 >(functions, "importOlxLeads")
 
+export const importOtomotoLeads = httpsCallable<
+    {
+        searchUrl: string
+        audience: LeadAudience
+        city: string
+        limit: number
+    },
+    {
+        found: number
+        imported: number
+        duplicates: number
+    }
+>(functions, "importOtomotoLeads")
+
 export const createManualLead = httpsCallable<
     {
         source: LeadSource
