@@ -430,6 +430,11 @@ function AdminLeadsPage() {
                     </button>
                 </form>
 
+                {source === "otomoto" && (
+                    <div className="admin-leads-source-hint">
+                        Import Otomoto: używane auta, preferowani prywatni sprzedawcy.
+                    </div>
+                )}
                 {!autoImportAvailable && (
                     <div className="admin-leads-notice">
                         Для источника {SOURCE_LABELS[source]} доступно только ручное добавление лида.
@@ -671,7 +676,11 @@ function buildOlxSearchUrl(category: LeadCategory, city: string): string {
 
 function buildOtomotoSearchUrl(city: string): string {
     const citySlug = toOlxCitySlug(city)
-    return `https://www.otomoto.pl/osobowe${citySlug ? `/${citySlug}` : ""}`
+    const url = new URL(
+        `https://www.otomoto.pl/osobowe/uzywane${citySlug ? `/${citySlug}` : ""}`
+    )
+    url.searchParams.set("search[private_business]", "private")
+    return url.toString()
 }
 
 function buildAllegroSearchUrl(city: string): string {

@@ -54,7 +54,7 @@ export const importOtomotoLeads = onCall(
                     listingUrl: listing.listingUrl,
                     contactUrl: listing.listingUrl,
                     status: "new",
-                    note: "",
+                    note: "Otomoto: używane/prywatne",
                     createdAt: Date.now(),
                 });
                 imported++;
@@ -124,7 +124,6 @@ function requireMatchingOtomotoSearchUrl(value: unknown, city: string): string {
     }
 
     url.hostname = "www.otomoto.pl";
-    url.search = "";
     url.hash = "";
 
     const expectedUrl = buildOtomotoSearchUrl(city);
@@ -140,7 +139,11 @@ function requireMatchingOtomotoSearchUrl(value: unknown, city: string): string {
 
 export function buildOtomotoSearchUrl(city: string): string {
     const citySlug = toCitySlug(city);
-    return `https://www.otomoto.pl/osobowe${citySlug ? `/${citySlug}` : ""}`;
+    const url = new URL(
+        `https://www.otomoto.pl/osobowe/uzywane${citySlug ? `/${citySlug}` : ""}`
+    );
+    url.searchParams.set("search[private_business]", "private");
+    return url.toString();
 }
 
 function toCitySlug(city: string): string {
@@ -246,6 +249,8 @@ export function extractPublicOtomotoListings(html: string): PublicOtomotoListing
 
     while ((articleMatch = articlePattern.exec(html)) !== null) {
         const articleHtml = articleMatch[0];
+        if (!isPrivateSellerCard(articleHtml)) continue;
+
         const headingMatch = articleHtml.match(
             /<h[1-6]\b[^>]*>[\s\S]*?<a\b[^>]*\bhref=(["'])([^"']+)\1[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h[1-6]>/i
         );
@@ -260,6 +265,11 @@ export function extractPublicOtomotoListings(html: string): PublicOtomotoListing
     }
 
     return Array.from(listings.values());
+}
+
+function isPrivateSellerCard(articleHtml: string): boolean {
+    const text = normalizeText(articleHtml);
+    return /\bPrywatny sprzedawca\b/i.test(text) && !/\bFirma\b/i.test(text);
 }
 
 function normalizePublicListingUrl(href: string): string | null {
