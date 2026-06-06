@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/purity */
 import type { Ad } from '../types/ad'
-import { getAdImages } from '../utils/getAdImages'
+import { getAdImages, getListingImages, handleListingImageError } from '../utils/getAdImages'
 import { useMemo } from 'react'
 import { formatPricePLN } from '../utils/formatPricePLN'
 
@@ -93,8 +93,8 @@ function AdCard(props: Props) {
     const userId = ad?.userId ?? props.userId
     const userNickname = ad?.userNickname?.trim() || ad?.userName?.trim() || props.userNickname?.trim()
 
-    const images = ad ? getAdImages(ad) : props.images
-    const preview = images?.[0]
+    const images = ad ? getAdImages(ad) : getListingImages(props.images)
+    const preview = images[0]
 
     const formattedDate = useMemo(
         () => formatDate(createdAt, now, props.labels),
@@ -138,13 +138,7 @@ function AdCard(props: Props) {
             }}
         >
             <div className="listing-image">
-                {preview ? (
-                    <img src={preview} alt={title} />
-                ) : (
-                    <div className="listing-image-placeholder">
-                        {props.labels?.noPhoto ?? '—'}
-                    </div>
-                )}
+                <img src={preview} alt={title} onError={handleListingImageError} />
             </div>
 
             <div className="listing-header">

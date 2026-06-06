@@ -842,6 +842,7 @@ export const translations = {
                 description: "Опишіть оголошення, умови, деталі або переваги...",
                 price: "Ціна",
                 contact: "Контакт (телефон / Telegram) — необовʼязково",
+                photoOptional: "Фото не обовʼязкове",
                 category: "Категорія",
                 voivodeship: "Воєводство",
                 city: "Місто",
@@ -850,7 +851,6 @@ export const translations = {
 
             errors: {
                 required: "Заповніть всі обовʼязкові поля",
-                noImages: "Додайте хоча б одне фото",
                 limitReached: "Досягнуто ліміт оголошень (10)",
                 paymentNotConfirmed: "Оплата не підтверджена",
                 createFailed: "Помилка при створенні оголошення",
@@ -889,7 +889,7 @@ export const translations = {
                 queueInfo:
                     "Офіційна оплата на Xoven стосується лише просування, а не купівлі товару. Після оплати просування може активуватися не миттєво, якщо всі місця TOP зайняті. У такому разі оголошення або аукціон потрапляє в чергу й буде показаний у просуванні автоматично, коли звільниться місце.",
                 fillBeforePay:
-                    "Перед оплатою заповніть усі обовʼязкові поля та додайте хоча б одне фото",
+                    "Перед оплатою заповніть усі обовʼязкові поля",
             },
             promotion: {
                 title: "Просування оголошення",
@@ -1970,6 +1970,7 @@ export const translations = {
                 description: "Opisz ogłoszenie, warunki, szczegóły lub zalety...",
                 price: "Cena",
                 contact: "Kontakt (telefon / Telegram) — opcjonalnie",
+                photoOptional: "Zdjęcie nie jest wymagane",
                 category: "Kategoria",
                 voivodeship: "Województwo",
                 city: "Miasto",
@@ -1978,7 +1979,6 @@ export const translations = {
 
             errors: {
                 required: "Wypełnij wszystkie wymagane pola",
-                noImages: "Dodaj co najmniej jedno zdjęcie",
                 limitReached: "Osiągnięto limit ogłoszeń (10)",
                 paymentNotConfirmed: "Płatność nie została potwierdzona",
                 createFailed: "Błąd podczas tworzenia ogłoszenia",
@@ -2017,7 +2017,7 @@ export const translations = {
                 queueInfo:
                     "Oficjalna płatność na Xoven dotyczy tylko promowania, a nie zakupu towaru. Po opłaceniu promowania oferta może nie pojawić się od razu, jeśli wszystkie miejsca TOP są zajęte. W takim przypadku ogłoszenie lub aukcja trafia do kolejki i zostanie automatycznie pokazana w promowaniu, gdy zwolni się miejsce.",
                 fillBeforePay:
-                    "Przed dokonaniem płatności wypełnij wszystkie wymagane pola i dodaj co najmniej jedno zdjęcie",
+                    "Przed dokonaniem płatności wypełnij wszystkie wymagane pola",
             },
             promotion: {
                 title: "Promowanie ogłoszenia",

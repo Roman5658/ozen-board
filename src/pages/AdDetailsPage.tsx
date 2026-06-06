@@ -11,7 +11,7 @@ import { buildSeoDescription, useSeo, BASE_URL } from '../utils/seo'
 import { addDoc, collection } from "firebase/firestore"
 import { getLocalUser, isAdmin } from "../data/localUser"
 import AuthorCard from "../components/AuthorCard"
-import { getAdImages } from "../utils/getAdImages";
+import { getAdImages, handleListingImageError } from "../utils/getAdImages";
 import { buildAdPath, extractIdFromSlug } from "../utils/slug";
 import { auth, db } from '../app/firebase'
 import type { Ad } from '../types/ad'
@@ -469,6 +469,7 @@ function AdDetailsPage({ t }: Props) {
                         <img
                             src={mainImage}
                             alt={ad.title}
+                            onError={handleListingImageError}
                             onClick={() => setIsImageOpen(true)}
                             style={{
                                 width: '100%',
@@ -498,6 +499,7 @@ function AdDetailsPage({ t }: Props) {
                                 key={img}
                                 src={img}
                                 alt={`thumb-${i}`}
+                                onError={handleListingImageError}
                                 onClick={() => setActiveIndex(i)}
                                 style={{
                                     width: '56px',
@@ -536,6 +538,7 @@ function AdDetailsPage({ t }: Props) {
                     <img
                         src={mainImage}
                         alt={ad.title}
+                        onError={handleListingImageError}
                         style={{
                             maxWidth: '90%',
                             maxHeight: '90%',

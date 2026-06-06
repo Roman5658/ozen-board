@@ -235,12 +235,6 @@ function AddPage({ t }: Props) {
             return
         }
 
-        if (imageFiles.length === 0) {
-            setError(a.errors.noImages)
-
-            return
-        }
-
         const lastAdTime = localStorage.getItem("lastAdCreatedAt")
 
         if (lastAdTime) {
@@ -337,7 +331,7 @@ function AddPage({ t }: Props) {
                 voivodeship,
                 city,
                 price: price.trim(),
-                images: imageUrls,
+                ...(imageUrls.length > 0 ? { images: imageUrls } : {}),
                 ...(sellerContact.trim() ? { sellerContact: sellerContact.trim() } : {}),
 
                 userId: verifiedUserId,
@@ -398,8 +392,7 @@ function AddPage({ t }: Props) {
         category &&
         voivodeship &&
         city &&
-        price.trim() &&
-        imageFiles.length > 0
+        price.trim()
 
 
     return (
@@ -503,25 +496,30 @@ function AddPage({ t }: Props) {
                     onChange={(e) => setSellerContact(e.target.value)}
                 />
 
-                <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                        const newFiles = Array.from(e.target.files ?? [])
+                <div className="stack4">
+                    <div style={{fontSize: 12, color: "#64748b"}}>
+                        {a.fields.photoOptional}
+                    </div>
+                    <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => {
+                            const newFiles = Array.from(e.target.files ?? [])
 
-                        if (imageFiles.length + newFiles.length > 5) {
-                            setError(a.errors.maxImages)
+                            if (imageFiles.length + newFiles.length > 5) {
+                                setError(a.errors.maxImages)
 
-                            return
-                        }
+                                return
+                            }
 
-                        setImageFiles((prev) => [...prev, ...newFiles])
+                            setImageFiles((prev) => [...prev, ...newFiles])
 
-                        // важно: чтобы можно было выбрать те же файлы ещё раз
-                        e.currentTarget.value = ""
-                    }}
-                />
+                            // важно: чтобы можно было выбрать те же файлы ещё раз
+                            e.currentTarget.value = ""
+                        }}
+                    />
+                </div>
                 {/* Превʼю вибраних фото */}
                 {imageFiles.length > 0 && (
                     <div
