@@ -435,6 +435,12 @@ function AdminLeadsPage() {
                         Import Otomoto: używane auta, preferowani prywatni sprzedawcy.
                     </div>
                 )}
+                {source === "allegro_lokalnie" && (
+                    <div className="admin-leads-source-hint">
+                        Allegro Lokalnie: публичные продажи товаров. Без города используется широкий поиск
+                        подержанных товаров. При ошибке 429 добавьте ссылку вручную ниже.
+                    </div>
+                )}
                 {!autoImportAvailable && (
                     <div className="admin-leads-notice">
                         Для источника {SOURCE_LABELS[source]} доступно только ручное добавление лида.
@@ -685,8 +691,13 @@ function buildOtomotoSearchUrl(city: string): string {
 
 function buildAllegroSearchUrl(city: string): string {
     const citySlug = toOlxCitySlug(city)
-    const baseUrl = "https://allegrolokalnie.pl/oferty/motoryzacja/samochody-149"
-    return `${baseUrl}${citySlug ? `/${citySlug}` : "/uzywane"}`
+    const url = new URL(
+        citySlug
+            ? `https://allegrolokalnie.pl/oferty/${citySlug}`
+            : "https://allegrolokalnie.pl/oferty/q/u%C5%BCywane"
+    )
+    url.searchParams.set("zrodlo", "lokalnie")
+    return url.toString()
 }
 
 function toOlxCitySlug(city: string): string {
@@ -723,6 +734,9 @@ function getImportErrorMessage(error: unknown, source: LeadSource): string {
         : ""
 
     if (code.includes("resource-exhausted")) {
+        if (source === "allegro_lokalnie") {
+            return "Allegro Lokalnie ограничил автоматический запрос. Повторные запросы не выполняются — добавьте лид вручную ниже."
+        }
         return `${sourceName} временно ограничил запрос. Импорт остановлен без повторных попыток.`
     }
     if (code.includes("deadline-exceeded")) {
@@ -732,6 +746,9 @@ function getImportErrorMessage(error: unknown, source: LeadSource): string {
         return `Не удалось открыть публичную страницу ${sourceName}. Попробуйте позже.`
     }
     if (code.includes("failed-precondition")) {
+        if (source === "allegro_lokalnie") {
+            return "Allegro Lokalnie не вернул публичные карточки или изменил структуру страницы. Используйте ручное добавление лида."
+        }
         return `${sourceName} вернул неподходящую страницу или временную ошибку. Проверьте город и попробуйте позже.`
     }
     if (code.includes("invalid-argument")) {
