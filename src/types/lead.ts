@@ -1,10 +1,11 @@
 export type LeadAudience = "pl" | "ua"
+export type LeadSource = "olx" | "allegro_lokalnie" | "otomoto" | "facebook" | "other"
 export type LeadCategory = "jobs" | "sales" | "services" | "rent" | "other"
 export type LeadStatus = "new" | "wrote" | "replied" | "posted" | "rejected"
 
 export type Lead = {
     id: string
-    source: "olx"
+    source: LeadSource
     audience: LeadAudience
     language: LeadAudience
     category: LeadCategory

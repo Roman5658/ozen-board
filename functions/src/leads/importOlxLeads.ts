@@ -43,7 +43,7 @@ export const importOlxLeads = onCall(
         const searchUrl = requireOlxSearchUrl(data.searchUrl);
         const audience = requireAudience(data.audience);
         const category = requireCategory(data.category);
-        const city = requireText(data.city, "city", 120);
+        const city = optionalText(data.city, "city", 120);
         const limit = requireLimit(data.limit);
         const html = await fetchPublicOlxSearchPage(searchUrl);
         const listings = extractPublicOlxListings(html, searchUrl).slice(0, limit);
@@ -161,6 +161,14 @@ function requireCategory(value: unknown): LeadCategory {
 function requireText(value: unknown, field: string, maxLength: number): string {
     const text = typeof value === "string" ? value.trim() : "";
     if (!text || text.length > maxLength) {
+        throw new HttpsError("invalid-argument", `Nieprawidłowe pole ${field}.`);
+    }
+    return text;
+}
+
+function optionalText(value: unknown, field: string, maxLength: number): string {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (text.length > maxLength) {
         throw new HttpsError("invalid-argument", `Nieprawidłowe pole ${field}.`);
     }
     return text;
