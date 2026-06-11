@@ -256,7 +256,7 @@ function App() {
                 <Route path="/pl/bezpieczenstwo" element={<SafetyPage t={translations.pl} />} />
                 <Route path="/uk/bezpeka" element={<SafetyPage t={translations.uk} />} />
                 <Route path="/promotion-info" element={<PromotionInfoPage t={t} />} />
-                <Route path="/edit/:id" element={<EditAdPage />} />
+                <Route path="/edit/:id" element={<EditAdPage t={t} />} />
                 <Route path="/edit-auction/:id" element={<EditAuctionPage />} />
                 <Route path="/privacy" element={<PrivacyPage t={t} />} />
 

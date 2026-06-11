@@ -843,6 +843,7 @@ export const translations = {
                 price: "Ціна",
                 contact: "Контакт (телефон / Telegram) — необовʼязково",
                 photoOptional: "Фото не обовʼязкове",
+                choosePhotos: "Додати фото",
                 photoOptimizationHint: "Фото будуть автоматично стиснуті перед завантаженням. Максимум {{limit}} фото.",
                 category: "Категорія",
                 voivodeship: "Воєводство",
@@ -928,6 +929,7 @@ export const translations = {
                 buyNowPrice: "Купити зараз (необовʼязково)",
                 endsAt: "Дата завершення",
                 maxDaysHint: "Максимум 10 днів від сьогодні",
+                choosePhotos: "Додати фото",
                 photoOptimizationHint: "Фото будуть автоматично стиснуті перед завантаженням. Максимум {{limit}} фото.",
             },
 
@@ -1975,6 +1977,7 @@ export const translations = {
                 price: "Cena",
                 contact: "Kontakt (telefon / Telegram) — opcjonalnie",
                 photoOptional: "Zdjęcie nie jest wymagane",
+                choosePhotos: "Dodaj zdjęcia",
                 photoOptimizationHint: "Zdjęcia zostaną automatycznie skompresowane przed przesłaniem. Maksymalnie {{limit}} zdjęć.",
                 category: "Kategoria",
                 voivodeship: "Województwo",
@@ -2059,6 +2062,7 @@ export const translations = {
                 buyNowPrice: "Kup teraz (opcjonalnie)",
                 endsAt: "Data zakończenia",
                 maxDaysHint: "Maksymalnie 10 dni od dziś",
+                choosePhotos: "Dodaj zdjęcia",
                 photoOptimizationHint: "Zdjęcia zostaną automatycznie skompresowane przed przesłaniem. Maksymalnie {{limit}} zdjęć.",
             },
 

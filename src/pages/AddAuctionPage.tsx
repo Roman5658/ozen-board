@@ -369,7 +369,10 @@ function AddAuctionPage({ t }: Props) {
                     )}
                 </div>
 
-                <input type="file" accept={IMAGE_FILE_ACCEPT} multiple onChange={(e) => {
+                <label className="photo-upload">
+                    <span className="photo-upload__icon" aria-hidden="true">+</span>
+                    <span>{t.addAuction.fields.choosePhotos}</span>
+                    <input className="photo-upload__input" type="file" accept={IMAGE_FILE_ACCEPT} multiple onChange={(e) => {
                     const newFiles = Array.from(e.target.files ?? [])
 
                     try {
@@ -401,7 +404,8 @@ function AddAuctionPage({ t }: Props) {
                     setError(null)
                     setImageFiles((prev) => [...prev, ...newFiles])
                     e.currentTarget.value = ""
-                }}/>
+                    }}/>
+                </label>
 
 
                 {imageFiles.length > 0 && (

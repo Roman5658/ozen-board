@@ -8,6 +8,7 @@ import { CITIES_BY_VOIVODESHIP } from "../data/cities";
 import type { Ad } from "../types/ad";
 import { buildAdPath } from '../utils/slug';
 import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
+import type { translations } from "../app/i18n";
 import {
     getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
@@ -19,7 +20,11 @@ import {
 
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP;
 
-function EditAdPage() {
+type Props = {
+    t: (typeof translations)[keyof typeof translations];
+};
+
+function EditAdPage({ t }: Props) {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const user = useMemo(() => getLocalUser(), []);
@@ -320,38 +325,49 @@ function EditAdPage() {
                         Фото будуть автоматично стиснуті перед завантаженням. Максимум {MAX_AD_IMAGES} фото.
                     </div>
 
-                    <input
-                        type="file"
-                        accept={IMAGE_FILE_ACCEPT}
-                        multiple
-                        disabled={saving || existingImages.length + imageFiles.length >= MAX_AD_IMAGES}
-                        onChange={(e) => {
-                            const newFiles = Array.from(e.target.files ?? []);
+                    <label
+                        className={`photo-upload ${
+                            saving || existingImages.length + imageFiles.length >= MAX_AD_IMAGES
+                                ? "photo-upload--disabled"
+                                : ""
+                        }`}
+                    >
+                        <span className="photo-upload__icon" aria-hidden="true">+</span>
+                        <span>{t.add.fields.choosePhotos}</span>
+                        <input
+                            className="photo-upload__input"
+                            type="file"
+                            accept={IMAGE_FILE_ACCEPT}
+                            multiple
+                            disabled={saving || existingImages.length + imageFiles.length >= MAX_AD_IMAGES}
+                            onChange={(e) => {
+                                const newFiles = Array.from(e.target.files ?? []);
 
-                            try {
-                                validateImageFiles(newFiles);
-                            } catch (error) {
-                                const fileName = error instanceof UnsupportedImageFormatError
-                                    ? error.fileName
-                                    : "";
-                                setError(
-                                    `Файл «${fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.`,
-                                );
+                                try {
+                                    validateImageFiles(newFiles);
+                                } catch (error) {
+                                    const fileName = error instanceof UnsupportedImageFormatError
+                                        ? error.fileName
+                                        : "";
+                                    setError(
+                                        `Файл «${fileName}» не підтримується. Дозволені лише JPG, JPEG, PNG, WebP, HEIC і HEIF.`,
+                                    );
+                                    e.currentTarget.value = "";
+                                    return;
+                                }
+
+                                if (existingImages.length + imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
+                                    setError(`Максимум ${MAX_AD_IMAGES} фото`);
+                                    e.currentTarget.value = "";
+                                    return;
+                                }
+
+                                setError(null);
+                                setImageFiles((current) => [...current, ...newFiles]);
                                 e.currentTarget.value = "";
-                                return;
-                            }
-
-                            if (existingImages.length + imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
-                                setError(`Максимум ${MAX_AD_IMAGES} фото`);
-                                e.currentTarget.value = "";
-                                return;
-                            }
-
-                            setError(null);
-                            setImageFiles((current) => [...current, ...newFiles]);
-                            e.currentTarget.value = "";
-                        }}
-                    />
+                            }}
+                        />
+                    </label>
 
                     {imagePreviews.length > 0 && (
                         <>

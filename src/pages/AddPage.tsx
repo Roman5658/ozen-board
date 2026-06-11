@@ -543,47 +543,52 @@ function AddPage({ t }: Props) {
                             String(MAX_AD_IMAGES)
                         )}
                     </div>
-                    <input
-                        type="file"
-                        accept={IMAGE_FILE_ACCEPT}
-                        multiple
-                        onChange={(e) => {
-                            const newFiles = Array.from(e.target.files ?? [])
+                    <label className="photo-upload">
+                        <span className="photo-upload__icon" aria-hidden="true">+</span>
+                        <span>{a.fields.choosePhotos}</span>
+                        <input
+                            className="photo-upload__input"
+                            type="file"
+                            accept={IMAGE_FILE_ACCEPT}
+                            multiple
+                            onChange={(e) => {
+                                const newFiles = Array.from(e.target.files ?? [])
 
-                            try {
-                                validateImageFiles(newFiles)
-                            } catch (error) {
-                                const fileName = error instanceof UnsupportedImageFormatError
-                                    ? error.fileName
-                                    : ""
-                                setError(
-                                    a.errors.unsupportedImageFormat.replace(
-                                        "{{file}}",
-                                        fileName
+                                try {
+                                    validateImageFiles(newFiles)
+                                } catch (error) {
+                                    const fileName = error instanceof UnsupportedImageFormatError
+                                        ? error.fileName
+                                        : ""
+                                    setError(
+                                        a.errors.unsupportedImageFormat.replace(
+                                            "{{file}}",
+                                            fileName
+                                        )
                                     )
-                                )
-                                e.currentTarget.value = ""
-                                return
-                            }
+                                    e.currentTarget.value = ""
+                                    return
+                                }
 
-                            if (imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
-                                setError(
-                                    a.errors.maxImages.replace(
-                                        "{{limit}}",
-                                        String(MAX_AD_IMAGES)
+                                if (imageFiles.length + newFiles.length > MAX_AD_IMAGES) {
+                                    setError(
+                                        a.errors.maxImages.replace(
+                                            "{{limit}}",
+                                            String(MAX_AD_IMAGES)
+                                        )
                                     )
-                                )
+                                    e.currentTarget.value = ""
+                                    return
+                                }
+
+                                setError(null)
+                                setImageFiles((prev) => [...prev, ...newFiles])
+
+                                // важно: чтобы можно было выбрать те же файлы ещё раз
                                 e.currentTarget.value = ""
-                                return
-                            }
-
-                            setError(null)
-                            setImageFiles((prev) => [...prev, ...newFiles])
-
-                            // важно: чтобы можно было выбрать те же файлы ещё раз
-                            e.currentTarget.value = ""
-                        }}
-                    />
+                            }}
+                        />
+                    </label>
                 </div>
                 {/* Превʼю вибраних фото */}
                 {imageFiles.length > 0 && (
