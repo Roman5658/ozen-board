@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "sitemap:generate": "tsx scripts/generateSitemap.ts",
+    "backfill:ad-seller-names": "tsx scripts/backfillAdSellerNames.ts",
     "seed:test-listings": "tsx scripts/seedTestListings.ts",
     "seed:test-listings:write": "tsx scripts/seedTestListings.ts --write",
     "seed:test-listings:cleanup": "tsx scripts/seedTestListings.ts --cleanup"

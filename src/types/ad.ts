@@ -39,6 +39,10 @@ export type Ad = {
     userId: string
     userName?: string | null
     userNickname?: string | null
+    sellerName?: string | null
+    sellerNickname?: string | null
+    nickname?: string | null
+    ownerName?: string | null
     sellerContact?: string
 
     location?: {

@@ -8,11 +8,12 @@ import { Link, useLocation } from 'react-router-dom'
 import { getLocalUser } from '../data/localUser'
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query as firestoreQuery, where } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { buildAdPath } from '../utils/slug'
 import { useSeo, BASE_URL } from '../utils/seo'
 import { getUserPublicNicknames } from '../data/usersPublic'
+import { getAdSellerDisplayName } from '../utils/adSellerDisplayName'
 
 type Voivodeship =
     | 'all'
@@ -220,7 +221,10 @@ function HomePage({ t }: Props) {
 
     useEffect(() => {
         async function loadAds() {
-            const snap = await getDocs(collection(db, 'ads'))
+            const snap = await getDocs(firestoreQuery(
+                collection(db, 'ads'),
+                where('status', '==', 'active')
+            ))
             const data: Ad[] = snap.docs.map(doc => ({
                 id: doc.id,
                 ...(doc.data() as Omit<Ad, 'id'>),
@@ -234,7 +238,7 @@ function HomePage({ t }: Props) {
 
     useEffect(() => {
         const missingUserIds = fireAds
-            .filter(ad => !ad.userNickname && !ad.userName)
+            .filter(ad => !getAdSellerDisplayName(ad))
             .map(ad => ad.userId)
             .filter((id): id is string => !!id && !usersById[id])
 
@@ -246,7 +250,7 @@ function HomePage({ t }: Props) {
     }, [fireAds, t.adCard.user, usersById])
 
     function getAdUserNickname(ad: Ad): string | undefined {
-        return ad.userNickname?.trim() || ad.userName?.trim() || usersById[ad.userId]
+        return getAdSellerDisplayName(ad) || usersById[ad.userId]
     }
     useEffect(() => {
         localStorage.setItem('adsViewMode', view)

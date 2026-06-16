@@ -1,6 +1,8 @@
 import { type ReactNode } from 'react'
 import BottomNav from '../components/BottomNav'
 import Footer from '../components/Footer'
+import LiveWeatherBackground from '../components/LiveWeatherBackground'
+import type { LiveWeatherCondition } from '../components/liveWeatherDev'
 
 
 type Props = {
@@ -8,6 +10,8 @@ type Props = {
     header: ReactNode
     activePath: string
     chatUnreadCount: number
+    liveWeatherEnabled: boolean
+    liveWeatherCondition: LiveWeatherCondition | null
     t: {
         bottomNav: {
             home: string
@@ -31,7 +35,15 @@ type Props = {
 }
 
 
-function AppLayout({ children, header, activePath, chatUnreadCount, t }: Props) {
+function AppLayout({
+    children,
+    header,
+    activePath,
+    chatUnreadCount,
+    liveWeatherEnabled,
+    liveWeatherCondition,
+    t,
+}: Props) {
 
     return (
         <div className="app-root">
@@ -46,6 +58,10 @@ function AppLayout({ children, header, activePath, chatUnreadCount, t }: Props) 
             </div>
 
             <main className="app-main">
+                <LiveWeatherBackground
+                    enabled={liveWeatherEnabled}
+                    condition={liveWeatherCondition}
+                />
                 {children}
             </main>
             <Footer t={t.footer}/>

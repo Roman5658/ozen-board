@@ -694,12 +694,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
                             // ===== REGISTER =====
                             // ===== REGISTER =====
-                            const existingByEmail = await getUserByEmail(cleanEmail)
-                            if (existingByEmail) {
-                                setAuthError(a.auth.errors.emailTaken)
-                                return
-                            }
-
                             const nicknameTaken = await isNicknameTaken(nickname)
                             if (nicknameTaken) {
                                 setAuthError(a.auth.errors.nicknameTaken)
@@ -707,11 +701,13 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             }
 
                             const authRes = await createUserWithEmailAndPassword(auth, cleanEmail, password)
+                            await authRes.user.getIdToken(true)
                             const newUser: AppUser = {
                                 id: cleanEmail,
                                 uid: authRes.user.uid,
                                 nickname: nickname.trim(),
                                 email: cleanEmail,
+                                status: "active",
                                 karma: 0,
                                 createdAt: Date.now(),
                             }
@@ -731,6 +727,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             setPassword("")
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } catch (error: any) {
+                            console.error(`[auth] ${mode === "register" ? "registration" : "login"} failed`, error)
                             setAuthError(mapAuthError(error?.code))
                         } finally {
                             setAuthLoading(false)

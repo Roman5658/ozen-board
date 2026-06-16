@@ -1,5 +1,4 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { doc, getDoc } from 'firebase/firestore'
 import { useEffect, useState } from 'react'
 import { db } from '../app/firebase'
 import { collection, getDocs, query, where } from 'firebase/firestore'
@@ -14,6 +13,7 @@ import type { Lang } from '../app/i18n'
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
 import type { UserReview } from '../types/userReview'
 import { getOrCreateChat } from '../data/chats'
+import { getAdSellerDisplayName } from '../utils/adSellerDisplayName'
 
 
 
@@ -21,8 +21,6 @@ type PublicUser = {
     nickname: string
     createdAt?: number
     karma: number
-    phone?: string | null
-    telegram?: string | null
 }
 
 
@@ -69,37 +67,12 @@ function UserPage() {
             return
         }
 
-        const userId = id // 👈 теперь TS знает, что это string
-
-        async function loadUser() {
-            try {
-                const ref = doc(db, 'users', userId)
-                const snap = await getDoc(ref)
-
-                if (snap.exists()) {
-                    const data = snap.data()
-
-                    setUser({
-                        nickname: data.nickname ?? t.common.user,
-                        createdAt: data.createdAt,
-                        karma: typeof data.karma === 'number' ? data.karma : 0,
-                        phone: (typeof data.phone === 'string' && data.phone.trim()) ? data.phone.trim() : null,
-                        telegram: (typeof data.telegram === 'string' && data.telegram.trim()) ? data.telegram.trim() : null,
-                    })
-
-                } else {
-                    setUser(null)
-                }
-            } catch (error) {
-                console.error('[user profile] failed to load user', error)
-                setUser(null)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        loadUser()
-    }, [id])
+        setUser({
+            nickname: t.common.user,
+            karma: 0,
+        })
+        setLoading(false)
+    }, [id, t.common.user])
     useEffect(() => {
         if (!id) return
 
@@ -109,7 +82,8 @@ function UserPage() {
             try {
                 const q = query(
                     collection(db, 'ads'),
-                    where('userId', '==', id)
+                    where('userId', '==', id),
+                    where('status', '==', 'active')
                 )
 
                 const snap = await getDocs(q)
@@ -119,7 +93,7 @@ function UserPage() {
                     ...(d.data() as Omit<Ad, 'id'>),
                 }))
 
-                setAds(data.filter((ad) => (ad.status ?? 'active') === 'active'))
+                setAds(data)
             } catch (error) {
                 console.error('[user profile] failed to load ads', error)
                 setAds([])
@@ -140,7 +114,8 @@ function UserPage() {
             try {
                 const q = query(
                     collection(db, 'auctions'),
-                    where('ownerId', '==', id)
+                    where('ownerId', '==', id),
+                    where('status', '==', 'active')
                 )
 
                 const snap = await getDocs(q)
@@ -150,7 +125,12 @@ function UserPage() {
                     ...(d.data() as Omit<Auction, 'id'>),
                 }))
 
-                setAuctions(data.filter((auction) => (auction.status ?? 'active') === 'active'))
+                const now = Date.now()
+                setAuctions(
+                    data
+                        .filter((auction) => auction.endsAt > now)
+                        .sort((a, b) => a.endsAt - b.endsAt)
+                )
             } catch (error) {
                 console.error('[user profile] failed to load auctions', error)
                 setAuctions([])
@@ -174,6 +154,26 @@ function UserPage() {
             }
         })()
     }, [id, t.common.user])
+
+    useEffect(() => {
+        if (!id) return
+
+        const adName = ads.map(getAdSellerDisplayName).find(Boolean)
+        const auctionName =
+            auctions.find(auction => auction.ownerNickname?.trim())?.ownerNickname?.trim()
+            || auctions.find(auction => auction.ownerName?.trim())?.ownerName?.trim()
+        const reviewName = reviews.find(review => review.targetUserName?.trim())?.targetUserName?.trim()
+        const createdAtCandidates = [
+            ...ads.map(ad => ad.createdAt),
+            ...auctions.map(auction => auction.createdAt),
+        ].filter((value): value is number => typeof value === 'number')
+
+        setUser({
+            nickname: adName || auctionName || reviewName || t.common.user,
+            createdAt: createdAtCandidates.length > 0 ? Math.min(...createdAtCandidates) : undefined,
+            karma: reviews.reduce((sum, review) => sum + (review.karmaValue ?? 0), 0),
+        })
+    }, [ads, auctions, id, reviews, t.common.user])
 
     if (loading) {
         return <div className="card">{t.userPage.loading}</div>
@@ -225,36 +225,9 @@ function UserPage() {
                     </div>
                 )}
 
-                {(user.phone || user.telegram) ? (
-                    <div style={{marginTop: 12}}>
-                        <div style={{fontWeight: 600, marginBottom: 6}}>{t.userPage.contacts}</div>
-
-                        {user.phone && (
-                            <div>
-                                {t.userPage.phone}: <a href={`tel:${user.phone}`}>{user.phone}</a>
-                            </div>
-
-                        )}
-
-                        {user.telegram && (
-                            <div style={{marginTop: 4}}>
-                                Telegram:{' '}
-                                <a
-                                    href={`https://t.me/${user.telegram.replace('@', '')}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                >
-                                    @{user.telegram.replace('@', '')}
-                                </a>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div style={{marginTop: 12, fontSize: 13, color: '#666'}}>
-                        {t.userPage.noContacts}
-
-                    </div>
-                )}
+                <div style={{marginTop: 12, fontSize: 13, color: '#666'}}>
+                    {t.userPage.noContacts}
+                </div>
             </div>
             <hr style={{margin: '20px 0'}}/>
             <h3>{t.userPage.reviews}</h3>

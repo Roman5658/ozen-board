@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { collection, getDocs, updateDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, doc, query, where } from 'firebase/firestore'
 
 import { db } from '../app/firebase'
 import { getLocalUser } from '../data/localUser'
@@ -30,14 +30,16 @@ function MyAdsPage() {
         const userId = String(user.id)
 
         async function loadMyAds() {
-            const snap = await getDocs(collection(db, 'ads'))
+            const snap = await getDocs(query(
+                collection(db, 'ads'),
+                where('userId', '==', userId)
+            ))
 
             const data: Ad[] = snap.docs
                 .map(docSnap => ({
                     id: docSnap.id,
                     ...(docSnap.data() as Omit<Ad, 'id'>),
                 }))
-                .filter(ad => ad.userId === userId)
 
             setAds(data)
             setLoading(false)

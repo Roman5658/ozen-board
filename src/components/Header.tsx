@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import logoBanner from '../assets/xoven-header-logo.png'
+import LiveWeatherToggle from './LiveWeatherToggle'
 
 type Props = {
     title: string
@@ -13,18 +14,33 @@ type Props = {
     }
     chatUnreadCount: number
     chatLabel: string
+    liveWeatherEnabled: boolean
+    liveWeatherTemperature: number | null
+    liveWeatherCode: number | null
     onLangChange: (lang: 'uk' | 'pl') => void
+    onLiveWeatherToggle: () => void
 }
 
 
 
-function Header({  lang, languages, chatUnreadCount, chatLabel, onLangChange }: Props) {
+function Header({
+    lang,
+    languages,
+    chatUnreadCount,
+    chatLabel,
+    liveWeatherEnabled,
+    liveWeatherTemperature,
+    liveWeatherCode,
+    onLangChange,
+    onLiveWeatherToggle,
+}: Props) {
     const [flash, setFlash] = useState<'uk' | 'pl' | null>(null)
     const navigate = useNavigate()
     const badgeText = chatUnreadCount > 99 ? '99+' : String(chatUnreadCount)
 
     return (
         <header
+            className="app-header"
             style={{
                 padding: '12px 16px',
                 borderBottom: '1px solid #ddd',
@@ -55,6 +71,13 @@ function Header({  lang, languages, chatUnreadCount, chatLabel, onLangChange }: 
                     flexWrap: 'wrap',
                     justifyContent: 'flex-end'
                 }}>
+                    <LiveWeatherToggle
+                        enabled={liveWeatherEnabled}
+                        temperature={liveWeatherTemperature}
+                        weatherCode={liveWeatherCode}
+                        onToggle={onLiveWeatherToggle}
+                    />
+
                     <button
                         type="button"
                         onClick={() => navigate('/account/chats')}

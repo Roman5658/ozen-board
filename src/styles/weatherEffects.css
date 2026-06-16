@@ -1,0 +1,190 @@
+.app-main {
+    position: relative;
+    isolation: isolate;
+}
+
+.app-main > :not(.live-weather-background) {
+    position: relative;
+    z-index: 3;
+}
+
+.live-weather-toggle {
+    min-width: 64px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    cursor: pointer;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, 0.08);
+    transition:
+        color 160ms ease,
+        border-color 160ms ease,
+        background-color 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.live-weather-toggle:hover {
+    border-color: #94a3b8;
+}
+
+.live-weather-toggle:focus-visible {
+    outline: 2px solid rgba(25, 118, 210, 0.65);
+    outline-offset: 2px;
+}
+
+.live-weather-toggle--active {
+    border-color: rgba(14, 116, 144, 0.55);
+    background: #ecfeff;
+    color: #0e7490;
+    box-shadow:
+        0 0 0 2px rgba(6, 182, 212, 0.1),
+        0 3px 9px rgba(14, 116, 144, 0.14);
+}
+
+.live-weather-toggle__dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: #94a3b8;
+}
+
+.live-weather-toggle--active .live-weather-toggle__dot {
+    background: #06b6d4;
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.14);
+}
+
+.live-weather-toggle__icon {
+    font-size: 13px;
+    line-height: 1;
+}
+
+.live-weather-toggle__temperature {
+    color: #334155;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
+.live-weather-toggle--active .live-weather-toggle__temperature {
+    color: #155e75;
+}
+
+.live-weather-background {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    /* Change this only if another background overlay is added. Content stays above at z-index 3. */
+    z-index: 2;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    contain: strict;
+}
+
+/* Optional fallback: add this class via RAIN_CLIP_TO_APP_MAIN to limit rain to app-main. */
+.live-weather-background--main-only {
+    clip-path: inset(
+        var(--live-weather-clip-top, 0)
+        0
+        var(--live-weather-clip-bottom, 0)
+        0
+    );
+}
+
+.live-weather-background--cloud,
+.live-weather-background--fog {
+    overflow: hidden;
+}
+
+.live-weather-background--cloud > span,
+.live-weather-background--fog > span {
+    position: absolute;
+    display: block;
+    opacity: var(--weather-layer-opacity);
+    filter: blur(var(--weather-layer-blur));
+    will-change: transform;
+}
+
+.live-weather-background--cloud > span {
+    top: var(--weather-layer-top);
+    left: -62vw;
+    width: max(58vw, 520px);
+    height: max(23vh, 150px);
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse at 30% 48%, rgba(255, 255, 255, 0.9) 0 25%, transparent 62%),
+        radial-gradient(ellipse at 62% 45%, rgba(148, 163, 184, 0.72) 0 28%, transparent 66%),
+        radial-gradient(ellipse at 78% 58%, rgba(226, 232, 240, 0.78) 0 22%, transparent 60%);
+    animation: live-weather-cloud-drift var(--weather-layer-duration) linear infinite;
+    animation-delay: var(--weather-layer-delay);
+}
+
+.live-weather-background--fog > span {
+    top: var(--weather-layer-top);
+    left: -75vw;
+    width: max(72vw, 640px);
+    height: max(15vh, 90px);
+    border-radius: 50%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(226, 232, 240, 0.44) 20%,
+        rgba(148, 163, 184, 0.58) 48%,
+        rgba(241, 245, 249, 0.48) 72%,
+        transparent 100%
+    );
+    animation: live-weather-fog-drift var(--weather-layer-duration) ease-in-out infinite;
+    animation-delay: var(--weather-layer-delay);
+}
+
+@keyframes live-weather-cloud-drift {
+    from {
+        transform: translate3d(0, 0, 0) scale(var(--weather-layer-scale));
+    }
+
+    to {
+        transform: translate3d(190vw, 0, 0) scale(var(--weather-layer-scale));
+    }
+}
+
+@keyframes live-weather-fog-drift {
+    0% {
+        transform: translate3d(0, 0, 0);
+    }
+
+    50% {
+        transform: translate3d(105vw, 1.5vh, 0);
+    }
+
+    100% {
+        transform: translate3d(205vw, 0, 0);
+    }
+}
+
+@media (max-width: 480px) {
+    .live-weather-toggle {
+        min-width: 58px;
+        height: 30px;
+        gap: 4px;
+        padding: 0 7px;
+        font-size: 11px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .live-weather-background {
+        display: none;
+    }
+}

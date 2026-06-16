@@ -43,6 +43,139 @@ import AdminAuctionsPage from "../pages/AdminAuctionsPage"
 import AdminUsersPage from "../pages/AdminUsersPage"
 import AdminBackupPage from "../pages/AdminBackupPage"
 import AdminLeadsPage from "../pages/AdminLeadsPage"
+import {
+    getLiveWeatherCondition,
+    getLiveWeatherDevData,
+    LIVE_WEATHER_DEV_ACTIVE,
+} from '../components/liveWeatherDev'
+
+const LIVE_WEATHER_STORAGE_KEY = 'xoven_live_weather_enabled'
+const LIVE_WEATHER_CACHE_KEY = 'xoven_live_weather_cache'
+const LIVE_WEATHER_CACHE_TTL = 30 * 60 * 1000
+const LIVE_WEATHER_RETRY_DELAY = 5 * 60 * 1000
+
+type LiveWeatherData = {
+    temperature: number
+    weatherCode: number
+    timestamp: number
+}
+
+type OpenMeteoResponse = {
+    current?: {
+        temperature_2m?: number
+        weather_code?: number
+    }
+}
+
+let liveWeatherRequest: Promise<LiveWeatherData | null> | null = null
+let lastLiveWeatherAttempt = 0
+
+function getInitialLiveWeatherEnabled() {
+    try {
+        return localStorage.getItem(LIVE_WEATHER_STORAGE_KEY) === 'true'
+    } catch {
+        return false
+    }
+}
+
+function readLiveWeatherCache(): LiveWeatherData | null {
+    try {
+        const rawCache = localStorage.getItem(LIVE_WEATHER_CACHE_KEY)
+        if (!rawCache) return null
+
+        const cache = JSON.parse(rawCache) as Partial<LiveWeatherData>
+        if (
+            typeof cache.temperature !== 'number' ||
+            typeof cache.weatherCode !== 'number' ||
+            typeof cache.timestamp !== 'number' ||
+            Date.now() - cache.timestamp > LIVE_WEATHER_CACHE_TTL
+        ) {
+            return null
+        }
+
+        return cache as LiveWeatherData
+    } catch {
+        return null
+    }
+}
+
+function getCurrentCoordinates(): Promise<GeolocationCoordinates | null> {
+    if (!navigator.geolocation) {
+        return Promise.resolve(null)
+    }
+
+    return new Promise(resolve => {
+        navigator.geolocation.getCurrentPosition(
+            position => resolve(position.coords),
+            () => resolve(null),
+            {
+                enableHighAccuracy: false,
+                maximumAge: LIVE_WEATHER_CACHE_TTL,
+                timeout: 10000,
+            },
+        )
+    })
+}
+
+function loadLiveWeather(): Promise<LiveWeatherData | null> {
+    if (LIVE_WEATHER_DEV_ACTIVE) {
+        return Promise.resolve(getLiveWeatherDevData())
+    }
+
+    const cachedWeather = readLiveWeatherCache()
+    if (cachedWeather) {
+        return Promise.resolve(cachedWeather)
+    }
+
+    if (liveWeatherRequest) {
+        return liveWeatherRequest
+    }
+
+    if (Date.now() - lastLiveWeatherAttempt < LIVE_WEATHER_RETRY_DELAY) {
+        return Promise.resolve(null)
+    }
+
+    lastLiveWeatherAttempt = Date.now()
+    liveWeatherRequest = (async () => {
+        const coordinates = await getCurrentCoordinates()
+        if (!coordinates) return null
+
+        const params = new URLSearchParams({
+            latitude: String(coordinates.latitude),
+            longitude: String(coordinates.longitude),
+            current: 'temperature_2m,weather_code',
+        })
+        const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
+        if (!response.ok) return null
+
+        const data = await response.json() as OpenMeteoResponse
+        const temperature = data.current?.temperature_2m
+        const weatherCode = data.current?.weather_code
+        if (typeof temperature !== 'number' || typeof weatherCode !== 'number') {
+            return null
+        }
+
+        const weather: LiveWeatherData = {
+            temperature,
+            weatherCode,
+            timestamp: Date.now(),
+        }
+
+        try {
+            localStorage.setItem(LIVE_WEATHER_CACHE_KEY, JSON.stringify(weather))
+        } catch {
+            // The badge can still update for the current session if storage is unavailable.
+        }
+
+        return weather
+    })()
+        .catch(() => null)
+        .finally(() => {
+            liveWeatherRequest = null
+        })
+
+    return liveWeatherRequest
+}
 
 function getAppSeo(pathname: string, lang: Lang, t: (typeof translations)[Lang]) {
     const homeAlternates = [
@@ -106,6 +239,10 @@ function App() {
     const [lang, setLang] = useState<Lang>(() => detectInitialLang())
     const [currentUser, setCurrentUser] = useState(() => getLocalUser())
     const [chatUnreadCount, setChatUnreadCount] = useState(0)
+    const [liveWeatherEnabled, setLiveWeatherEnabled] = useState(getInitialLiveWeatherEnabled)
+    const [liveWeather, setLiveWeather] = useState<LiveWeatherData | null>(() =>
+        LIVE_WEATHER_DEV_ACTIVE ? getLiveWeatherDevData() : readLiveWeatherCache()
+    )
 
 
     const t = translations[lang]
@@ -198,6 +335,55 @@ function App() {
     }, [])
 
     useEffect(() => {
+        try {
+            localStorage.setItem(LIVE_WEATHER_STORAGE_KEY, String(liveWeatherEnabled))
+        } catch {
+            // The visual feature still works for the current session if storage is unavailable.
+        }
+    }, [liveWeatherEnabled])
+
+    useEffect(() => {
+        function syncLiveWeather(event: StorageEvent) {
+            if (event.key === LIVE_WEATHER_STORAGE_KEY) {
+                setLiveWeatherEnabled(event.newValue === 'true')
+            }
+
+            if (event.key === LIVE_WEATHER_CACHE_KEY) {
+                if (!LIVE_WEATHER_DEV_ACTIVE) {
+                    setLiveWeather(readLiveWeatherCache())
+                }
+            }
+        }
+
+        window.addEventListener('storage', syncLiveWeather)
+        return () => window.removeEventListener('storage', syncLiveWeather)
+    }, [])
+
+    useEffect(() => {
+        if (!liveWeatherEnabled || LIVE_WEATHER_DEV_ACTIVE) return
+
+        let isActive = true
+        let refreshTimer = 0
+
+        async function updateWeather() {
+            const weather = await loadLiveWeather()
+            if (!isActive || !weather) return
+
+            setLiveWeather(weather)
+            const cacheAge = Date.now() - weather.timestamp
+            const refreshDelay = Math.max(LIVE_WEATHER_CACHE_TTL - cacheAge, 1000)
+            refreshTimer = window.setTimeout(updateWeather, refreshDelay)
+        }
+
+        void updateWeather()
+
+        return () => {
+            isActive = false
+            window.clearTimeout(refreshTimer)
+        }
+    }, [liveWeatherEnabled])
+
+    useEffect(() => {
         if (!currentUser) {
             setChatUnreadCount(0)
             return
@@ -214,6 +400,8 @@ function App() {
     return (
         <AppLayout
             activePath={location.pathname}
+            liveWeatherEnabled={liveWeatherEnabled}
+            liveWeatherCondition={getLiveWeatherCondition(liveWeather?.weatherCode ?? null)}
             header={
                 <Header
                     title={t.title}
@@ -223,7 +411,11 @@ function App() {
                     languages={t.languages}
                     chatUnreadCount={chatUnreadCount}
                     chatLabel={t.chatIndicator.label}
+                    liveWeatherEnabled={liveWeatherEnabled}
+                    liveWeatherTemperature={liveWeather?.temperature ?? null}
+                    liveWeatherCode={liveWeather?.weatherCode ?? null}
                     onLangChange={changeLang}
+                    onLiveWeatherToggle={() => setLiveWeatherEnabled(enabled => !enabled)}
 
                 />
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore"
+import { addDoc, collection, getDocs, query, serverTimestamp, updateDoc, where } from "firebase/firestore"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { db } from "../app/firebase"
 import type { UserReview } from "../types/userReview"
@@ -12,13 +12,14 @@ type Props = {
     hideActions?: boolean
     adId?: string
     adTitle?: string
+    userDisplayName?: string | null
     onReport?: () => void
     t: (typeof translations)[keyof typeof translations]
 }
 
-type PublicUser = { nickname: string; karma: number; phone?: string | null; telegram?: string | null }
+type PublicUser = { nickname: string; karma: number }
 
-function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) {
+function AuthorCard({ userId, hideActions, adId, adTitle, userDisplayName, onReport, t }: Props) {
     const a = t.authorCard
     const [user, setUser] = useState<PublicUser | null>(null)
     const [reviews, setReviews] = useState<UserReview[]>([])
@@ -34,16 +35,9 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
     const isMe = currentUser?.id === userId
 
     useEffect(() => { (async () => {
-        let nextUser: PublicUser = { nickname: a.userFallback, karma: 0, phone: null, telegram: null }
-
-        try {
-            const snap = await getDoc(doc(db, "users", userId))
-            if (snap.exists()) {
-                const data = snap.data()
-                nextUser = { nickname: data.nickname ?? a.userFallback, karma: typeof data.karma === "number" ? data.karma : 0, phone: data.phone ?? null, telegram: data.telegram ?? null }
-            }
-        } catch (error) {
-            console.warn('[author card] failed to load seller profile', error)
+        const nextUser: PublicUser = {
+            nickname: userDisplayName?.trim() || a.userFallback,
+            karma: 0,
         }
 
         try {
@@ -56,7 +50,7 @@ function AuthorCard({ userId, hideActions, adId, adTitle, onReport, t }: Props) 
             setUser(nextUser)
             setLoading(false)
         }
-    })() }, [userId, a.userFallback])
+    })() }, [userId, userDisplayName, a.userFallback])
 
     const stats = useMemo(() => {
         const count = reviews.length

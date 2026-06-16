@@ -16,6 +16,7 @@ import { getAdImages, handleListingImageError } from "../utils/getAdImages";
 import { buildAdPath, extractIdFromSlug } from "../utils/slug";
 import { auth, db } from '../app/firebase'
 import type { Ad } from '../types/ad'
+import { getAdSellerDisplayName } from '../utils/adSellerDisplayName'
 type Props = {
     t: (typeof translations)[keyof typeof translations]
 }
@@ -312,6 +313,7 @@ function AdDetailsPage({ t }: Props) {
                     userId={ad.userId}
                     adId={ad.id}
                     adTitle={ad.title}
+                    userDisplayName={getAdSellerDisplayName(ad) ?? null}
                     onReport={() => setIsReportOpen(true)}
                     t={t}
                 />

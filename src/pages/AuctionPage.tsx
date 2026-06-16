@@ -50,6 +50,13 @@ type AuctionDocLike = {
     data: () => DocumentData
 }
 
+function isSameUserId(user: ReturnType<typeof getLocalUser>, id?: string | null): boolean {
+    if (!user || !id) return false
+    return [user.id, user.uid, user.email]
+        .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        .some(value => String(value) === String(id))
+}
+
 function auctionFromDoc(docSnap: AuctionDocLike): Auction {
     const raw = docSnap.data()
     return {
@@ -248,18 +255,18 @@ function AuctionPage() {
     // =========================
     // LOAD ONE AUCTION
     // =========================
-    async function loadAuctionById(auctionId: string) {
+    async function loadAuctionById(auctionId: string): Promise<Auction | null> {
         const ref = doc(db, 'auctions', auctionId)
         const snap = await getDoc(ref)
 
         if (!snap.exists()) {
             setActiveAuction(null)
-            return
+            return null
         }
 
         const raw = snap.data()
 
-        setActiveAuction({
+        const nextAuction: Auction = {
             id: snap.id,
             title: raw.title,
             description: raw.description,
@@ -288,32 +295,48 @@ function AuctionPage() {
             promotionUntil: raw.promotionUntil ?? null,
             promotionQueueAt: raw.promotionQueueAt ?? null,
 
-        })
+        }
+
+        setActiveAuction(nextAuction)
+        return nextAuction
     }
 
     // =========================
     // LOAD BIDS
     // =========================
-    async function loadBids(auctionId: string) {
-        const q = query(
-            collection(db, 'auctionBids', auctionId, 'bids'),
-            orderBy('createdAt', 'desc')
-        )
+    async function loadBids(auctionId: string, ownerId?: string | null) {
+        const viewer = getLocalUser()
+        const canReadFullBidHistory = isAdmin() || isSameUserId(viewer, ownerId)
 
-        const snap = await getDocs(q)
+        if (!canReadFullBidHistory) {
+            setBids([])
+            return
+        }
 
-        const data: AuctionBid[] = snap.docs.map(doc => {
-            const raw = doc.data()
-            return {
-                id: doc.id,
-                userId: raw.userId,
-                userName: raw.userName,
-                amount: raw.amount,
-                createdAt: raw.createdAt,
-            }
-        })
+        try {
+            const q = query(
+                collection(db, 'auctionBids', auctionId, 'bids'),
+                orderBy('createdAt', 'desc')
+            )
 
-        setBids(data)
+            const snap = await getDocs(q)
+
+            const data: AuctionBid[] = snap.docs.map(doc => {
+                const raw = doc.data()
+                return {
+                    id: doc.id,
+                    userId: raw.userId,
+                    userName: raw.userName,
+                    amount: raw.amount,
+                    createdAt: raw.createdAt,
+                }
+            })
+
+            setBids(data)
+        } catch (error) {
+            console.warn('[auction] bid history is not readable for this viewer', error)
+            setBids([])
+        }
     }
 
     // =========================
@@ -331,13 +354,13 @@ function AuctionPage() {
         const auctionId = auctionIdFromSlug
 
         async function openAuction() {
-            await loadAuctionById(auctionId)
-            await loadBids(auctionId)
+            const loadedAuction = await loadAuctionById(auctionId)
+            await loadBids(auctionId, loadedAuction?.ownerId)
             await finalizeAuction(auctionId).catch(error => {
                 console.warn('[auction] finalize skipped', error)
             })
-            await loadAuctionById(auctionId)
-            await loadBids(auctionId)
+            const refreshedAuction = await loadAuctionById(auctionId)
+            await loadBids(auctionId, refreshedAuction?.ownerId)
         }
 
         openAuction()
@@ -618,7 +641,7 @@ function AuctionPage() {
                         currentUserName={user?.nickname ?? user?.email ?? null}
                         onBidSuccess={() => {
                             loadAuctionById(visibleActiveAuction.id)
-                            loadBids(visibleActiveAuction.id)
+                            loadBids(visibleActiveAuction.id, visibleActiveAuction.ownerId)
                         }}
                         onPromotionSuccess={() => {
                             loadAuctionById(visibleActiveAuction.id)

@@ -330,6 +330,7 @@ function AuctionDetails({
                     userId={seller.id}
                     adId={auctionId}
                     adTitle={title}
+                    userDisplayName={seller.name}
                     onReport={() => setIsReportOpen(true)}
                     t={t}
                 />

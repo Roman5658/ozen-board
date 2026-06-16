@@ -244,6 +244,7 @@ function AddAuctionPage({ t }: Props) {
 
             ownerId: verifiedOwnerId,
             ownerName: safeUser.nickname || "User",
+            ownerNickname: safeUser.nickname || null,
 
             status: isPaidPromotion ? "pending_payment" : "active",
             createdAt,

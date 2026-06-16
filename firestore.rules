@@ -17,6 +17,12 @@ service cloud.firestore {
       return signedIn() && (idValue == authUid() || idValue == authEmail());
     }
 
+    function isOwnUserDoc(userId) {
+      return signedIn() &&
+             authEmail() != null &&
+             userId == authEmail();
+    }
+
     function userDocPath() {
       return /databases/$(database)/documents/users/$(authEmail());
     }
@@ -163,32 +169,87 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
              ('promotionQueueAt' in request.resource.data && request.resource.data.promotionQueueAt != null);
     }
 
+    // TODO: Next security phase: create sanitized publicAds/publicAuctions because Firestore rules cannot hide fields inside public documents.
+    function isPublicAdRead() {
+      return resource.data.status == 'active';
+    }
+
+    function isPublicAuctionRead() {
+      return resource.data.status == 'active';
+    }
+
+    function isValidOwnUserCreate(userId) {
+      return isOwnUserDoc(userId) &&
+             request.resource.data.keys().hasOnly([
+               'id',
+               'uid',
+               'email',
+               'nickname',
+               'status',
+               'karma',
+               'createdAt',
+               'phone',
+               'telegram'
+             ]) &&
+             request.resource.data.id == userId &&
+             request.resource.data.uid == authUid() &&
+             request.resource.data.email == authEmail() &&
+             request.resource.data.nickname is string &&
+             request.resource.data.nickname.size() > 0 &&
+             request.resource.data.nickname.size() <= 80 &&
+             request.resource.data.status == 'active' &&
+             request.resource.data.karma == 0 &&
+             request.resource.data.createdAt is number;
+    }
+
+    function isValidOwnUserUpdate(userId) {
+      return isOwnUserDoc(userId) &&
+             request.resource.data.uid == authUid() &&
+             request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+               'nickname',
+               'phone',
+               'telegram',
+               'updatedAt'
+             ]) &&
+             (!('nickname' in request.resource.data) || (
+               request.resource.data.nickname is string &&
+               request.resource.data.nickname.size() > 0 &&
+               request.resource.data.nickname.size() <= 80
+             ));
+    }
+
+    function isValidNicknameReservation() {
+      return signedIn() &&
+             request.resource.data.keys().hasOnly([
+               'nickname',
+               'createdAt'
+             ]) &&
+             request.resource.data.nickname is string &&
+             request.resource.data.nickname.size() > 0 &&
+             request.resource.data.nickname.size() <= 80 &&
+             request.resource.data.createdAt is number;
+    }
+
     match /users/{userId} {
-       // Нужен публичный read для проверки занятых никнеймов при регистрации
-            // и отображения никнеймов в чатах/карточках.
-            allow read: if true;
-            allow create: if isSelf(userId);
-            allow update: if isAdmin() || (
-              isSelf(userId) &&
-              !request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                'status',
-                'blockedAt',
-                'blockedReason',
-                'blockedBy',
-                'unblockedAt',
-                'unblockedBy',
-                'unblockReason',
-                'unblockEmailSent',
-                'unblockEmailSentAt',
-                'unblockEmailError',
-                'unblockEmailLastAttemptAt'
-              ])
-            );
+            // Full user profiles are private: only admins and the owner can read them.
+            allow get: if isAdmin() || isOwnUserDoc(userId);
+            allow list: if isAdmin();
+            allow create: if isAdmin() || isValidOwnUserCreate(userId);
+            allow update: if isAdmin() || isValidOwnUserUpdate(userId);
             allow delete: if isAdmin();
     }
 
+    match /nicknames/{nicknameId} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isValidNicknameReservation();
+      allow update, delete: if isAdmin();
+    }
+
     match /ads/{adId} {
-      allow read: if true;
+      allow get, list: if isAdmin() ||
+        (signedIn() && isSelf(resource.data.userId)) ||
+        isPublicAdRead();
       allow create: if canUseAccount() &&
         isSelf(request.resource.data.userId) &&
         !hasProtectedAdCreateFields();
@@ -200,7 +261,9 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
     }
 
     match /auctions/{auctionId} {
-      allow read: if true;
+      allow get, list: if isAdmin() ||
+        (signedIn() && isSelf(resource.data.ownerId)) ||
+        isPublicAuctionRead();
       allow create: if canUseAccount() &&
         isSelf(request.resource.data.ownerId) &&
         !hasPaidAuctionCreateFields();
@@ -213,7 +276,10 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
     }
 
     match /auctionBids/{auctionId}/bids/{bidId} {
-      allow read: if true;
+      allow read: if isAdmin() || (signedIn() && (
+        isSelf(resource.data.userId) ||
+        isSelf(get(/databases/$(database)/documents/auctions/$(auctionId)).data.ownerId)
+      ));
       allow create: if canUseAccount() && isValidAuctionBidCreate(auctionId);
       allow update, delete: if false;
     }

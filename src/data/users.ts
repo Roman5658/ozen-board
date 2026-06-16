@@ -1,15 +1,20 @@
 
 import { db } from "../app/firebase"
 import type { AppUser } from "../types/user"
-import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore"
+import { doc, getDoc, setDoc } from "firebase/firestore"
 
 export const ACCOUNT_RESTRICTED_ERROR = "account-blocked"
 
-export async function isNicknameTaken(nickname: string): Promise<boolean> {
+function nicknameKey(nickname: string): string {
+    return encodeURIComponent(nickname.trim().toLowerCase())
+}
 
-    const q = query(collection(db, "users"), where("nickname", "==", nickname.trim()))
-    const snap = await getDocs(q)
-    return !snap.empty
+export async function isNicknameTaken(nickname: string): Promise<boolean> {
+    const key = nicknameKey(nickname)
+    if (!key) return false
+
+    const snap = await getDoc(doc(db, "nicknames", key))
+    return snap.exists()
 }
 
 /**
@@ -59,6 +64,18 @@ export async function createUser(user: AppUser): Promise<void> {
     }
 
     await setDoc(doc(db, "users", safeUser.id), safeUser, { merge: true })
+
+    const nicknameId = nicknameKey(safeUser.nickname)
+    if (nicknameId) {
+        try {
+            await setDoc(doc(db, "nicknames", nicknameId), {
+                nickname: safeUser.nickname,
+                createdAt: safeUser.createdAt,
+            })
+        } catch (error) {
+            console.warn("[users] failed to reserve public nickname", error)
+        }
+    }
 }
 
 export function isAccountRestrictedError(error: unknown): boolean {

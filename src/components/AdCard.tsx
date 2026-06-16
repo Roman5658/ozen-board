@@ -3,6 +3,7 @@ import type { Ad } from '../types/ad'
 import { getAdImages, getListingImages, handleListingImageError } from '../utils/getAdImages'
 import { useMemo } from 'react'
 import { formatPricePLN } from '../utils/formatPricePLN'
+import { getAdSellerDisplayName } from '../utils/adSellerDisplayName'
 
 type Props = {
     ad?: Ad
@@ -91,7 +92,7 @@ function AdCard(props: Props) {
             : undefined
 
     const userId = ad?.userId ?? props.userId
-    const userNickname = ad?.userNickname?.trim() || ad?.userName?.trim() || props.userNickname?.trim()
+    const userNickname = getAdSellerDisplayName(ad) || props.userNickname?.trim()
 
     const images = ad ? getAdImages(ad) : getListingImages(props.images)
     const preview = images[0]

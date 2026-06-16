@@ -184,6 +184,15 @@ function AddPage({ t }: Props) {
 
             try {
                 setPinLoading(true)
+                console.log("[firestore] AddPage checkPinAvailability", {
+                    collection: "ads",
+                    filters: [
+                        { field: "status", op: "==", value: "active" },
+                        { field: "city", op: "==", value: city },
+                        { field: "pinType", op: "in", value: ["top3", "top6"] },
+                    ],
+                    documentPath: "ads/*",
+                })
                 const info = await checkPinAvailability(city)
                 if (cancelled) return
                 setPinInfo(info)
@@ -294,6 +303,14 @@ function AddPage({ t }: Props) {
 
         let userAdsCount
         try {
+            console.log("[firestore] AddPage user ads cooldown read", {
+                collection: "ads",
+                filters: [
+                    { field: "userId", op: "==", value: verifiedUserId },
+                    { field: "createdAt", op: ">=", value: since },
+                ],
+                documentPath: "ads/*",
+            })
             userAdsCount = await getDocs(
                 query(
                     collection(db, "ads"),
@@ -372,6 +389,8 @@ function AddPage({ t }: Props) {
                 ...(sellerContact.trim() ? { sellerContact: sellerContact.trim() } : {}),
 
                 userId: verifiedUserId,
+                userName: safeUser.nickname || "User",
+                userNickname: safeUser.nickname || null,
                 createdAt: timestamp,
                 status: isPaidPromotion ? "pending_payment" : "active",
 
@@ -380,6 +399,11 @@ function AddPage({ t }: Props) {
                 // Paid promotion fields are applied only after backend capture.
             }
 
+            console.log("[firestore] AddPage create ad write", {
+                collection: "ads",
+                filters: [],
+                documentPath: "ads/<auto-id>",
+            })
             const docRef = await addDoc(collection(db, "ads"), adData)
 
             if (isPaidPromotion) {

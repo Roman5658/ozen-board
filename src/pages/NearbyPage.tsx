@@ -4,10 +4,11 @@ import type { Ad } from '../types/ad'
 
 import { getDistanceKm } from '../utils/distance'
 import { Link } from 'react-router-dom'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../app/firebase'
 import { buildAdPath } from '../utils/slug'
 import { getUserPublicNicknames } from '../data/usersPublic'
+import { getAdSellerDisplayName } from '../utils/adSellerDisplayName'
 
 
 
@@ -77,7 +78,10 @@ function NearbyPage({ t }: Props) {
     }, [])
     useEffect(() => {
         async function loadAds() {
-            const snap = await getDocs(collection(db, 'ads'))
+            const snap = await getDocs(query(
+                collection(db, 'ads'),
+                where('status', '==', 'active')
+            ))
 
             const data: Ad[] = snap.docs.map((d) => ({
                 id: d.id,
@@ -94,7 +98,7 @@ function NearbyPage({ t }: Props) {
 
     useEffect(() => {
         const missingUserIds = ads
-            .filter(ad => !ad.userNickname && !ad.userName)
+            .filter(ad => !getAdSellerDisplayName(ad))
             .map(ad => ad.userId)
             .filter((id): id is string => !!id && !usersById[id])
 
@@ -106,7 +110,7 @@ function NearbyPage({ t }: Props) {
     }, [ads, t.adCard.user, usersById])
 
     function getAdUserNickname(ad: Ad): string | undefined {
-        return ad.userNickname?.trim() || ad.userName?.trim() || usersById[ad.userId]
+        return getAdSellerDisplayName(ad) || usersById[ad.userId]
     }
 
     const cityOptions = useMemo(
