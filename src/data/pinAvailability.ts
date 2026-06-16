@@ -24,6 +24,7 @@ export async function checkPinAvailability(
     const snap = await getDocs(
         query(
             collection(db, "ads"),
+            where("status", "==", "active"),
             where("city", "==", city),
             where("pinType", "in", ["top3", "top6"])
         )
