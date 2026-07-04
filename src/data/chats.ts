@@ -20,6 +20,9 @@ import {
 } from "firebase/firestore"
 import { assertUserNotBlocked } from "./users"
 
+export const MAX_CHAT_MESSAGE_LENGTH = 1000
+export const CHAT_MESSAGE_TOO_LONG_ERROR = "chat-message-too-long"
+
 export type ChatItem = {
     id: string
     users: string[]
@@ -63,6 +66,16 @@ function toMillis(value: unknown): number | undefined {
     }
 
     return undefined
+}
+
+function normalizeChatMessageText(text: string): string {
+    const clean = text.trim()
+    if (!clean) return ""
+    if (clean.length > MAX_CHAT_MESSAGE_LENGTH) {
+        throw new Error(CHAT_MESSAGE_TOO_LONG_ERROR)
+    }
+
+    return clean
 }
 
 function parseChatDoc(d: QueryDocumentSnapshot): ChatItem {
@@ -196,7 +209,7 @@ export async function sendMessage(
     text: string,
     senderName?: string
 ) {
-    const clean = text.trim()
+    const clean = normalizeChatMessageText(text)
     if (!clean) return
     await assertUserNotBlocked(senderId)
 
@@ -235,6 +248,8 @@ export async function sendAdminSystemMessage(params: {
     moderationReason?: string | null
 }) {
     if (!params.adminId || !params.ownerId || params.adminId === params.ownerId) return
+    const clean = normalizeChatMessageText(params.text)
+    if (!clean) return
 
     const chatId = await getOrCreateChat(params.adminId, params.ownerId)
 
@@ -242,7 +257,7 @@ export async function sendAdminSystemMessage(params: {
         senderId: params.adminId,
         senderType: "system",
         senderName: "Xoven Admin",
-        text: params.text,
+        text: clean,
         targetType: params.targetType,
         targetId: params.targetId,
         targetTitle: params.targetTitle ?? null,
@@ -252,7 +267,7 @@ export async function sendAdminSystemMessage(params: {
     })
 
     await updateDoc(doc(db, "chats", chatId), {
-        lastMessage: params.text,
+        lastMessage: clean,
         lastMessageAt: serverTimestamp(),
         lastMessageSenderId: params.adminId,
         lastSenderType: "system",
@@ -277,7 +292,7 @@ export async function sendAuctionEndedSystemMessage(params: {
     auctionTitle?: string
     text: string
 }) {
-    const clean = params.text.trim()
+    const clean = normalizeChatMessageText(params.text)
     if (!clean) return
 
     const unreadUserIds = Array.from(new Set([params.sellerId, params.winnerId].filter(Boolean)))

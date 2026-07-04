@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom"
 import { doc, getDoc, setDoc } from "firebase/firestore"
 import { getLocalUser } from "../data/localUser"
 import {
+    CHAT_MESSAGE_TOO_LONG_ERROR,
+    MAX_CHAT_MESSAGE_LENGTH,
     sendMessage,
     subscribeToChatMessages,
     markChatAsRead,
@@ -305,7 +307,12 @@ function ChatPage() {
                 <form
                     onSubmit={async e => {
                         e.preventDefault()
-                        if (!text.trim()) return
+                        const cleanText = text.trim()
+                        if (!cleanText) return
+                        if (cleanText.length > MAX_CHAT_MESSAGE_LENGTH) {
+                            setSendError(`Message can be up to ${MAX_CHAT_MESSAGE_LENGTH} characters.`)
+                            return
+                        }
 
                         const now = Date.now()
                         if (now - lastSentAt < 1000) {
@@ -328,6 +335,10 @@ function ChatPage() {
                             setLastSentAt(now)
                         } catch (e) {
                             console.error("[chat] send failed", e)
+                            if (e instanceof Error && e.message === CHAT_MESSAGE_TOO_LONG_ERROR) {
+                                setSendError(`Message can be up to ${MAX_CHAT_MESSAGE_LENGTH} characters.`)
+                                return
+                            }
                             setSendError(isAccountRestrictedError(e)
                                 ? t.common.accountRestricted
                                 : "Не вдалося надіслати повідомлення. Спробуйте ще раз.")
@@ -344,6 +355,7 @@ function ChatPage() {
                         placeholder="Напишіть повідомлення…"
                         value={text}
                         onChange={e => setText(e.target.value)}
+                        maxLength={MAX_CHAT_MESSAGE_LENGTH}
                         disabled={sending}
                     />
                     {sendError && (

@@ -230,6 +230,13 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
              request.resource.data.createdAt is number;
     }
 
+    function isValidChatMessageCreate() {
+      return request.resource.data.text is string &&
+             request.resource.data.text.size() > 0 &&
+             request.resource.data.text.size() <= 1000 &&
+             request.resource.data.text.matches('.*\\S.*');
+    }
+
     match /users/{userId} {
             // Full user profiles are private: only admins and the owner can read them.
             allow get: if isAdmin() || isOwnUserDoc(userId);
@@ -250,14 +257,18 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
       allow get, list: if isAdmin() ||
         (signedIn() && isSelf(resource.data.userId)) ||
         isPublicAdRead();
-      allow create: if canUseAccount() &&
-        isSelf(request.resource.data.userId) &&
-        !hasProtectedAdCreateFields();
+      // Normal users create ads through the createAd Cloud Function so the
+      // 10 ads / 24 hours limit cannot be bypassed with direct Firestore writes.
+      allow create: if isAdmin();
       allow update: if (
         (canUseAccount() && isSelf(resource.data.userId) && (!isProtectedAdFieldChanged() || isUserSoftDeletingAd())) ||
         isAdmin()
       );
       allow delete: if false;
+    }
+
+    match /adCreateLimits/{limitId} {
+      allow read, write: if isAdmin();
     }
 
     match /auctions/{auctionId} {
@@ -303,7 +314,7 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
         allow create: if canUseAccount() && (
           authUid() in get(/databases/$(database)/documents/chats/$(chatId)).data.users ||
           authEmail() in get(/databases/$(database)/documents/chats/$(chatId)).data.users
-        );
+        ) && isValidChatMessageCreate();
         allow update, delete: if false;
       }
     }

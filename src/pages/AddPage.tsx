@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from "react"
 
 import { Link, useNavigate } from "react-router-dom"
 import {
-    addDoc,
     collection,
     getDocs,
     query,
@@ -12,8 +11,8 @@ import { PRICES } from "../config/prices"
 import type { translations } from "../app/i18n"
 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import type { Ad } from "../types/ad"
 import { verifyPayPalPayment } from "../api/payments"
+import { createAd, type CreateAdPayload } from "../api/listings"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 
 import { db, storage } from "../app/firebase"
@@ -361,7 +360,7 @@ function AddPage({ t }: Props) {
                 const imageUrl = await getDownloadURL(imageRef)
                 imageUrls.push(imageUrl)
             }
-            const adData: Omit<Ad, "id"> = {
+            const adData: CreateAdPayload = {
                 title: title.trim(),
                 description: description.trim(),
                 category,
@@ -371,18 +370,16 @@ function AddPage({ t }: Props) {
                 ...(imageUrls.length > 0 ? { images: imageUrls } : {}),
                 ...(sellerContact.trim() ? { sellerContact: sellerContact.trim() } : {}),
 
-                userId: verifiedUserId,
                 userName: safeUser.nickname || "User",
                 userNickname: safeUser.nickname || null,
-                createdAt: timestamp,
-                status: isPaidPromotion ? "pending_payment" : "active",
 
                 ...(location ? { location } : {}),
 
                 // Paid promotion fields are applied only after backend capture.
             }
 
-            const docRef = await addDoc(collection(db, "ads"), adData)
+            const createResult = await createAd(adData)
+            const adId = createResult.data.id
 
             if (isPaidPromotion) {
                 if (!paypalOrderId) {
@@ -395,7 +392,7 @@ function AddPage({ t }: Props) {
                 const paymentResult = await verifyPayPalPayment({
                     orderId: paypalOrderId,
                     targetType: "ad",
-                    targetId: docRef.id,
+                    targetId: adId,
                     promotionType: promotion,
                 })
 
@@ -418,7 +415,14 @@ function AddPage({ t }: Props) {
             navigate("/")
         } catch (err) {
             console.error(err)
-            setError(a.errors.createFailed)
+            const errorCode = typeof err === "object" && err !== null && "code" in err
+                ? String((err as { code?: unknown }).code)
+                : ""
+            setError(
+                errorCode === "functions/resource-exhausted" || errorCode === "resource-exhausted"
+                    ? a.errors.limitReached
+                    : a.errors.createFailed
+            )
 
         } finally {
             setIsSubmitting(false)
