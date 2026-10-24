@@ -14,6 +14,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
 import { verifyPayPalPayment } from "../api/payments"
 import { createAd, type CreateAdPayload } from "../api/listings"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
+import PromotionCard from "../components/PromotionCard"
 
 import { db, storage } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
@@ -22,6 +23,16 @@ import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkPinAvailability } from "../data/pinAvailability"
+import {
+    CATALOG_CATEGORIES,
+    getCatalogSubcategoryIds,
+    isCatalogCategoryId,
+    isCatalogSubcategoryId,
+    type CatalogCategoryId,
+    type CatalogSubcategoryId,
+} from "../data/catalogCategories"
+import { isAdPriceType, type AdPriceType } from "../utils/adPrice"
+import { AdPricingValidationError, normalizeAdPricing } from "../utils/adPricing"
 import {
     getImageUploadContentType,
     IMAGE_FILE_ACCEPT,
@@ -39,27 +50,70 @@ type Props = {
 
 type Category = "work" | "sell" | "buy" | "service" | "rent"
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP
+const PAYMENT_STORAGE_KEY = "pendingAdPayment"
+const FORM_STORAGE_KEY = "pendingAdForm"
+type SavedAdForm = Record<string, unknown>
+
+function savedText(value: unknown): string {
+    return typeof value === "string" ? value : ""
+}
+
+function savedCategory(value: unknown): Category | "" {
+    return value === "work" || value === "sell" || value === "buy" || value === "service" || value === "rent"
+        ? value
+        : ""
+}
+
+function savedCatalogCategory(value: unknown): CatalogCategoryId | "" {
+    return isCatalogCategoryId(value) ? value : ""
+}
 
 function AddPage({ t }: Props) {
     const a = t.add
     const navigate = useNavigate()
     const user = getLocalUser()
     const AD_COOLDOWN_MS = 60_000 // 60 секунд
+    const [restoredForm] = useState<SavedAdForm>(() => {
+        try {
+            const savedForm = sessionStorage.getItem(FORM_STORAGE_KEY)
+            if (!savedForm) return {}
+            const parsed: unknown = JSON.parse(savedForm)
+            return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+                ? parsed as SavedAdForm
+                : {}
+        } catch (error) {
+            console.error(error)
+            return {}
+        }
+    })
 
     // --- state ---
-    const [title, setTitle] = useState("")
-    const [description, setDescription] = useState("")
-    const [category, setCategory] = useState<Category | "">("")
-    const [voivodeship, setVoivodeship] = useState("")
-    const [city, setCity] = useState("")
-    const [price, setPrice] = useState("")
+    const [title, setTitle] = useState(savedText(restoredForm.title))
+    const [description, setDescription] = useState(savedText(restoredForm.description))
+    const [category, setCategory] = useState<Category | "">(savedCategory(restoredForm.category))
+    const [catalogCategory, setCatalogCategory] = useState<CatalogCategoryId | "">(
+        savedCatalogCategory(restoredForm.catalogCategory),
+    )
+    const [catalogSubcategory, setCatalogSubcategory] = useState<CatalogSubcategoryId | "">(() => {
+        const savedCategory = savedCatalogCategory(restoredForm.catalogCategory)
+        return savedCategory && isCatalogSubcategoryId(savedCategory, restoredForm.catalogSubcategory)
+            ? restoredForm.catalogSubcategory
+            : ""
+    })
+    const [voivodeship, setVoivodeship] = useState(savedText(restoredForm.voivodeship))
+    const [city, setCity] = useState(savedText(restoredForm.city))
+    const [price, setPrice] = useState(savedText(restoredForm.price))
+    const [priceType, setPriceType] = useState<AdPriceType>(
+        isAdPriceType(restoredForm.priceType) ? restoredForm.priceType : "paid",
+    )
+    const [exchangeDetails, setExchangeDetails] = useState(savedText(restoredForm.exchangeDetails))
     const [imageFiles, setImageFiles] = useState<File[]>([])
     const imagePreviews = useMemo(
         () => imageFiles.map((file) => URL.createObjectURL(file)),
         [imageFiles]
     )
 
-    const [sellerContact, setSellerContact] = useState("")
+    const [sellerContact, setSellerContact] = useState(savedText(restoredForm.sellerContact))
 
     const [error, setError] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -92,8 +146,6 @@ function AddPage({ t }: Props) {
     const [pinLoading, setPinLoading] = useState(false)
     const [paymentCompleted, setPaymentCompleted] = useState(false)
     const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null)
-    const PAYMENT_STORAGE_KEY = "pendingAdPayment"
-    const FORM_STORAGE_KEY = "pendingAdForm"
     const paymentSuccessTitle = "✅ Оплата успешно подтверждена"
     const paymentSuccessMessage = "Теперь нажмите «Создать объявление», чтобы завершить публикацию."
 
@@ -113,38 +165,23 @@ function AddPage({ t }: Props) {
         }
     }, [])
     useEffect(() => {
-        const savedForm = sessionStorage.getItem(FORM_STORAGE_KEY)
-
-        if (savedForm) {
-            try {
-                const parsed = JSON.parse(savedForm)
-
-                setTitle(parsed.title ?? "")
-                setDescription(parsed.description ?? "")
-                setCategory(parsed.category ?? "")
-                setVoivodeship(parsed.voivodeship ?? "")
-                setCity(parsed.city ?? "")
-                setPrice(parsed.price ?? "")
-                setSellerContact(parsed.sellerContact ?? "")
-            } catch (e) {
-                console.error(e)
-            }
-        }
-    }, [])
-    useEffect(() => {
         sessionStorage.setItem(
             FORM_STORAGE_KEY,
             JSON.stringify({
                 title,
                 description,
                 category,
+                catalogCategory,
+                catalogSubcategory,
                 voivodeship,
                 city,
                 price,
+                priceType,
+                exchangeDetails,
                 sellerContact,
             })
         )
-    }, [title, description, category, voivodeship, city, price, sellerContact])
+    }, [title, description, category, catalogCategory, catalogSubcategory, voivodeship, city, price, priceType, exchangeDetails, sellerContact])
 
     useEffect(() => {
         const savedPayment = sessionStorage.getItem(PAYMENT_STORAGE_KEY)
@@ -245,10 +282,24 @@ function AddPage({ t }: Props) {
             !category ||
             !voivodeship ||
             !city ||
-            !price.trim()
+            (priceType === "paid" && !price.trim())
         ) {
             setError(a.errors.required)
 
+            return
+        }
+
+        let pricing
+        try {
+            pricing = normalizeAdPricing(priceType, price, exchangeDetails)
+        } catch (error) {
+            if (error instanceof AdPricingValidationError && error.code === "PRICE_TOO_LONG") {
+                setError(a.errors.priceTooLong)
+            } else if (error instanceof AdPricingValidationError && error.code === "PRICE_REQUIRED") {
+                setError(a.errors.required)
+            } else {
+                setError(a.errors.priceInvalid)
+            }
             return
         }
 
@@ -364,14 +415,13 @@ function AddPage({ t }: Props) {
                 title: title.trim(),
                 description: description.trim(),
                 category,
+                ...(catalogCategory ? { catalogCategory } : {}),
+                ...(catalogCategory && catalogSubcategory ? { catalogSubcategory } : {}),
                 voivodeship,
                 city,
-                price: price.trim(),
+                ...pricing,
                 ...(imageUrls.length > 0 ? { images: imageUrls } : {}),
                 ...(sellerContact.trim() ? { sellerContact: sellerContact.trim() } : {}),
-
-                userName: safeUser.nickname || "User",
-                userNickname: safeUser.nickname || null,
 
                 ...(location ? { location } : {}),
 
@@ -435,7 +485,7 @@ function AddPage({ t }: Props) {
         category &&
         voivodeship &&
         city &&
-        price.trim()
+        (priceType !== "paid" || price.trim())
 
 
     return (
@@ -463,7 +513,7 @@ function AddPage({ t }: Props) {
             </div>
 
 
-            <form className="stack12" onSubmit={handleSubmit}>
+            <form className="market-form stack12" onSubmit={handleSubmit}>
                 <input
                     className="input"
                     placeholder={a.fields.title}
@@ -492,6 +542,49 @@ function AddPage({ t }: Props) {
                     <option value="rent">{a.categories.rent}</option>
 
                 </select>
+
+                <label className="stack4">
+                    <span>{t.add.fields.catalogCategory}</span>
+                    <select
+                        className="input"
+                        value={catalogCategory}
+                        onChange={(event) => {
+                            const next = event.target.value
+                            setCatalogCategory(isCatalogCategoryId(next) ? next : "")
+                            setCatalogSubcategory("")
+                        }}
+                    >
+                        <option value="">{t.home.unclassifiedCategory}</option>
+                        {Object.keys(CATALOG_CATEGORIES).map((key) => (
+                            <option key={key} value={key}>
+                                {t.catalogCategories[key as CatalogCategoryId]}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                {catalogCategory && (
+                    <label className="stack4">
+                        <span>{t.add.fields.catalogSubcategory}</span>
+                        <select
+                            className="input"
+                            value={catalogSubcategory}
+                            onChange={(event) => {
+                                const next = event.target.value
+                                setCatalogSubcategory(
+                                    isCatalogSubcategoryId(catalogCategory, next) ? next : "",
+                                )
+                            }}
+                        >
+                            <option value="">{t.home.allSubcategories}</option>
+                            {getCatalogSubcategoryIds(catalogCategory).map((subcategory) => (
+                                <option key={subcategory} value={subcategory}>
+                                    {t.catalogSubcategories[subcategory]}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                )}
 
                 <select
                     className="input"
@@ -525,12 +618,44 @@ function AddPage({ t }: Props) {
                     </select>
                 )}
 
-                <input
-                    className="input"
-                    placeholder={a.fields.price}
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                />
+                <fieldset className="stack8" style={{ border: 0, padding: 0, margin: 0 }}>
+                    <legend style={{ fontSize: 14, fontWeight: 600 }}>{a.fields.priceType}</legend>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {(["paid", "free", "exchange"] as const).map((type) => (
+                            <button
+                                key={type}
+                                type="button"
+                                className={priceType === type ? "btn-primary" : "btn-secondary"}
+                                aria-pressed={priceType === type}
+                                onClick={() => setPriceType(type)}
+                            >
+                                {a.priceTypes[type]}
+                            </button>
+                        ))}
+                    </div>
+                </fieldset>
+
+                {priceType === "paid" && (
+                    <input
+                        className="input"
+                        placeholder={a.fields.price}
+                        value={price}
+                        maxLength={80}
+                        onChange={(e) => setPrice(e.target.value)}
+                    />
+                )}
+                {priceType === "exchange" && (
+                    <label className="stack4">
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{a.fields.exchangeFor}</span>
+                        <input
+                            className="input"
+                            placeholder={a.fields.exchangeFor}
+                            value={exchangeDetails}
+                            maxLength={200}
+                            onChange={(e) => setExchangeDetails(e.target.value)}
+                        />
+                    </label>
+                )}
                 <input
                     className="input"
                     placeholder={a.fields.contact}
@@ -663,14 +788,16 @@ function AddPage({ t }: Props) {
                         {error}
                     </div>
                 )}
-                <div className="card stack12">
-                    <strong>{a.promotion.title}</strong>
+                <div className="card stack12 promotion-section">
+                    <div className="promotion-section__header">
+                        <strong>{a.promotion.title}</strong>
                     <Link
                         to="/promotion-info"
-                        style={{fontSize: 13, color: "#2563eb", width: "fit-content"}}
+                        className="promotion-section__help"
                     >
                         {t.promotionInfo.linkLabel}
                     </Link>
+                    </div>
 
                     {promotion !== 'none' && (
                         <div className="card stack12">
@@ -765,98 +892,59 @@ function AddPage({ t }: Props) {
                         </div>
                     )}
 
-                    <label className="promotion-option">
-                    <input
-                            type="radio"
-                            name="promotion"
+                    <div className="promotion-options" role="radiogroup" aria-label={a.promotion.title}>
+                        <PromotionCard
+                            name="ad-promotion"
+                            title={a.promotion.none}
+                            price={t.promotionInfo.noCost}
+                            description={a.promotion.noneHint}
                             checked={promotion === 'none'}
-                            onChange={() => setPromotion('none')}
                             disabled={paymentCompleted || isPaying}
+                            onSelect={() => setPromotion('none')}
                         />
-                        🆓 {a.promotion.none}
-                        <div className="hint">{a.promotion.noneHint}
-                        </div>
-                    </label>
-
-                    <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
+                        <PromotionCard
+                            name="ad-promotion"
+                            title="TOP 3"
+                            price={`${PRICES.ad.top3} PLN`}
+                            description={t.promotionInfo.ads.top3}
+                            meta={pinInfo ? (pinInfo.canTop3
+                                ? a.promotion.freeSlots.replace("{{count}}", String(3 - pinInfo.top3Used)).replace("{{max}}", "3")
+                                : a.promotion.queue) : undefined}
                             checked={promotion === 'top3'}
-                            onChange={() => setPromotion('top3')}
                             disabled={pinLoading || paymentCompleted || isPaying}
+                            onSelect={() => setPromotion('top3')}
                         />
-                        🔥 TOP 3
-
-                        <div className="hint">
-                            {a.promotion.top3Hint}
-
-                            {pinInfo && (
-                                <div style={{fontSize: 12, marginTop: 4, opacity: 0.8}}>
-                                    {pinInfo.canTop3
-                                        ? a.promotion.freeSlots
-                                            .replace("{{count}}", String(3 - pinInfo.top3Used))
-                                            .replace("{{max}}", "3")
-                                        : a.promotion.queue}
-
-                                </div>
-                            )}
-                        </div>
-                    </label>
-
-
-                    <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
+                        <PromotionCard
+                            name="ad-promotion"
+                            title="TOP 6"
+                            price={`${PRICES.ad.top6} PLN`}
+                            description={t.promotionInfo.ads.top6}
+                            meta={pinInfo ? (pinInfo.canTop6
+                                ? a.promotion.freeSlots.replace("{{count}}", String(6 - pinInfo.top6Used)).replace("{{max}}", "6")
+                                : a.promotion.queue) : undefined}
                             checked={promotion === 'top6'}
-                            onChange={() => setPromotion('top6')}
                             disabled={pinLoading || paymentCompleted || isPaying}
+                            onSelect={() => setPromotion('top6')}
                         />
-                        ⭐ TOP 6
-
-                        <div className="hint">
-                            {a.promotion.top6Hint}
-                            {pinInfo && (
-                                <div style={{fontSize: 12, marginTop: 4, opacity: 0.8}}>
-                                    {pinInfo.canTop6
-                                        ? a.promotion.freeSlots
-                                            .replace("{{count}}", String(6 - pinInfo.top6Used))
-                                            .replace("{{max}}", "6")
-                                        : a.promotion.queue}
-
-
-                                </div>
-                            )}
-                        </div>
-                    </label>
-
-
-                    <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
+                        <PromotionCard
+                            name="ad-promotion"
+                            title={a.promotion.bump}
+                            price={`${PRICES.ad.bump} PLN`}
+                            description={t.promotionInfo.ads.bump}
                             checked={promotion === 'bump'}
-                            onChange={() => setPromotion('bump')}
                             disabled={paymentCompleted || isPaying}
+                            onSelect={() => setPromotion('bump')}
                         />
-                        🚀 {a.promotion.bump}
-                        <div className="hint">{a.promotion.bumpHint}</div>
-
-                    </label>
-
-                    <label className="promotion-option">
-                        <input
-                            type="radio"
-                            name="promotion"
+                        <PromotionCard
+                            name="ad-promotion"
+                            title={a.promotion.gold}
+                            price={`${PRICES.ad.gold} PLN`}
+                            description={t.promotionInfo.ads.gold}
                             checked={promotion === 'highlight-gold'}
-                            onChange={() => setPromotion('highlight-gold')}
                             disabled={paymentCompleted || isPaying}
+                            onSelect={() => setPromotion('highlight-gold')}
                         />
-                        ✨ {a.promotion.gold}
-                        <div className="hint">{a.promotion.goldHint}</div>
-
-                    </label>
+                    </div>
                 </div>
 
 

@@ -24,6 +24,7 @@ function AdminAdDetailsPage() {
     const { adId } = useParams<{ adId: string }>()
     const [ad, setAd] = useState<Ad | null>(null)
     const [loading, setLoading] = useState(true)
+    const [now] = useState(() => Date.now())
 
     useEffect(() => {
         async function loadAd() {
@@ -159,8 +160,6 @@ function AdminAdDetailsPage() {
             moderationReason,
         })
     }
-
-    const now = Date.now()
 
     const inTop =
         ad.pinnedUntil &&

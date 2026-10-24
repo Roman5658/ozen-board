@@ -194,9 +194,7 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
              request.resource.data.id == userId &&
              request.resource.data.uid == authUid() &&
              request.resource.data.email == authEmail() &&
-             request.resource.data.nickname is string &&
-             request.resource.data.nickname.size() > 0 &&
-             request.resource.data.nickname.size() <= 80 &&
+             isValidNickname(request.resource.data.nickname) &&
              request.resource.data.status == 'active' &&
              request.resource.data.karma == 0 &&
              request.resource.data.createdAt is number;
@@ -211,23 +209,109 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
                'telegram',
                'updatedAt'
              ]) &&
-             (!('nickname' in request.resource.data) || (
-               request.resource.data.nickname is string &&
-               request.resource.data.nickname.size() > 0 &&
-               request.resource.data.nickname.size() <= 80
+             (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['nickname']) || (
+               isValidNickname(request.resource.data.nickname)
              ));
     }
 
-    function isValidNicknameReservation() {
+    function isValidNickname(nickname) {
+      return nickname is string &&
+             nickname.size() > 0 &&
+             nickname.size() <= 80 &&
+             nickname.matches('^[A-Za-z0-9._-]+$') &&
+             nickname.lower().replace('[._-]+', '') != 'xovenadmin';
+    }
+
+    function isValidNicknameReservation(nicknameId) {
       return signedIn() &&
+             request.resource.data.keys().hasAll([
+               'nickname',
+               'createdAt'
+             ]) &&
              request.resource.data.keys().hasOnly([
                'nickname',
                'createdAt'
              ]) &&
-             request.resource.data.nickname is string &&
-             request.resource.data.nickname.size() > 0 &&
-             request.resource.data.nickname.size() <= 80 &&
+             isValidNickname(request.resource.data.nickname) &&
+             nicknameId == request.resource.data.nickname.lower() &&
              request.resource.data.createdAt is number;
+    }
+
+    function isValidPaidAdPrice(value) {
+      return value is string &&
+             value.size() > 0 &&
+             value.size() <= 80 &&
+             value.matches('.*\\S.*') &&
+             !value.matches('.*(^|[^A-Za-z])[Nn][Aa][Nn]([^A-Za-z]|$).*') &&
+             !value.matches('.*(^|[^A-Za-z])[Ii][Nn][Ff][Ii][Nn][Ii][Tt][Yy]([^A-Za-z]|$).*') &&
+             !value.matches('.*(^|[^0-9])[-−]\\s*\\d+.*') &&
+             !value.matches('.*[0-9][eE][+-]?[0-9]+.*');
+    }
+
+    function hasNoExchangeDetails(data) {
+      return !('exchangeDetails' in data) ||
+             (data.exchangeDetails is string && data.exchangeDetails == '');
+    }
+
+    function isValidAdPricing(data) {
+      return (
+        (!('priceType' in data) && isValidPaidAdPrice(data.price) && hasNoExchangeDetails(data)) ||
+        ('priceType' in data && data.priceType == 'paid' &&
+          isValidPaidAdPrice(data.price) && hasNoExchangeDetails(data)) ||
+        ('priceType' in data && data.priceType == 'free' &&
+          data.price == '' && hasNoExchangeDetails(data)) ||
+        ('priceType' in data && data.priceType == 'exchange' &&
+          data.price == '' &&
+          (!('exchangeDetails' in data) ||
+            (data.exchangeDetails is string && data.exchangeDetails.size() <= 200)))
+      );
+    }
+
+    function adPricingWasNotChanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'price',
+        'priceType',
+        'exchangeDetails'
+      ]);
+    }
+
+    function adCatalogWasNotChanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'catalogCategory',
+        'catalogSubcategory'
+      ]);
+    }
+
+    function adCategoryWasNotChanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['category']);
+    }
+
+    function isValidAdCategory(value) {
+      return value in ['work', 'sell', 'buy', 'service', 'rent'];
+    }
+
+    function isValidAdCatalog(data) {
+      return (
+        ('catalogCategory' in data && data.catalogCategory == 'animals' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['dogsCats', 'birds', 'farmAnimals', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'electronics' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['phonesComputers', 'homeAppliances', 'tvAudio', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'furniture' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['furniture', 'interiorDecor', 'lighting', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'clothing' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['womenClothing', 'menClothing', 'shoes', 'accessories', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'construction' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['bricksTools', 'buildingMaterials', 'renovation', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'transport' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['cars', 'motorcycles', 'vehicleParts', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'garden' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['plants', 'gardenFurniture', 'gardenTools', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'children' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory in ['toys', 'childrenClothing', 'strollers', 'other'])) ||
+        ('catalogCategory' in data && data.catalogCategory == 'other' &&
+          (!('catalogSubcategory' in data) || data.catalogSubcategory == 'miscellaneous')) ||
+        (!('catalogCategory' in data) && !('catalogSubcategory' in data))
+      );
     }
 
     function isValidChatMessageCreate() {
@@ -249,7 +333,7 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
     match /nicknames/{nicknameId} {
       allow get: if true;
       allow list: if false;
-      allow create: if isValidNicknameReservation();
+      allow create: if isValidNicknameReservation(nicknameId);
       allow update, delete: if isAdmin();
     }
 
@@ -261,10 +345,47 @@ return request.resource.data.diff(resource.data).affectedKeys().hasAny([
       // 10 ads / 24 hours limit cannot be bypassed with direct Firestore writes.
       allow create: if isAdmin();
       allow update: if (
-        (canUseAccount() && isSelf(resource.data.userId) && (!isProtectedAdFieldChanged() || isUserSoftDeletingAd())) ||
+        (canUseAccount() && isSelf(resource.data.userId) &&
+          request.resource.data.userId == resource.data.userId &&
+          (adPricingWasNotChanged() || isValidAdPricing(request.resource.data)) &&
+          (adCatalogWasNotChanged() || isValidAdCatalog(request.resource.data)) &&
+          (adCategoryWasNotChanged() || isValidAdCategory(request.resource.data.category)) &&
+          (!isProtectedAdFieldChanged() || isUserSoftDeletingAd())) ||
         isAdmin()
       );
       allow delete: if false;
+    }
+
+    // External listings are owned by trusted server-side import code, never by app users.
+    match /externalAds/{externalAdId} {
+      allow get, list: if isAdmin() || resource.data.status == 'active';
+      allow create, update, delete: if false;
+    }
+
+    // Telegram update IDs are server-only idempotency markers; clients cannot read or alter them.
+    match /telegramWebhookUpdates/{updateId} {
+      allow read, write: if false;
+    }
+
+    // Per-chat webhook rate-limit windows are server-only operational state.
+    match /telegramWebhookRateLimits/{sourceId} {
+      allow read, write: if false;
+    }
+
+    // Daily Telegram creation quotas are server-only operational state.
+    match /externalImportDailyLimits/{quotaId} {
+      allow read, write: if false;
+    }
+
+    // Telegram message identity and moderation drafts remain private server state.
+    match /telegramImportRecords/{recordId} {
+      allow read, write: if false;
+    }
+
+    // Import summaries contain operational counters only. Lock state stays server-only.
+    match /externalImportRuns/{runId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /adCreateLimits/{limitId} {

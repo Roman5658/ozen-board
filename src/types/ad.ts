@@ -3,10 +3,16 @@ export type Ad = {
     title: string
     description: string
     category: "work" | "sell" | "buy" | "service" | "rent"
+    /** New optional product taxonomy; legacy ads remain uncategorized here. */
+    catalogCategory?: import("../data/catalogCategories").CatalogCategoryId
+    catalogSubcategory?: import("../data/catalogCategories").CatalogSubcategoryId
     voivodeship: string
     city: string
     address?: string
     price: string
+    /** Missing on legacy Firestore records; those are treated as paid listings. */
+    priceType?: "paid" | "free" | "exchange"
+    exchangeDetails?: string
 
     // 🔁 legacy (ПОКА)
     image?: string
@@ -44,6 +50,10 @@ export type Ad = {
     nickname?: string | null
     ownerName?: string | null
     sellerContact?: string
+    /** Public attribution for trusted imports; absent on legacy/user-created ads. */
+    sourceType?: "telegram"
+    sourceName?: string
+    sourceUrl?: string
 
     location?: {
         lat: number

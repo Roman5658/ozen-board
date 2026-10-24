@@ -50,12 +50,11 @@ function AccountPaymentsPage({ t }: Props) {
     const [user] = useState(() => getLocalUser())
     const p = t.account.payments
     const [payments, setPayments] = useState<Payment[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(!!user)
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
         if (!user) {
-            setLoading(false)
             return
         }
         const currentUser = user
@@ -92,8 +91,6 @@ function AccountPaymentsPage({ t }: Props) {
             )
         }
 
-        setLoading(true)
-        setError(null)
         loadPayments()
             .catch((err) => {
                 console.error(err)

@@ -2,7 +2,7 @@
 import type { Ad } from '../types/ad'
 import { getAdImages, getListingImages, handleListingImageError } from '../utils/getAdImages'
 import { useMemo } from 'react'
-import { formatPricePLN } from '../utils/formatPricePLN'
+import { getAdPriceLabel } from '../utils/adPrice'
 import { getAdSellerDisplayName } from '../utils/adSellerDisplayName'
 
 type Props = {
@@ -10,6 +10,7 @@ type Props = {
 
     title?: string
     price?: string
+    priceType?: "paid" | "free" | "exchange"
     city?: string
     description?: string
     images?: string[]
@@ -25,12 +26,18 @@ type Props = {
     onDelete?: () => void
     isPinned?: boolean
     highlightType?: 'gold' | 'blue'
+    externalSourceName?: string
+    externalListingLabel?: string
+    externalOriginalUrl?: string
+    externalOriginalLinkLabel?: string
 
     labels?: {
         today: string
         yesterday: string
         noPhoto: string
         user: string
+        free: string
+        exchange: string
 
         top3: string
         top6: string
@@ -39,6 +46,8 @@ type Props = {
         mine: string
 
         delete: string
+        externalListing?: string
+        externalOriginalLink?: string
     }
 }
 
@@ -63,6 +72,10 @@ function AdCard(props: Props) {
 
     const title = props.title ?? ad?.title ?? ''
     const price = props.price ?? ad?.price
+    const priceLabel = getAdPriceLabel(props.priceType ?? ad?.priceType, price, {
+        free: props.labels?.free ?? 'Безкоштовно',
+        exchange: props.labels?.exchange ?? 'Обмін',
+    })
     const city = props.city ?? ad?.city
     const description = props.description ?? ad?.description
     const createdAt = ad?.createdAt ?? props.createdAt
@@ -145,7 +158,17 @@ function AdCard(props: Props) {
             <div className="listing-header">
                 <h3 className="listing-title">{title}</h3>
 
-                {userId && (
+                {props.externalSourceName && (
+                    <span className="listing-badge external-listing-badge">
+                        {props.labels?.externalListing ?? props.externalListingLabel ?? 'External listing'}: {props.externalSourceName}
+                    </span>
+                )}
+
+                {ad?.sourceType === 'telegram' && (
+                    <span className="listing-badge external-listing-badge">Telegram</span>
+                )}
+
+                {userId && ad?.sourceType !== 'telegram' && (
                     <div style={{ fontSize: 13, marginTop: 4 }}>
                         <span
                             onClick={e => {
@@ -203,12 +226,20 @@ function AdCard(props: Props) {
 
             <div className="listing-footer">
                 <span className="listing-city">{city}</span>
-                {price && <span className="listing-price">{formatPricePLN(price)}</span>}
+                {priceLabel && <span className="listing-price">{priceLabel}</span>}
             </div>
 
             <div className="listing-meta">
                 <span>🕒 {formattedDate}</span>
             </div>
+
+            {props.externalOriginalUrl && (
+                <div className="listing-meta">
+                    <a href={props.externalOriginalUrl} target="_blank" rel="noopener noreferrer">
+                        {props.labels?.externalOriginalLink ?? props.externalOriginalLinkLabel ?? 'Open original listing'}
+                    </a>
+                </div>
+            )}
 
             {props.isMine && props.showActions && props.onDelete && (
                 <button

@@ -8,6 +8,16 @@ import { CITIES_BY_VOIVODESHIP } from "../data/cities";
 import type { Ad } from "../types/ad";
 import { buildAdPath } from '../utils/slug';
 import { getStoredAdImages, handleListingImageError } from "../utils/getAdImages";
+import { resolveAdPriceType, type AdPriceType } from "../utils/adPrice";
+import { AdPricingValidationError, normalizeAdPricing } from "../utils/adPricing";
+import {
+    CATALOG_CATEGORIES,
+    getCatalogSubcategoryIds,
+    isCatalogCategoryId,
+    isCatalogSubcategoryId,
+    type CatalogCategoryId,
+    type CatalogSubcategoryId,
+} from "../data/catalogCategories";
 import type { translations } from "../app/i18n";
 import {
     getImageUploadContentType,
@@ -39,6 +49,10 @@ function EditAdPage({ t }: Props) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [price, setPrice] = useState("");
+    const [priceType, setPriceType] = useState<AdPriceType>("paid");
+    const [exchangeDetails, setExchangeDetails] = useState("");
+    const [catalogCategory, setCatalogCategory] = useState<CatalogCategoryId | "">("");
+    const [catalogSubcategory, setCatalogSubcategory] = useState<CatalogSubcategoryId | "">("");
     const [voivodeship, setVoivodeship] = useState("");
     const [city, setCity] = useState("");
     const [sellerContact, setSellerContact] = useState("");
@@ -110,6 +124,17 @@ function EditAdPage({ t }: Props) {
                 setTitle(loaded.title ?? "");
                 setDescription(loaded.description ?? "");
                 setPrice(loaded.price ? String(loaded.price) : "");
+                setPriceType(resolveAdPriceType(loaded.priceType));
+                setExchangeDetails(loaded.exchangeDetails ?? "");
+                const loadedCatalogCategory = isCatalogCategoryId(loaded.catalogCategory)
+                    ? loaded.catalogCategory
+                    : "";
+                setCatalogCategory(loadedCatalogCategory);
+                setCatalogSubcategory(
+                    loadedCatalogCategory && isCatalogSubcategoryId(loadedCatalogCategory, loaded.catalogSubcategory)
+                        ? loaded.catalogSubcategory
+                        : "",
+                );
                 setVoivodeship(loaded.voivodeship ?? "");
                 setCity(loaded.city ?? "");
                 setSellerContact(loaded.sellerContact ?? "");
@@ -140,15 +165,17 @@ function EditAdPage({ t }: Props) {
             return;
         }
 
-        const normalizedPrice = price.trim();
-
-        if (!normalizedPrice) {
-            setError("Вкажіть ціну");
-            return;
-        }
-
-        if (normalizedPrice.length > 40) {
-            setError("Ціна занадто довга");
+        let pricing;
+        try {
+            pricing = normalizeAdPricing(priceType, price, exchangeDetails);
+        } catch (error) {
+            if (error instanceof AdPricingValidationError && error.code === "PRICE_TOO_LONG") {
+                setError(t.add.errors.priceTooLong);
+            } else if (error instanceof AdPricingValidationError && error.code === "PRICE_REQUIRED") {
+                setError(t.add.errors.priceRequired);
+            } else {
+                setError(t.add.errors.priceInvalid);
+            }
             return;
         }
 
@@ -191,7 +218,10 @@ function EditAdPage({ t }: Props) {
             await updateDoc(adRef, {
                 title: title.trim(),
                 description: description.trim(),
-                price: normalizedPrice,
+                ...pricing,
+                exchangeDetails: pricing.exchangeDetails ?? deleteField(),
+                catalogCategory: catalogCategory || deleteField(),
+                catalogSubcategory: catalogCategory && catalogSubcategory ? catalogSubcategory : deleteField(),
                 voivodeship,
                 city,
                 sellerContact: normalizedContact || deleteField(),
@@ -224,7 +254,7 @@ function EditAdPage({ t }: Props) {
         <div className="card stack12">
             <h2 className="h2">Редагування оголошення</h2>
 
-            <form className="stack12" onSubmit={handleSave}>
+            <form className="market-form stack12" onSubmit={handleSave}>
                 <input
                     className="input"
                     placeholder="Заголовок"
@@ -240,13 +270,88 @@ function EditAdPage({ t }: Props) {
                     rows={5}
                 />
 
-                <input
-                    className="input"
-                    placeholder="Ціна (необовʼязково)"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    inputMode="decimal"
-                />
+                <label className="stack4">
+                    <span>{t.add.fields.catalogCategory}</span>
+                    <select
+                        className="input"
+                        value={catalogCategory}
+                        onChange={(event) => {
+                            const next = event.target.value;
+                            setCatalogCategory(isCatalogCategoryId(next) ? next : "");
+                            setCatalogSubcategory("");
+                        }}
+                    >
+                        <option value="">{t.home.unclassifiedCategory}</option>
+                        {Object.keys(CATALOG_CATEGORIES).map((key) => (
+                            <option key={key} value={key}>
+                                {t.catalogCategories[key as CatalogCategoryId]}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+
+                {catalogCategory && (
+                    <label className="stack4">
+                        <span>{t.add.fields.catalogSubcategory}</span>
+                        <select
+                            className="input"
+                            value={catalogSubcategory}
+                            onChange={(event) => {
+                                const next = event.target.value;
+                                setCatalogSubcategory(
+                                    isCatalogSubcategoryId(catalogCategory, next) ? next : "",
+                                );
+                            }}
+                        >
+                            <option value="">{t.home.allSubcategories}</option>
+                            {getCatalogSubcategoryIds(catalogCategory).map((subcategory) => (
+                                <option key={subcategory} value={subcategory}>
+                                    {t.catalogSubcategories[subcategory]}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                )}
+
+                <fieldset className="stack8" style={{ border: 0, padding: 0, margin: 0 }}>
+                    <legend style={{ fontSize: 14, fontWeight: 600 }}>{t.add.fields.priceType}</legend>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {(["paid", "free", "exchange"] as const).map((type) => (
+                            <button
+                                key={type}
+                                type="button"
+                                className={priceType === type ? "btn-primary" : "btn-secondary"}
+                                aria-pressed={priceType === type}
+                                onClick={() => setPriceType(type)}
+                            >
+                                {t.add.priceTypes[type]}
+                            </button>
+                        ))}
+                    </div>
+                </fieldset>
+
+                {priceType === "paid" && (
+                    <input
+                        className="input"
+                        placeholder={t.add.fields.price}
+                        value={price}
+                        maxLength={80}
+                        onChange={(e) => setPrice(e.target.value)}
+                        inputMode="decimal"
+                    />
+                )}
+                {priceType === "exchange" && (
+                    <label className="stack4">
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{t.add.fields.exchangeFor}</span>
+                        <input
+                            className="input"
+                            placeholder={t.add.fields.exchangeFor}
+                            value={exchangeDetails}
+                            maxLength={200}
+                            onChange={(e) => setExchangeDetails(e.target.value)}
+                        />
+                    </label>
+                )}
 
                 <input
                     className="input"

@@ -6,18 +6,19 @@ import { getLocalUser } from "../data/localUser"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { canEditAuction } from "../utils/canEdit"
 import { buildAuctionPath } from '../utils/slug'
+import type { Auction } from "../types/auction"
 type VoivodeshipKey = keyof typeof CITIES_BY_VOIVODESHIP
 
 function EditAuctionPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
-    const user = getLocalUser()
+    const [user] = useState(() => getLocalUser())
 
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    const [auction, setAuction] = useState<any | null>(null)
+    const [auction, setAuction] = useState<Auction | null>(null)
 
     const [title, setTitle] = useState("")
     const [description, setDescription] = useState("")
@@ -52,7 +53,7 @@ function EditAuctionPage() {
                     return
                 }
 
-                const loaded = { id, ...snap.data() } as any
+                const loaded = { id, ...snap.data() } as Auction
 
                 if (loaded.ownerId !== user.id) {
                     setError("У вас немає прав редагувати цей аукціон")
@@ -93,7 +94,7 @@ function EditAuctionPage() {
         }
 
         load()
-    }, [id])
+    }, [id, user])
 
     async function handleSave(e: React.FormEvent) {
         e.preventDefault()
@@ -171,7 +172,7 @@ function EditAuctionPage() {
         <div className="card stack12">
             <h2 className="h2">Редагування аукціону</h2>
 
-            <form className="stack12" onSubmit={handleSave}>
+            <form className="market-form stack12" onSubmit={handleSave}>
                 <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} />
                 <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
 

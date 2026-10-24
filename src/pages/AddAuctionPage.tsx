@@ -11,6 +11,7 @@ import { assertUserNotBlocked, isAccountRestrictedError } from "../data/users"
 import { CITIES_BY_VOIVODESHIP } from "../data/cities"
 import { checkAuctionPromotionAvailability } from "../data/auctionAvailability"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
+import PromotionCard from "../components/PromotionCard"
 import { verifyPayPalPayment } from "../api/payments"
 import {
     getImageUploadContentType,
@@ -327,7 +328,7 @@ function AddAuctionPage({ t }: Props) {
                 </button>
             </div>
 
-            <form className="stack12" onSubmit={handleSubmit}>
+            <form className="market-form stack12" onSubmit={handleSubmit}>
 
                 <input className="input" placeholder={t.addAuction.fields.title} value={title}
                        onChange={(e) => setTitle(e.target.value)}/>
@@ -421,14 +422,16 @@ function AddAuctionPage({ t }: Props) {
                 )}
 
                 {error && <div style={{ color: "#b91c1c" }}>{error}</div>}
-                <div className="card stack12">
-                    <strong>{t.addAuction.promotion.title}</strong>
+                <div className="card stack12 promotion-section">
+                    <div className="promotion-section__header">
+                        <strong>{t.addAuction.promotion.title}</strong>
                     <Link
                         to="/promotion-info"
-                        style={{fontSize: 13, color: "#2563eb", width: "fit-content"}}
+                        className="promotion-section__help"
                     >
                         {t.promotionInfo.linkLabel}
                     </Link>
+                    </div>
                     {isPaidPromotion && (
                         <div className="card stack12">
                             <strong>{t.addAuction.payment.title}</strong>
@@ -490,48 +493,52 @@ function AddAuctionPage({ t }: Props) {
                         </div>
                     )}
 
-                    <label className="promotion-option">
-                        <input type="radio" name="promotion" checked={promotion === "none"}
-                               onChange={() => setPromotion("none")}
-                               disabled={paymentCompleted || isPaying}/>
-                        🆓 {t.addAuction.promotion.none}
-                        <div className="hint">{t.addAuction.promotion.noneHint}</div>
-
-                    </label>
-
-                    <label className="promotion-option">
-                        <input type="radio" name="promotion" checked={promotion === "top-auction"}
-                               onChange={async () => {
-                                   setPromotion("top-auction");
-                                   await loadPromotionInfo("top")
-                               }}
-                               disabled={paymentCompleted || isPaying}/>
-                        🔥 {t.addAuction.promotion.top}
-                        <div className="hint">{t.addAuction.promotion.topHint}</div>
-
-                    </label>
-
-                    <label className="promotion-option">
-                        <input type="radio" name="promotion" checked={promotion === "featured"} onChange={async () => {
-                            setPromotion("featured");
-                            await loadPromotionInfo("featured")
-                        }}
-                               disabled={paymentCompleted || isPaying}/>
-                        ⭐ {t.addAuction.promotion.featured}
-                        <div className="hint">{t.addAuction.promotion.featuredHint}</div>
-
-                    </label>
-
-                    <label className="promotion-option">
-                        <input type="radio" name="promotion" checked={promotion === "highlight-gold"}
-                               onChange={() => setPromotion("highlight-gold")}
-                               disabled={paymentCompleted || isPaying}/>
-                        ✨ {t.addAuction.promotion.gold}
-                        <div className="hint">{t.addAuction.promotion.goldHint}</div>
-
-                    </label>
-
-                    {promotionInfo && <div style={{ fontSize: 13, color: promotionInfo.isQueue ? "#b45309" : "#047857" }}>{promotionInfo.text}</div>}
+                    <div className="promotion-options" role="radiogroup" aria-label={t.addAuction.promotion.title}>
+                        <PromotionCard
+                            name="auction-promotion"
+                            title={t.addAuction.promotion.none}
+                            price={t.promotionInfo.noCost}
+                            description={t.addAuction.promotion.noneHint}
+                            checked={promotion === "none"}
+                            disabled={paymentCompleted || isPaying}
+                            onSelect={() => setPromotion("none")}
+                        />
+                        <PromotionCard
+                            name="auction-promotion"
+                            title={t.addAuction.promotion.top}
+                            price={`${PRICES.auction["top-auction"]} PLN`}
+                            description={t.promotionInfo.auctions.top}
+                            meta={promotion === "top-auction" ? promotionInfo?.text : undefined}
+                            checked={promotion === "top-auction"}
+                            disabled={paymentCompleted || isPaying}
+                            onSelect={() => {
+                                setPromotion("top-auction")
+                                void loadPromotionInfo("top")
+                            }}
+                        />
+                        <PromotionCard
+                            name="auction-promotion"
+                            title={t.addAuction.promotion.featured}
+                            price={`${PRICES.auction.featured} PLN`}
+                            description={t.promotionInfo.auctions.featured}
+                            meta={promotion === "featured" ? promotionInfo?.text : undefined}
+                            checked={promotion === "featured"}
+                            disabled={paymentCompleted || isPaying}
+                            onSelect={() => {
+                                setPromotion("featured")
+                                void loadPromotionInfo("featured")
+                            }}
+                        />
+                        <PromotionCard
+                            name="auction-promotion"
+                            title={t.addAuction.promotion.gold}
+                            price={`${PRICES.auction["highlight-gold"]} PLN`}
+                            description={t.promotionInfo.auctions.gold}
+                            checked={promotion === "highlight-gold"}
+                            disabled={paymentCompleted || isPaying}
+                            onSelect={() => setPromotion("highlight-gold")}
+                        />
+                    </div>
                 </div>
 
                 <button className="btn-primary" disabled={isSubmitting || isPaying || (isPaidPromotion && !paymentCompleted)}>

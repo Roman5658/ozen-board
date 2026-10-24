@@ -6,7 +6,8 @@ import { Link } from "react-router-dom"
 import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import { buildAdPath } from "../utils/slug"
-import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
+import AdminPagination from "../components/AdminPagination"
+import { getAdminPaginationLabels, paginateItems } from "../utils/adminPagination"
 
 type AdminAdSection = "activePromoted" | "queueTop"
 type PromotionFilter = "all" | "top3" | "top6" | "highlight" | "bump" | "queue"
@@ -455,11 +456,6 @@ function AdminAdsPage() {
         [queuedTopAds, queuedTopPage]
     )
 
-    useEffect(() => {
-        setActivePromotedPage(1)
-        setQueuedTopPage(1)
-    }, [cityFilter, promotionFilter, voivodeshipFilter])
-
     const adminAdActions: AdminAdActions = {
         setTop,
         setQueue,
@@ -478,7 +474,11 @@ function AdminAdsPage() {
             <div className="card" style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
                 <label className="stack8">
                     <span style={{ fontSize: 12, color: "#6b7280" }}>Місто</span>
-                    <select className="select" value={cityFilter} onChange={e => setCityFilter(e.target.value)}>
+                    <select className="select" value={cityFilter} onChange={e => {
+                        setCityFilter(e.target.value)
+                        setActivePromotedPage(1)
+                        setQueuedTopPage(1)
+                    }}>
                         <option value="all">Усі міста</option>
                         {cityOptions.map(city => (
                             <option key={city} value={city}>{city}</option>
@@ -488,7 +488,11 @@ function AdminAdsPage() {
 
                 <label className="stack8">
                     <span style={{ fontSize: 12, color: "#6b7280" }}>Воєводство</span>
-                    <select className="select" value={voivodeshipFilter} onChange={e => setVoivodeshipFilter(e.target.value)}>
+                    <select className="select" value={voivodeshipFilter} onChange={e => {
+                        setVoivodeshipFilter(e.target.value)
+                        setActivePromotedPage(1)
+                        setQueuedTopPage(1)
+                    }}>
                         <option value="all">Усі воєводства</option>
                         {voivodeshipOptions.map(voivodeship => (
                             <option key={voivodeship} value={voivodeship}>{voivodeship}</option>
@@ -501,7 +505,11 @@ function AdminAdsPage() {
                     <select
                         className="select"
                         value={promotionFilter}
-                        onChange={e => setPromotionFilter(e.target.value as PromotionFilter)}
+                        onChange={e => {
+                            setPromotionFilter(e.target.value as PromotionFilter)
+                            setActivePromotedPage(1)
+                            setQueuedTopPage(1)
+                        }}
                     >
                         <option value="all">Усі типи</option>
                         <option value="top3">TOP 3</option>

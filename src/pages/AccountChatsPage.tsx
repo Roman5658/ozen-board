@@ -27,27 +27,21 @@ type ChatListRow = {
 function AccountChatsPage({ t }: Props) {
     const a = t.account
     const navigate = useNavigate()
-    const [user, setUser] = useState<AppUser | null>(null)
+    const [user] = useState<AppUser | null>(() => getLocalUser())
     const [chats, setChats] = useState<ChatItem[]>([])
     const [nickCache, setNickCache] = useState<Record<string, string>>({})
     const [loadingChats, setLoadingChats] = useState(true)
 
     useEffect(() => {
-        const currentUser = getLocalUser()
-
-        if (!currentUser) {
+        if (!user) {
             navigate("/account")
-            return
         }
-
-        setUser(currentUser)
-    }, [navigate])
+    }, [navigate, user])
 
     useEffect(() => {
         if (!user) return
 
         let isActive = true
-        setLoadingChats(true)
 
         getUserChats(user.id, user.uid)
             .then((items) => {

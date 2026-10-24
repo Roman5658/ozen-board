@@ -4,7 +4,8 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, where } from "fireb
 import { db } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { buildAdPath, buildAuctionPath } from "../utils/slug"
-import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
+import AdminPagination from "../components/AdminPagination"
+import { getAdminPaginationLabels, paginateItems } from "../utils/adminPagination"
 
 import type { translations } from "../app/i18n"
 import type { Ad } from "../types/ad"

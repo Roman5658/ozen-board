@@ -3,7 +3,8 @@ import { collection, getDocs, orderBy, query } from "firebase/firestore"
 import { db } from "../app/firebase"
 import { getLocalUser } from "../data/localUser"
 import { useNavigate } from "react-router-dom"
-import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
+import AdminPagination from "../components/AdminPagination"
+import { getAdminPaginationLabels, paginateItems } from "../utils/adminPagination"
 
 const ADMIN_IDS = ["ozenenesis56@gmail.com"]
 const PAGE_SIZE = 30
@@ -22,21 +23,18 @@ type Payment = {
 }
 
 export default function AdminPaymentsPage() {
-    const user = getLocalUser()
+    const [user] = useState(() => getLocalUser())
     const navigate = useNavigate()
     const lang = localStorage.getItem("lang") === "pl" ? "pl" : "uk"
     const paginationLabels = getAdminPaginationLabels(lang)
+    const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
+    const hasAdminAccess = isAdminMode && !!user && (ADMIN_IDS.includes(user.id) || ADMIN_IDS.includes(user.email))
     const [payments, setPayments] = useState<Payment[]>([])
-    const [loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(hasAdminAccess)
     const [page, setPage] = useState(1)
 
     useEffect(() => {
-        const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
-
-        if (!isAdminMode || !user || (!ADMIN_IDS.includes(user.id) && !ADMIN_IDS.includes(user.email))) {
-            setLoading(false)
-            return
-        }
+        if (!hasAdminAccess) return
 
 
         async function load() {
@@ -56,15 +54,14 @@ export default function AdminPaymentsPage() {
         }
 
         load()
-    }, [])
+    }, [hasAdminAccess])
 
-    const isAdminMode = import.meta.env.VITE_ADMIN_MODE === "true"
     const pagedPayments = useMemo(
         () => paginateItems(payments, page, PAGE_SIZE),
         [page, payments]
     )
 
-    if (!isAdminMode || !user || (!ADMIN_IDS.includes(user.id) && !ADMIN_IDS.includes(user.email))) {
+    if (!hasAdminAccess) {
         return <div className="card">Немає доступу</div>
     }
 

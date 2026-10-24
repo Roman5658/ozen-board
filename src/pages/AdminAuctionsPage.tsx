@@ -10,7 +10,8 @@ import {
 import { db } from "../app/firebase"
 import type { Auction } from "../types/auction"
 import { getLocalUser } from "../data/localUser"
-import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
+import AdminPagination from "../components/AdminPagination"
+import { getAdminPaginationLabels, paginateItems } from "../utils/adminPagination"
 
 const ADMIN_READ_AUCTIONS_KEY = "xoven_admin_read_auctions_v1"
 const PAGE_SIZE = 30
@@ -125,10 +126,6 @@ function AdminAuctionsPage() {
         () => paginateItems(filteredAuctions, page, PAGE_SIZE),
         [filteredAuctions, page]
     )
-
-    useEffect(() => {
-        setPage(1)
-    }, [search])
 
     // =========================
     // ADMIN ACTIONS
@@ -304,7 +301,10 @@ function AdminAuctionsPage() {
                 <input
                     className="input"
                     value={search}
-                    onChange={event => setSearch(event.target.value)}
+                    onChange={event => {
+                        setSearch(event.target.value)
+                        setPage(1)
+                    }}
                     placeholder={text.searchPlaceholder}
                     style={{ maxWidth: 520 }}
                 />

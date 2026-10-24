@@ -17,6 +17,8 @@ export default function AdminLayout() {
                         <NavLink to="/admin/payments">Платежі</NavLink>
                         <NavLink to="/admin/backups">Резервні копії</NavLink>
                         <NavLink to="/admin/leads">Lead Manager</NavLink>
+                        <NavLink to="/admin/telegram">Telegram-імпорт</NavLink>
+                        <NavLink to="/admin/telegram-moderation">Модерація Telegram</NavLink>
                         <NavLink to="/admin/ads">Черги</NavLink>
                         <NavLink to="/admin/ads/list">Усі оголошення</NavLink>
 

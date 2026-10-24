@@ -18,6 +18,7 @@ import { finalizeAuction } from '../data/finalizeAuction'
 
 import AuctionCard from '../components/AuctionCard'
 import AuctionDetails from '../components/AuctionDetails'
+import FilterDisclosure from '../components/FilterDisclosure'
 
 import { db } from '../app/firebase'
 import { getLocalUser, isAdmin } from '../data/localUser'
@@ -115,6 +116,7 @@ function AuctionPage() {
 
     // UI
     const [city, setCity] = useState<'all' | string>('all')
+    const [category, setCategory] = useState<'all' | 'sell' | 'buy' | 'service' | 'rent'>('all')
     const [view, setView] = useState<'list' | 'grid'>(() => {
         const saved = localStorage.getItem('auctionsViewMode')
         return saved === 'list' ? 'list' : 'grid'
@@ -158,14 +160,11 @@ function AuctionPage() {
                     const constraints: QueryConstraint[] = [
                         where('status', '==', 'active'),
                         where('promotionType', '==', promotionType),
-                        where('endsAt', '>', now),
-                        orderBy('endsAt', 'asc'),
-                        limit(PROMOTED_AUCTIONS_LIMIT),
                     ]
 
-                    if (city !== 'all') {
-                        constraints.splice(2, 0, where('city', '==', city))
-                    }
+                    if (city !== 'all') constraints.push(where('city', '==', city))
+                    if (category !== 'all') constraints.push(where('category', '==', category))
+                    constraints.push(where('endsAt', '>', now), orderBy('endsAt', 'asc'), limit(PROMOTED_AUCTIONS_LIMIT))
 
                     const snap = await getDocs(query(collection(db, 'auctions'), ...constraints))
                     return snap.docs.map(auctionFromDoc)
@@ -191,7 +190,7 @@ function AuctionPage() {
         return () => {
             cancelled = true
         }
-    }, [city, now])
+    }, [city, category, now])
 
     // =========================
     // LOAD REGULAR AUCTIONS PAGE
@@ -204,13 +203,11 @@ function AuctionPage() {
                 setRegularLoading(true)
                 const constraints: QueryConstraint[] = [
                     where('status', '==', 'active'),
-                    where('endsAt', '>', now),
-                    orderBy('endsAt', 'asc'),
                 ]
 
-                if (city !== 'all') {
-                    constraints.splice(2, 0, where('city', '==', city))
-                }
+                if (city !== 'all') constraints.push(where('city', '==', city))
+                if (category !== 'all') constraints.push(where('category', '==', category))
+                constraints.push(where('endsAt', '>', now), orderBy('endsAt', 'asc'))
 
                 if (currentRegularCursor) {
                     constraints.push(startAfter(currentRegularCursor))
@@ -250,7 +247,7 @@ function AuctionPage() {
         return () => {
             cancelled = true
         }
-    }, [city, currentRegularCursor, now, regularPage])
+    }, [city, category, currentRegularCursor, now, regularPage])
 
     // =========================
     // LOAD ONE AUCTION
@@ -499,7 +496,7 @@ function AuctionPage() {
 
         // 1️⃣ только активные аукционы
         const activeAuctions = auctions.filter(
-            a => a.status === "active" && a.endsAt > now
+            a => a.status === "active" && a.endsAt > now && (category === 'all' || a.category === category)
         )
 
         // 2️⃣ фильтр по городу
@@ -543,7 +540,7 @@ function AuctionPage() {
             topAuctionsVisible,
             featuredAuctionsVisible,
         }
-    }, [auctions, city, now])
+    }, [auctions, city, category, now])
 
     const visibleAuctionIds = useMemo(() => {
         return new Set([
@@ -561,6 +558,17 @@ function AuctionPage() {
         setRegularPage(1)
         setRegularPageCursors([null])
         setRegularHasNextPage(false)
+    }
+
+    const activeFilterLabels = [
+        ...(city !== 'all' ? [city] : []),
+        ...(category !== 'all' ? [t.addAuction.categories[category]] : []),
+    ]
+
+    function resetAuctionFilters() {
+        setCity('all')
+        setCategory('all')
+        resetRegularPagination()
     }
 
     function goToRegularPage(nextPage: number) {
@@ -651,38 +659,56 @@ function AuctionPage() {
 
             ) : (
                 <>
-                    <div style={{marginBottom: 12}}>
-                        <select
-                            value={city}
-                            onChange={e => {
-                                setCity(e.target.value)
-                                resetRegularPagination()
-                            }}
-                            className="input"
-                        >
-                            <option value="all">{t.auctions.allCities}</option>
-
-                            {cityOptions.map(c => (
-                                <option key={c} value={c}>{c}</option>
-                            ))}
-                        </select>
-
-                        {/* Cursor pagination is ordered by endsAt; bid sorting can be added later as a separate query. */}
-                        <div style={{display: 'flex', gap: 8, marginTop: 8}}>
+                    <div className="auction-controls">
+                        {/* The cursor query stays ordered by endsAt; no client-side search is applied to a partial page. */}
+                        <div className="auction-controls__toolbar">
                             <button
+                                type="button"
                                 className={view === 'list' ? 'btn-primary' : 'btn-secondary'}
                                 onClick={() => setView('list')}
                             >
                                 {t.home.viewList}
                             </button>
                             <button
+                                type="button"
                                 className={view === 'grid' ? 'btn-primary' : 'btn-secondary'}
                                 onClick={() => setView('grid')}
                             >
                                 {t.home.viewGrid}
                             </button>
+                            <FilterDisclosure
+                                title={t.auctions.filtersTitle}
+                                resetLabel={t.home.resetFilters}
+                                activeLabels={activeFilterLabels}
+                                onReset={resetAuctionFilters}
+                            >
+                                <div className="auction-filter-grid">
+                                    <label className="stack4">
+                                        <span>{t.auctions.allCities}</span>
+                                        <select className="input" value={city} onChange={(event) => {
+                                            setCity(event.target.value)
+                                            resetRegularPagination()
+                                        }}>
+                                            <option value="all">{t.auctions.allCities}</option>
+                                            {cityOptions.map((value) => <option key={value} value={value}>{value}</option>)}
+                                        </select>
+                                    </label>
+                                    <label className="stack4">
+                                        <span>{t.auctions.categoryLabel}</span>
+                                        <select className="input" value={category} onChange={(event) => {
+                                            setCategory(event.target.value as typeof category)
+                                            resetRegularPagination()
+                                        }}>
+                                            <option value="all">{t.auctions.allCategories}</option>
+                                            {(['sell', 'buy', 'service', 'rent'] as const).map((value) => (
+                                                <option key={value} value={value}>{t.addAuction.categories[value]}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                </div>
+                                <div className="filter-disclosure__note" role="note">{t.auctions.activeOnlyNote}</div>
+                            </FilterDisclosure>
                         </div>
-
                     </div>
 
                     <div className={`ads-grid ${view === 'list' ? 'ads-grid--list' : 'ads-grid--grid'}`}>
@@ -795,6 +821,9 @@ function AuctionPage() {
                                 {t.home.next}
                             </button>
                         </div>
+                    )}
+                    {!promotedLoading && !regularLoading && topAuctionsVisible.length === 0 && featuredAuctionsVisible.length === 0 && regularAuctionsVisible.length === 0 && (
+                        <div className="card home-empty-results">{t.auctions.noResults}</div>
                     )}
 
                 </>

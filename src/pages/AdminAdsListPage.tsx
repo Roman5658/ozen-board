@@ -6,7 +6,8 @@ import { db } from "../app/firebase"
 import type { Ad } from "../types/ad"
 import { getLocalUser } from "../data/localUser"
 import { buildAdPath } from "../utils/slug"
-import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
+import AdminPagination from "../components/AdminPagination"
+import { getAdminPaginationLabels, paginateItems } from "../utils/adminPagination"
 
 const PAGE_SIZE = 30
 
@@ -115,6 +116,7 @@ function AdminAdsListPage() {
         const ad = ads.find(item => item.id === adId)
         if (!ad || ad.adminViewedAt) return
 
+        // eslint-disable-next-line react-hooks/purity -- This timestamp is created in the click handler.
         const adminViewedAt = Date.now()
         const adminViewedBy = getAdminActorId()
         try {

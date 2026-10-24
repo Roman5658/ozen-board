@@ -1,53 +1,52 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom'
-import AdminReportsPage from "../pages/AdminReportsPage"
-import AddAuctionPage from '../pages/AddAuctionPage'
-import UserPage from '../pages/UserPage'
-import ChatPage from "../pages/ChatPage"
 // import PayTestPage from "../pages/PayTestPage"
-import PrivacyPage from '../pages/PrivacyPage'
-import TermsPage from '../pages/TermsPage'
-import SafetyPage from '../pages/SafetyPage'
-import CookiesPage from '../pages/CookiesPage'
-import ContactPage from '../pages/ContactPage'
-import PromotionInfoPage from '../pages/PromotionInfoPage'
-import AdminLayout from "../admin/AdminLayout"
-import AdminAdsPage from "../pages/AdminAdsPage"
-import AdminAdsListPage from "../pages/AdminAdsListPage"
-import AdminAdDetailsPage from "../pages/AdminAdDetailsPage"
 
 import { translations, detectInitialLang } from './i18n'
 import { getLocalUser, LOCAL_USER_CHANGED_EVENT } from '../data/localUser'
-import { getUnreadCountForUser, subscribeToUserChats } from '../data/chats'
-
-
 import type { Lang } from './i18n'
-import MyAdsPage from '../pages/MyAdsPage'
-import EditAdPage from '../pages/EditAdPage'
-
-import HomePage from '../pages/HomePage'
-import NearbyPage from '../pages/NearbyPage'
-import AddPage from '../pages/AddPage'
-import AuctionPage from '../pages/AuctionPage'
-import AccountPage from '../pages/AccountPage'
-import AccountChatsPage from '../pages/AccountChatsPage'
-import AccountPaymentsPage from '../pages/AccountPaymentsPage'
-import AdDetailsPage from '../pages/AdDetailsPage'
 
 import Header from '../components/Header'
 import AppLayout from './AppLayout'
 import { useSeo, BASE_URL } from '../utils/seo'
-import EditAuctionPage from '../pages/EditAuctionPage'
-import AdminPaymentsPage from "../pages/AdminPaymentsPage"
-import AdminAuctionsPage from "../pages/AdminAuctionsPage"
-import AdminUsersPage from "../pages/AdminUsersPage"
-import AdminBackupPage from "../pages/AdminBackupPage"
-import AdminLeadsPage from "../pages/AdminLeadsPage"
 import {
     getLiveWeatherCondition,
     getLiveWeatherDevData,
     LIVE_WEATHER_DEV_ACTIVE,
 } from '../components/liveWeatherDev'
+
+const HomePage = lazy(() => import('../pages/HomePage'))
+const AddAuctionPage = lazy(() => import('../pages/AddAuctionPage'))
+const UserPage = lazy(() => import('../pages/UserPage'))
+const ChatPage = lazy(() => import('../pages/ChatPage'))
+const PrivacyPage = lazy(() => import('../pages/PrivacyPage'))
+const TermsPage = lazy(() => import('../pages/TermsPage'))
+const SafetyPage = lazy(() => import('../pages/SafetyPage'))
+const CookiesPage = lazy(() => import('../pages/CookiesPage'))
+const ContactPage = lazy(() => import('../pages/ContactPage'))
+const PromotionInfoPage = lazy(() => import('../pages/PromotionInfoPage'))
+const AdminLayout = lazy(() => import('../admin/AdminLayout'))
+const AdminAdsPage = lazy(() => import('../pages/AdminAdsPage'))
+const AdminAdsListPage = lazy(() => import('../pages/AdminAdsListPage'))
+const AdminAdDetailsPage = lazy(() => import('../pages/AdminAdDetailsPage'))
+const AdminReportsPage = lazy(() => import('../pages/AdminReportsPage'))
+const MyAdsPage = lazy(() => import('../pages/MyAdsPage'))
+const EditAdPage = lazy(() => import('../pages/EditAdPage'))
+const NearbyPage = lazy(() => import('../pages/NearbyPage'))
+const AddPage = lazy(() => import('../pages/AddPage'))
+const AuctionPage = lazy(() => import('../pages/AuctionPage'))
+const AccountPage = lazy(() => import('../pages/AccountPage'))
+const AccountChatsPage = lazy(() => import('../pages/AccountChatsPage'))
+const AccountPaymentsPage = lazy(() => import('../pages/AccountPaymentsPage'))
+const AdDetailsPage = lazy(() => import('../pages/AdDetailsPage'))
+const EditAuctionPage = lazy(() => import('../pages/EditAuctionPage'))
+const AdminPaymentsPage = lazy(() => import('../pages/AdminPaymentsPage'))
+const AdminAuctionsPage = lazy(() => import('../pages/AdminAuctionsPage'))
+const AdminUsersPage = lazy(() => import('../pages/AdminUsersPage'))
+const AdminBackupPage = lazy(() => import('../pages/AdminBackupPage'))
+const AdminLeadsPage = lazy(() => import('../pages/AdminLeadsPage'))
+const AdminTelegramPage = lazy(() => import('../pages/AdminTelegramPage'))
+const AdminTelegramModerationPage = lazy(() => import('../pages/AdminTelegramModerationPage'))
 
 const LIVE_WEATHER_STORAGE_KEY = 'xoven_live_weather_enabled'
 const LIVE_WEATHER_CACHE_KEY = 'xoven_live_weather_cache'
@@ -238,7 +237,7 @@ function getAppSeo(pathname: string, lang: Lang, t: (typeof translations)[Lang])
 function App() {
     const [lang, setLang] = useState<Lang>(() => detectInitialLang())
     const [currentUser, setCurrentUser] = useState(() => getLocalUser())
-    const [chatUnreadCount, setChatUnreadCount] = useState(0)
+    const [chatUnreadState, setChatUnreadState] = useState({ userId: "", count: 0 })
     const [liveWeatherEnabled, setLiveWeatherEnabled] = useState(getInitialLiveWeatherEnabled)
     const [liveWeather, setLiveWeather] = useState<LiveWeatherData | null>(() =>
         LIVE_WEATHER_DEV_ACTIVE ? getLiveWeatherDevData() : readLiveWeatherCache()
@@ -246,6 +245,9 @@ function App() {
 
 
     const t = translations[lang]
+    const chatUnreadCount = currentUser?.id === chatUnreadState.userId
+        ? chatUnreadState.count
+        : 0
     const location = useLocation()
     const navigate = useNavigate()
     const noindexPrefixes = ['/admin', '/account', '/my-ads', '/add', '/edit', '/chat']
@@ -384,17 +386,29 @@ function App() {
     }, [liveWeatherEnabled])
 
     useEffect(() => {
-        if (!currentUser) {
-            setChatUnreadCount(0)
-            return
-        }
+        if (!currentUser) return
 
+        let isActive = true
+        let unsubscribe: (() => void) | undefined
         const userIds = [currentUser.id, currentUser.uid, currentUser.email].filter(Boolean)
-        return subscribeToUserChats(currentUser.id, currentUser.uid, (chats) => {
-            setChatUnreadCount(
-                chats.reduce((sum, chat) => sum + getUnreadCountForUser(chat, userIds), 0)
-            )
-        })
+        void import('../data/chats')
+            .then(({ getUnreadCountForUser, subscribeToUserChats }) => {
+                if (!isActive) return
+                unsubscribe = subscribeToUserChats(currentUser.id, currentUser.uid, (chats) => {
+                    setChatUnreadState({
+                        userId: currentUser.id,
+                        count: chats.reduce((sum, chat) => sum + getUnreadCountForUser(chat, userIds), 0),
+                    })
+                })
+            })
+            .catch(() => {
+                if (isActive) setChatUnreadState({ userId: currentUser.id, count: 0 })
+            })
+
+        return () => {
+            isActive = false
+            unsubscribe?.()
+        }
     }, [currentUser])
 
     return (
@@ -423,7 +437,8 @@ function App() {
             t={t}
             chatUnreadCount={chatUnreadCount}
         >
-            <Routes>
+            <Suspense fallback={<div className="card">{t.account.loading}</div>}>
+                <Routes>
                 <Route path="/" element={<Navigate to={`/${lang}/`} replace />} />
                 <Route path="/pl" element={<Navigate to="/pl/" replace />} />
                 <Route path="/uk" element={<Navigate to="/uk/" replace />} />
@@ -478,8 +493,11 @@ function App() {
                     <Route path="payments" element={<AdminPaymentsPage />} />
                     <Route path="backups" element={<AdminBackupPage />} />
                     <Route path="leads" element={<AdminLeadsPage />} />
+                    <Route path="telegram" element={<AdminTelegramPage />} />
+                    <Route path="telegram-moderation" element={<AdminTelegramModerationPage />} />
                 </Route>
-            </Routes>
+                </Routes>
+            </Suspense>
 
 
 

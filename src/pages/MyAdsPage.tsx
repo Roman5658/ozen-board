@@ -54,6 +54,7 @@ function MyAdsPage() {
         const ok = confirm('Ви дійсно хочете видалити оголошення?')
         if (!ok) return
 
+        // eslint-disable-next-line react-hooks/purity -- This timestamp is created after the user's confirmation.
         const deletedAt = Date.now()
         const deletedBy = user.uid || user.id
 

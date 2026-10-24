@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { doc, getDoc } from 'firebase/firestore'
 import { verifyPayPalPayment } from "../api/payments"
 import { PRICES } from "../config/prices"
-import { formatPricePLN } from "../utils/formatPricePLN"
+import { getAdPriceLabel, resolveAdPriceType } from "../utils/adPrice"
 import type { translations } from "../app/i18n"
 import PayPalCheckoutButton from "../components/PayPalCheckoutButton"
 import ImageLightbox from "../components/ImageLightbox"
@@ -195,7 +195,20 @@ function AdDetailsPage({ t }: Props) {
     const canonicalPath = ad
         ? buildAdPath(ad.title, ad.city, ad.id)
         : `/ad/${slugOrId ?? ''}`
-    const formattedPrice = publicAd ? formatPricePLN(publicAd.price) : ''
+    const formattedPrice = publicAd
+        ? getAdPriceLabel(publicAd.priceType, publicAd.price, {
+            free: t.adCard.free,
+            exchange: t.adCard.exchange,
+        })
+        : ''
+    const schemaPriceText = String(publicAd?.price ?? '')
+        .trim()
+        .replace(/[\s\u00a0]/g, '')
+        .replace(/(?:zł|pln)$/i, '')
+        .replace(',', '.')
+    const schemaPrice = publicAd && resolveAdPriceType(publicAd.priceType) === 'paid'
+        ? Number(schemaPriceText)
+        : Number.NaN
     const seoTitle = publicAd
         ? `${publicAd.title}${publicAd.city ? ` — ${publicAd.city}` : ''} | Xoven`
         : (lang === 'pl' ? 'Ogłoszenie | Xoven' : 'Оголошення | Xoven')
@@ -223,7 +236,7 @@ function AdDetailsPage({ t }: Props) {
             '@type': 'Offer',
             name: publicAd.title,
             description: publicAd.description,
-            price: publicAd.price ?? 0,
+            ...(Number.isFinite(schemaPrice) && schemaPrice >= 0 ? { price: schemaPrice } : {}),
             priceCurrency: 'PLN',
             areaServed: 'PL',
             availability: 'https://schema.org/InStock',
@@ -267,6 +280,11 @@ function AdDetailsPage({ t }: Props) {
         !!ad.pinQueueAt &&
         (!ad.pinnedUntil || ad.pinnedUntil <= now)
 
+    const detailPriceLabel = getAdPriceLabel(ad.priceType, ad.price, {
+        free: t.adCard.free,
+        exchange: t.adCard.exchange,
+    })
+
 
 
     return (
@@ -300,23 +318,41 @@ function AdDetailsPage({ t }: Props) {
             <div className="card stack12">
                 <h2 className="h2">{ad.title}</h2>
 
+                {ad.sourceType === "telegram" && (
+                    <div className="ad-source-attribution">
+                        <span className="listing-badge">Telegram</span>
+                        {ad.sourceUrl && (
+                            <a href={ad.sourceUrl} target="_blank" rel="noopener noreferrer">
+                                {window.location.pathname.startsWith("/pl") ? "Oryginalny post" : "Оригінальний допис"}
+                            </a>
+                        )}
+                    </div>
+                )}
+
                 <div style={{ fontSize: '14px', color: '#6b7280' }}>
                     {ad.city} · {ad.voivodeship}
                 </div>
 
-                {ad.price && (
-                    <div className="price">{formatPricePLN(ad.price)}</div>
-
+                {detailPriceLabel && <div className="price">{detailPriceLabel}</div>}
+                {resolveAdPriceType(ad.priceType) === 'exchange' && ad.exchangeDetails?.trim() && (
+                    <div className="stack4">
+                        <strong>{a.exchangeFor}</strong>
+                        <span>{ad.exchangeDetails.trim()}</span>
+                    </div>
                 )}
                 {/* Продавець (MVP-заглушка) */}
-                <AuthorCard
-                    userId={ad.userId}
-                    adId={ad.id}
-                    adTitle={ad.title}
-                    userDisplayName={getAdSellerDisplayName(ad) ?? null}
-                    onReport={() => setIsReportOpen(true)}
-                    t={t}
-                />
+                {ad.sourceType === "telegram" ? (
+                    <div className="muted">{window.location.pathname.startsWith("/pl") ? "Źródło: Telegram" : "Джерело: Telegram"}</div>
+                ) : (
+                    <AuthorCard
+                        userId={ad.userId}
+                        adId={ad.id}
+                        adTitle={ad.title}
+                        userDisplayName={getAdSellerDisplayName(ad) ?? null}
+                        onReport={() => setIsReportOpen(true)}
+                        t={t}
+                    />
+                )}
                 {sellerContact && (
                     <section className="ad-contact">
                         <div className="ad-contact__title">{a.contact.title}</div>

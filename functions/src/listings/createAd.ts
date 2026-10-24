@@ -1,5 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import { getTrustedAdSellerName } from "./adIdentity.js";
+import { InvalidAdPricingError, normalizeAdPricing } from "./adPricing.js";
 
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -13,18 +15,20 @@ const MAX_AD_IMAGES = 10;
 const AD_CREATE_LIMITS_COLLECTION = "adCreateLimits";
 
 type AdCategory = "work" | "sell" | "buy" | "service" | "rent";
-
+type CatalogCategory = "animals" | "electronics" | "furniture" | "clothing" | "construction" | "transport" | "garden" | "children" | "other";
 type CreateAdInput = {
     title?: unknown;
     description?: unknown;
     category?: unknown;
+    catalogCategory?: unknown;
+    catalogSubcategory?: unknown;
     voivodeship?: unknown;
     city?: unknown;
     price?: unknown;
+    priceType?: unknown;
+    exchangeDetails?: unknown;
     images?: unknown;
     sellerContact?: unknown;
-    userName?: unknown;
-    userNickname?: unknown;
     location?: unknown;
 };
 
@@ -134,15 +138,21 @@ function buildAdData(
     const title = requireText(input.title, "title", 200);
     const description = requireText(input.description, "description", 5000);
     const category = requireCategory(input.category);
+    const catalogCategory = optionalCatalogCategory(input.catalogCategory, input.catalogSubcategory);
     const voivodeship = requireText(input.voivodeship, "voivodeship", 120);
     const city = requireText(input.city, "city", 120);
-    const price = requireText(input.price, "price", 80);
+    let pricing;
+    try {
+        pricing = normalizeAdPricing(input.priceType, input.price, input.exchangeDetails);
+    } catch (error) {
+        if (error instanceof InvalidAdPricingError) {
+            throw new HttpsError("invalid-argument", "Invalid price.");
+        }
+        throw error;
+    }
     const images = optionalStringArray(input.images, "images", MAX_AD_IMAGES, 2000);
     const sellerContact = optionalText(input.sellerContact, "sellerContact", 120);
-    const displayName = trustedNickname ||
-        optionalText(input.userNickname, "userNickname", 80) ||
-        optionalText(input.userName, "userName", 80) ||
-        "User";
+    const displayName = getTrustedAdSellerName(trustedNickname, identity.email);
     // Status is server-owned. Future paid creation logic should compute it here,
     // not accept it from the client payload.
     const status = "active";
@@ -152,9 +162,10 @@ function buildAdData(
         title,
         description,
         category,
+        ...catalogCategory,
         voivodeship,
         city,
-        price,
+        ...pricing,
         ...(images.length > 0 ? { images } : {}),
         ...(sellerContact ? { sellerContact } : {}),
         userId: identity.userId,
@@ -163,6 +174,22 @@ function buildAdData(
         createdAt: now,
         status,
         ...(location ? { location } : {}),
+    };
+}
+
+/** Builds a normal, fully validated ad document for the trusted Telegram importer. */
+export function buildTrustedTelegramAdData(input: CreateAdInput, now: number) {
+    const identity: UserIdentity = {
+        uid: "telegram_import",
+        email: null,
+        userId: "telegram_import",
+        allIds: [],
+    };
+    const ad = buildAdData(input, identity, "Telegram", now);
+    return {
+        ...ad,
+        sourceType: "telegram" as const,
+        sourceName: "Telegram",
     };
 }
 
@@ -227,6 +254,46 @@ function requireCategory(value: unknown): AdCategory {
     }
 
     throw new HttpsError("invalid-argument", "Invalid category.");
+}
+
+function optionalCatalogCategory(
+    category: unknown,
+    subcategory: unknown,
+): { catalogCategory?: CatalogCategory; catalogSubcategory?: string } {
+    if (category === undefined || category === null || category === "") {
+        if (subcategory !== undefined && subcategory !== null && subcategory !== "") {
+            throw new HttpsError("invalid-argument", "Invalid catalog subcategory.");
+        }
+        return {};
+    }
+
+    if (
+        category !== "animals" && category !== "electronics" && category !== "furniture" &&
+        category !== "clothing" && category !== "construction" && category !== "transport" &&
+        category !== "garden" && category !== "children" && category !== "other"
+    ) {
+        throw new HttpsError("invalid-argument", "Invalid catalog category.");
+    }
+
+    const allowedSubcategories: Record<CatalogCategory, readonly string[]> = {
+        animals: ["dogsCats", "birds", "farmAnimals", "other"],
+        electronics: ["phonesComputers", "homeAppliances", "tvAudio", "other"],
+        furniture: ["furniture", "interiorDecor", "lighting", "other"],
+        clothing: ["womenClothing", "menClothing", "shoes", "accessories", "other"],
+        construction: ["bricksTools", "buildingMaterials", "renovation", "other"],
+        transport: ["cars", "motorcycles", "vehicleParts", "other"],
+        garden: ["plants", "gardenFurniture", "gardenTools", "other"],
+        children: ["toys", "childrenClothing", "strollers", "other"],
+        other: ["miscellaneous"],
+    };
+
+    if (subcategory === undefined || subcategory === null || subcategory === "") {
+        return { catalogCategory: category };
+    }
+    if (typeof subcategory !== "string" || !allowedSubcategories[category].includes(subcategory)) {
+        throw new HttpsError("invalid-argument", "Invalid catalog subcategory.");
+    }
+    return { catalogCategory: category, catalogSubcategory: subcategory };
 }
 
 function optionalStringArray(

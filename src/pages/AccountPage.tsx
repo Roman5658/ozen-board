@@ -15,6 +15,8 @@ import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
 import { buildAdPath, buildAuctionPath } from '../utils/slug'
+import { getPasswordValidationIssue } from "../utils/passwordPolicy"
+import { isReservedAdminNickname, isValidNickname } from "../utils/nicknameSecurity"
 type Props = {
     t: (typeof translations)[keyof typeof translations]
     chatUnreadCount?: number
@@ -133,10 +135,10 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
         return (
             <details>
-                <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+                <summary className="account-owner-item__summary">
                     {a.moderation.showDetails}
                 </summary>
-                <div style={{ marginTop: 6 }}>{text}</div>
+                <div className="account-owner-item__reason-text">{text}</div>
             </details>
         )
     }
@@ -153,30 +155,23 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
         return (
             <div
                 key={to}
-                className="stack8"
-                style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    padding: 12,
-                    background: "#fff",
-                    fontSize: 14,
-                }}
+                className="account-owner-item"
             >
                 <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap" }}>
-                    <Link to={to} style={{ color: "inherit", fontWeight: 700 }}>
+                    <Link to={to} className="account-owner-item__link">
                         {item.title}
                     </Link>
                     <span className="listing-badge">{getOwnerStatusLabel(status)}</span>
                 </div>
 
                 {(item.city || item.voivodeship) && (
-                    <div style={{ color: "#6b7280" }}>
+                    <div className="account-owner-item__meta">
                         {[item.city, item.voivodeship].filter(Boolean).join(" · ")}
                     </div>
                 )}
 
                 {date && (
-                    <div style={{ color: "#6b7280" }}>
+                    <div className="account-owner-item__meta">
                         {getOwnerDateLabel(status)}: {date}
                     </div>
                 )}
@@ -189,7 +184,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                 )}
 
                 {showSupport && (
-                    <div style={{ color: "#78350f" }}>
+                    <div className="account-owner-item__support">
                         {a.moderation.contactSupport}
                     </div>
                 )}
@@ -205,19 +200,11 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
         if (count === 0) return null
 
         return (
-            <details
-                className="stack8"
-                style={{
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 8,
-                    padding: 12,
-                    background: "#f9fafb",
-                }}
-            >
-                <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+            <details className="account-archive">
+                <summary className="account-archive__summary">
                     {title} ({count})
                 </summary>
-                <div className="stack8" style={{ marginTop: 10 }}>
+                <div className="account-archive__items">
                     {children}
                 </div>
             </details>
@@ -247,7 +234,13 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     const [profileSaving, setProfileSaving] = useState(false)
 
     const [myAds, setMyAds] = useState<Ad[]>([])
+    const [myAdsLoaded, setMyAdsLoaded] = useState(false)
+    const [myAdsLoading, setMyAdsLoading] = useState(false)
+    const [myAdsError, setMyAdsError] = useState(false)
     const [myAuctions, setMyAuctions] = useState<Auction[]>([])
+    const [myAuctionsLoaded, setMyAuctionsLoaded] = useState(false)
+    const [myAuctionsLoading, setMyAuctionsLoading] = useState(false)
+    const [myAuctionsError, setMyAuctionsError] = useState(false)
 
     // contacts (public)
     const [phone, setPhone] = useState("")
@@ -255,36 +248,62 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     const [savedPhone, setSavedPhone] = useState("")
     const [savedTelegram, setSavedTelegram] = useState("")
     const [contactsSaved, setContactsSaved] = useState(false)
+    const [contactsSaving, setContactsSaving] = useState(false)
+    const [contactsError, setContactsError] = useState<string | null>(null)
+    const [contactsLoading, setContactsLoading] = useState(false)
+    const [contactsLoaded, setContactsLoaded] = useState(false)
+    const [contactsLoadError, setContactsLoadError] = useState(false)
 
 
 
 
-// ============================
-// LOAD MY AUCTIONS (Firestore)
-// ============================
-    useEffect(() => {
-        if (!user) return
+    async function loadUserContacts(currentUser: AppUser) {
+        setContactsLoading(true)
+        setContactsLoadError(false)
+        setContactsLoaded(false)
+        try {
+            const snap = await getDoc(doc(db, "users", currentUser.id))
+            if (getLocalUser()?.id !== currentUser.id) return
+            if (!snap.exists()) {
+                setSavedPhone("")
+                setSavedTelegram("")
+                setPhone("")
+                setTelegram("")
+                setContactsLoaded(true)
+                return
+            }
 
-        const userId = user.id
+            const data = snap.data()
+            const nextPhone = typeof data.phone === "string" ? data.phone : ""
+            const nextTelegram = typeof data.telegram === "string" ? data.telegram : ""
+            const nextUser: AppUser = {
+                ...currentUser,
+                nickname: typeof data.nickname === "string" ? data.nickname : currentUser.nickname,
+                status: data.status === "blocked" ? "blocked" : "active",
+                blockedAt: typeof data.blockedAt === "number" ? data.blockedAt : null,
+                blockedReason: typeof data.blockedReason === "string" ? data.blockedReason : null,
+                blockedBy: typeof data.blockedBy === "string" ? data.blockedBy : null,
+                unblockedAt: typeof data.unblockedAt === "number" ? data.unblockedAt : null,
+                unblockReason: typeof data.unblockReason === "string" ? data.unblockReason : null,
+                unblockedBy: typeof data.unblockedBy === "string" ? data.unblockedBy : null,
+                phone: nextPhone || null,
+                telegram: nextTelegram || null,
+            }
 
-        async function loadMyAuctions() {
-            const q = query(
-                collection(db, "auctions"),
-                where("ownerId", "==", userId)
-            )
-
-            const snap = await getDocs(q)
-
-            const data: Auction[] = snap.docs.map(d => ({
-                id: d.id,
-                ...(d.data() as Omit<Auction, "id">),
-            }))
-
-            setMyAuctions(data)
+            setSavedPhone(nextPhone)
+            setSavedTelegram(nextTelegram)
+            setPhone(nextPhone)
+            setTelegram(nextTelegram)
+            setLocalUser(nextUser)
+            setUser(nextUser)
+            setContactsLoaded(true)
+        } catch (error) {
+            console.error("[account] failed to load contacts", error)
+            setContactsLoadError(true)
+        } finally {
+            setContactsLoading(false)
         }
-
-        loadMyAuctions()
-    }, [user])
+    }
 
     // ============================
     // INITIAL LOAD
@@ -300,72 +319,58 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
         }
 
         const currentUser: AppUser = u
-        const userId = currentUser.id // ✅ фиксируем
         setUser(currentUser)
         setProfileNickname("")
-
-        async function loadContacts() {
-            const ref = doc(db, "users", userId)
-
-            const snap = await getDoc(ref)
-
-            if (snap.exists()) {
-                const data = snap.data()
-                const nextPhone = typeof data.phone === "string" ? data.phone : ""
-                const nextTelegram = typeof data.telegram === "string" ? data.telegram : ""
-                const nextUser: AppUser = {
-                    ...currentUser,
-                    nickname: typeof data.nickname === "string" ? data.nickname : currentUser.nickname,
-                    status: data.status === "blocked" ? "blocked" : "active",
-                    blockedAt: typeof data.blockedAt === "number" ? data.blockedAt : null,
-                    blockedReason: typeof data.blockedReason === "string" ? data.blockedReason : null,
-                    blockedBy: typeof data.blockedBy === "string" ? data.blockedBy : null,
-                    unblockedAt: typeof data.unblockedAt === "number" ? data.unblockedAt : null,
-                    unblockReason: typeof data.unblockReason === "string" ? data.unblockReason : null,
-                    unblockedBy: typeof data.unblockedBy === "string" ? data.unblockedBy : null,
-                    phone: nextPhone || null,
-                    telegram: nextTelegram || null,
-                }
-
-                setSavedPhone(nextPhone)
-                setSavedTelegram(nextTelegram)
-                setLocalUser(nextUser)
-                setUser(nextUser)
-            }
-        }
-
-        loadContacts().finally(() => setIsLoading(false))
+        void loadUserContacts(currentUser).finally(() => setIsLoading(false))
     }, [])
 
 
 
 
 
-    // ============================
-    // LOAD MY ADS (Firestore)
-    // ============================
-    useEffect(() => {
-        if (!user) return
-
+    async function loadMyAds() {
+        if (!user || myAdsLoaded || myAdsLoading) return
         const userId = user.id
+        setMyAdsLoading(true)
+        setMyAdsError(false)
 
-        async function loadMyAds() {
-            const q = query(
-                collection(db, "ads"),
-                where("userId", "==", userId)
-            )
-
-            const snap = await getDocs(q)
-            const data: Ad[] = snap.docs.map(d => ({
+        try {
+            const snap = await getDocs(query(collection(db, "ads"), where("userId", "==", userId)))
+            if (getLocalUser()?.id !== userId) return
+            setMyAds(snap.docs.map(d => ({
                 id: d.id,
                 ...(d.data() as Omit<Ad, "id">),
-            }))
-
-            setMyAds(data)
+            })))
+            setMyAdsLoaded(true)
+        } catch (error) {
+            console.error("[account] failed to load ads", error)
+            setMyAdsError(true)
+        } finally {
+            setMyAdsLoading(false)
         }
+    }
 
-        loadMyAds()
-    }, [user])
+    async function loadMyAuctions() {
+        if (!user || myAuctionsLoaded || myAuctionsLoading) return
+        const userId = user.id
+        setMyAuctionsLoading(true)
+        setMyAuctionsError(false)
+
+        try {
+            const snap = await getDocs(query(collection(db, "auctions"), where("ownerId", "==", userId)))
+            if (getLocalUser()?.id !== userId) return
+            setMyAuctions(snap.docs.map(d => ({
+                id: d.id,
+                ...(d.data() as Omit<Auction, "id">),
+            })))
+            setMyAuctionsLoaded(true)
+        } catch (error) {
+            console.error("[account] failed to load auctions", error)
+            setMyAuctionsError(true)
+        } finally {
+            setMyAuctionsLoading(false)
+        }
+    }
 
     async function handleDeleteAuction(auctionId: string) {
         if (!user) return
@@ -440,6 +445,14 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
             setProfileError(a.profile.nicknameRequired)
             return
         }
+        if (!isValidNickname(nextNickname)) {
+            setProfileError(isReservedAdminNickname(nextNickname)
+                ? a.auth.errors.nicknameReserved
+                : nextNickname.length > 80
+                    ? a.auth.errors.nicknameTooLong
+                    : a.auth.errors.nicknameLatinOnly)
+            return
+        }
 
         try {
             setProfileSaving(true)
@@ -468,6 +481,9 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     async function handleSaveContacts() {
         if (!user) return
 
+        setContactsSaving(true)
+        setContactsError(null)
+        setContactsSaved(false)
         try {
             const nextPhone = phone.trim()
             const nextTelegram = telegram.trim()
@@ -487,20 +503,74 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
             setUser(nextUser)
             setSavedPhone(nextPhone)
             setSavedTelegram(nextTelegram)
-            setPhone("")
-            setTelegram("")
+            setContactsLoaded(true)
             setContactsSaved(true)
 
             setTimeout(() => {
                 setContactsSaved(false)
             }, 3000)
-
-            alert(a.alerts.contactsSaved)
-
         } catch (e) {
             console.error(e)
-            alert(a.alerts.saveContactsError)
+            setContactsError(a.alerts.saveContactsError)
+        } finally {
+            setContactsSaving(false)
         }
+    }
+
+    async function handleDeleteContacts() {
+        if (!user) return
+        if (!window.confirm(a.confirms.deleteContacts)) return
+
+        setContactsError(null)
+        try {
+            await updateDoc(doc(db, "users", user.id), {
+                phone: null,
+                telegram: null,
+            })
+
+            const nextUser: AppUser = {
+                ...user,
+                phone: null,
+                telegram: null,
+            }
+
+            setLocalUser(nextUser)
+            setUser(nextUser)
+            setPhone("")
+            setTelegram("")
+            setSavedPhone("")
+            setSavedTelegram("")
+            setContactsLoaded(true)
+            setContactsLoadError(false)
+            setContactsError(null)
+            setContactsSaved(false)
+            alert(a.alerts.contactsDeleted)
+        } catch (error) {
+            console.error(error)
+            setContactsError(a.alerts.deleteContactsError)
+        }
+    }
+
+    function handleLogout() {
+        clearLocalUser()
+        setUser(null)
+        setProfileNickname("")
+        setProfileMessage(null)
+        setProfileError(null)
+        setSavedPhone("")
+        setSavedTelegram("")
+        setPhone("")
+        setTelegram("")
+        setContactsSaved(false)
+        setContactsError(null)
+        setContactsLoaded(false)
+        setContactsLoadError(false)
+        setMyAds([])
+        setMyAdsLoaded(false)
+        setMyAdsError(false)
+        setMyAuctions([])
+        setMyAuctionsLoaded(false)
+        setMyAuctionsError(false)
     }
 
     // ============================
@@ -516,21 +586,23 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     // ============================
     if (!user) {
         return (
-            <div className="card stack12">
+            <div className="card stack16 account-auth">
                 <h2 className="h2">{a.title}</h2>
 
-                <div style={{display: "flex", gap: 8}}>
+                <div className="account-auth__tabs" role="group" aria-label={a.title}>
                     <button
-                        className={mode === "login" ? "btn-primary" : "btn-secondary"}
+                        className={`account-auth__tab${mode === "login" ? " is-active" : ""}`}
                         type="button"
+                        aria-pressed={mode === "login"}
                         onClick={() => setMode("login")}
                     >
                         {a.auth.loginTab}
                     </button>
 
                     <button
-                        className={mode === "register" ? "btn-primary" : "btn-secondary"}
+                        className={`account-auth__tab${mode === "register" ? " is-active" : ""}`}
                         type="button"
+                        aria-pressed={mode === "register"}
                         onClick={() => setMode("register")}
                     >
                         {a.auth.registerTab}
@@ -538,34 +610,57 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                 </div>
 
                 {mode === "register" && (
-                    <input
-                        className="input"
-                        placeholder={a.auth.nicknamePlaceholder}
-                        value={nickname}
-                        onChange={e => setNickname(e.target.value)}
-                    />
+                    <label className="stack4 account-field" htmlFor="account-nickname">
+                        <span>{a.auth.nicknamePlaceholder}</span>
+                        <input
+                            className="input"
+                            id="account-nickname"
+                            autoComplete="nickname"
+                            value={nickname}
+                            maxLength={80}
+                            onChange={e => setNickname(e.target.value)}
+                        />
+                    </label>
                 )}
 
+                <label className="stack4 account-field" htmlFor="account-email">
+                    <span>{a.auth.emailPlaceholder}</span>
+                    <input
+                        className="input"
+                        id="account-email"
+                        type="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                    />
+                </label>
 
-                <input
-                    className="input"
-                    type="email"
-                    placeholder={a.auth.emailPlaceholder}
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                />
-
-                <input
-                    className="input"
-                    type="password"
-                    placeholder={a.auth.passwordPlaceholder}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                />
+                <label className="stack4 account-field" htmlFor="account-password">
+                    <span>{a.auth.passwordPlaceholder}</span>
+                    <input
+                        className="input"
+                        id="account-password"
+                        type="password"
+                        autoComplete={mode === "login" ? "current-password" : "new-password"}
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                    />
+                </label>
+                {password && getPasswordValidationIssue(password, mode) && (
+                    <div style={{ color: "#b91c1c", fontSize: 13 }}>
+                        {getPasswordValidationIssue(password, mode) === "too-short"
+                            ? a.auth.errors.passwordTooShort
+                            : getPasswordValidationIssue(password, mode) === "too-long"
+                                ? a.auth.errors.passwordTooLong
+                                : getPasswordValidationIssue(password, mode) === "control-character"
+                                    ? a.auth.errors.passwordControlChars
+                                    : a.auth.errors.passwordRequired}
+                    </div>
+                )}
                 {mode === "login" && (
                     <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn-secondary account-auth__forgot"
                         disabled={resetLoading}
                         onClick={async () => {
                             setAuthError(null)
@@ -573,7 +668,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
                             const cleanEmail = email.trim().toLowerCase()
                             if (!cleanEmail) {
-                                setAuthError("Введите email.")
+                                setAuthError(a.auth.errors.emailRequired)
                                 return
                             }
 
@@ -585,64 +680,75 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             } catch (error: any) {
                                 const code = error?.code as string | undefined
                                 if (code === "auth/invalid-email") {
-                                    setAuthError("Неверный формат email.")
+                                    setAuthError(a.auth.errors.invalidEmail)
                                 } else if (code === "auth/user-not-found") {
-                                    setAuthError("Пользователь с таким email не найден.")
+                                    setAuthError(a.auth.errors.userNotFound)
                                 } else if (code === "auth/too-many-requests") {
-                                    setAuthError("Слишком много попыток. Попробуйте позже.")
+                                    setAuthError(a.auth.errors.tooManyRequests)
                                 } else {
-                                    setAuthError("Не удалось отправить письмо для восстановления. Попробуйте ещё раз.")
+                                    setAuthError(a.auth.errors.passwordResetFailed)
                                 }
                             } finally {
                                 setResetLoading(false)
                             }
                         }}
                     >
-                        {a.auth.forgotPassword}
+                        {resetLoading ? a.auth.passwordResetLoading : a.auth.forgotPassword}
                     </button>
                 )}
 
                 {resetMessage && (
-                    <div style={{color: "#166534", fontSize: 13}}>
+                    <div role="status" className="account-message account-message--success">
                         {resetMessage}
                     </div>
                 )}
 
                 {authError && (
-                    <div style={{color: "#b91c1c", fontSize: 13}}>
+                    <div role="alert" className="account-message account-message--error">
                         {authError}
                     </div>
                 )}
 
                 <button
-                    className="btn-primary"
+                    className="btn-primary account-auth__submit"
                     disabled={
                         authLoading ||
-                        password.length < 4 ||
+                        !password ||
                         (mode === "register" && !nickname.trim())
                     }
                     onClick={async () => {
                         setAuthError(null)
+                        const passwordIssue = getPasswordValidationIssue(password, mode)
+                        if (passwordIssue) {
+                            setAuthError(passwordIssue === "too-short"
+                                ? a.auth.errors.passwordTooShort
+                                : passwordIssue === "too-long"
+                                    ? a.auth.errors.passwordTooLong
+                                    : passwordIssue === "control-character"
+                                        ? a.auth.errors.passwordControlChars
+                                        : a.auth.errors.passwordRequired)
+                            return
+                        }
                         setAuthLoading(true)
                         const mapAuthError = (code?: string) => {
-                            if (code === "auth/email-already-in-use") return "Этот email уже используется."
-                            if (code === "auth/invalid-email") return "Неверный формат email."
-                            if (code === "auth/user-not-found") return "Пользователь с таким email не найден."
-                            if (code === "auth/wrong-password") return "Неверный пароль."
-                            if (code === "auth/invalid-credential") return "Неверный email или пароль."
-                            if (code === "auth/weak-password") return "Слишком слабый пароль."
-                            if (code === "auth/too-many-requests") return "Слишком много попыток. Попробуйте позже."
-                            return "Ошибка авторизации. Попробуйте ещё раз."
+                            if (code === "auth/email-already-in-use") return a.auth.errors.emailTaken
+                            if (code === "auth/invalid-email") return a.auth.errors.invalidEmail
+                            if (code === "auth/user-not-found") return a.auth.errors.userNotFound
+                            if (code === "auth/wrong-password") return a.auth.errors.wrongPassword
+                            if (code === "auth/invalid-credential") return a.auth.errors.invalidCredential
+                            if (code === "auth/weak-password") return a.auth.errors.weakPassword
+                            if (code === "auth/too-many-requests") return a.auth.errors.tooManyRequests
+                            return a.auth.errors.genericAuthError
                         }
                         try {
                             const cleanEmail = email.trim().toLowerCase()
                             // ===== LOGIN =====
                             if (!cleanEmail) {
-                                setAuthError("Введите email.")
+                                setAuthError(a.auth.errors.emailRequired)
                                 return
                             }
                             if (!cleanEmail.includes("@")) {
-                                setAuthError("Email должен содержать символ @.")
+                                setAuthError(a.auth.errors.invalidEmail)
                                 return
                             }
                             if (containsCyrillic(cleanEmail)) {
@@ -652,6 +758,14 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             if (mode === "register") {
                                 if (containsCyrillic(nickname) || !isLatinNickname(nickname)) {
                                     setAuthError(a.auth.errors.nicknameLatinOnly)
+                                    return
+                                }
+                                if (isReservedAdminNickname(nickname)) {
+                                    setAuthError(a.auth.errors.nicknameReserved)
+                                    return
+                                }
+                                if (!isValidNickname(nickname)) {
+                                    setAuthError(a.auth.errors.nicknameTooLong)
                                     return
                                 }
                             }
@@ -680,6 +794,15 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                                     telegram: profile?.telegram ?? null,
                                 }
 
+                                const savedPhoneValue = typeof profile?.phone === "string" ? profile.phone : ""
+                                const savedTelegramValue = typeof profile?.telegram === "string" ? profile.telegram : ""
+                                setSavedPhone(savedPhoneValue)
+                                setSavedTelegram(savedTelegramValue)
+                                setPhone(savedPhoneValue)
+                                setTelegram(savedTelegramValue)
+                                setContactsLoaded(true)
+                                setContactsLoadError(false)
+
                                 if (!profile || profile.uid !== authRes.user.uid) {
                                     await createUser(mergedUser)
                                 }
@@ -688,6 +811,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                                 setLocalUser(mergedUser)
                                 setUser(mergedUser)
                                 setProfileNickname("")
+                                setPassword("")
                                 return
                             }
 
@@ -721,13 +845,14 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             setLocalUser(newUser)
                             setUser(newUser)
                             setProfileNickname("")
+                            setContactsLoaded(true)
 
                             setNickname("")
                             setEmail("")
                             setPassword("")
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } catch (error: any) {
-                            console.error(`[auth] ${mode === "register" ? "registration" : "login"} failed`, error)
+                            console.error(`[auth] ${mode === "register" ? "registration" : "login"} failed`, error?.code ?? "unknown")
                             setAuthError(mapAuthError(error?.code))
                         } finally {
                             setAuthLoading(false)
@@ -778,37 +903,40 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     // PROFILE
     // ============================
     return (
-        <div className="stack12">
+        <div className="account-page">
+            <h2 className="account-page__title">{a.title}</h2>
             {isBlockedAccount && (
-                <div
-                    className="warning stack8"
-                    style={{
-                        borderColor: "#f97316",
-                        background: "#fff7ed",
-                        color: "#9a3412",
-                        fontSize: 14,
-                    }}
-                >
+                <div className="account-blocked-warning" role="alert">
                     <b>{a.profile.blockedTitle}</b>
                     <div>{a.profile.blockedMessage}</div>
                     <div>{a.profile.blockedSupport}</div>
                 </div>
             )}
 
-            <div className="card stack8">
-                <h2 className="h2">{user.nickname}</h2>
-                <div style={{fontSize: 14, color: "#6b7280"}}>{user.email}</div>
+            <div className="account-overview-grid">
+            <section className="card account-card account-profile" aria-labelledby="account-profile-heading">
+                <div className="account-profile__heading">
+                    <div className="account-profile__identity">
+                        <h3 className="account-card__title" id="account-profile-heading">{user.nickname}</h3>
+                        <div className="account-profile__email">{user.email}</div>
+                    </div>
+                    <span className={`account-status${isBlockedAccount ? " account-status--blocked" : ""}`}>
+                        {isBlockedAccount ? a.profile.blockedTitle : a.moderation.statusActive}
+                    </span>
+                </div>
                 {canEditProfile ? (
-                    <div className="card stack8">
+                    <div className="account-profile-edit">
                         <h3 className="h3">{a.profile.editProfile}</h3>
-                        <label style={{fontSize: 13, fontWeight: 700}}>
+                        <label className="account-field" htmlFor="account-profile-nickname">
                             {a.profile.nicknameLabel}
                         </label>
                         <input
                             className="input"
+                            id="account-profile-nickname"
                             type="text"
                             placeholder={user.nickname}
                             value={profileNickname}
+                            maxLength={80}
                             onChange={e => {
                                 setProfileNickname(e.target.value)
                                 setProfileMessage(null)
@@ -816,12 +944,12 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             }}
                         />
                         {profileError && (
-                            <div style={{fontSize: 13, color: "#b91c1c"}}>
+                            <div className="account-message account-message--error" role="alert">
                                 {profileError}
                             </div>
                         )}
                         {profileMessage && (
-                            <div style={{fontSize: 13, color: "#15803d"}}>
+                            <div className="account-message account-message--success" role="status">
                                 {profileMessage}
                             </div>
                         )}
@@ -831,325 +959,248 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             disabled={profileSaving}
                             onClick={handleSaveProfile}
                         >
-                            {a.profile.save}
+                            {profileSaving ? a.profile.saving : a.profile.save}
                         </button>
                     </div>
                 ) : null}
-                <Link
-                    to="/account/chats"
-                    className="btn-secondary"
-                    style={{display: "inline-block", textAlign: "center", position: "relative"}}
-                >
-                    {a.profile.myChats}
-                    {chatUnreadCount > 0 && (
-                        <span
-                            style={{
-                                position: "absolute",
-                                top: -8,
-                                right: -8,
-                                minWidth: 22,
-                                height: 22,
-                                padding: "0 6px",
-                                borderRadius: 999,
-                                background: "#dc2626",
-                                color: "#fff",
-                                fontSize: 11,
-                                fontWeight: 800,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                border: "2px solid #fff",
-                            }}
-                        >
-                            {chatBadgeText}
-                        </span>
-                    )}
-                </Link>
-                <Link
-                    to="/account/payments"
-                    className="btn-secondary"
-                    style={{display: "inline-block", textAlign: "center"}}
-                >
-                    {a.payments.link}
-                </Link>
+                <div className="account-profile__actions">
+                    <Link to="/account/chats" className="btn-secondary account-action-link">
+                        <span>{a.profile.myChats}</span>
+                        {chatUnreadCount > 0 && <span className="account-chat-badge">{chatBadgeText}</span>}
+                    </Link>
+                    <Link to="/account/payments" className="btn-secondary account-action-link">
+                        {a.payments.link}
+                    </Link>
+                    <button type="button" className="btn-secondary account-action-link" onClick={handleLogout}>
+                        {a.profile.logout}
+                    </button>
+                </div>
+            </section>
 
-                <div className="card stack12">
-                    <h3 className="h3">{a.profile.contactsTitle}</h3>
+            <section className="account-card account-contacts" aria-labelledby="account-contacts-heading" aria-busy={contactsSaving}>
+                    <h3 className="account-card__title" id="account-contacts-heading">{a.profile.contactsTitle}</h3>
 
-                    <div style={{fontSize: 13, color: "#b45309"}}>
-                        ⚠️ {a.profile.contactsWarn}
+                    <div className="account-contact-warning" role="note">
+                        {a.profile.contactsWarn}
                     </div>
 
+                    {contactsLoadError && (
+                        <div className="account-message account-message--error" role="alert">
+                            <span>{a.profile.contactsLoadError}</span>
+                            <button type="button" className="account-inline-retry" onClick={() => {
+                                if (user) void loadUserContacts(user)
+                            }}>
+                                {a.profile.retry}
+                            </button>
+                        </div>
+                    )}
+                    {contactsLoading && <div className="account-message" role="status">{a.loading}</div>}
+
                     {(savedPhone || savedTelegram) && (
-                        <div
-                            className="stack8"
-                            style={{
-                                border: "1px solid #d1fae5",
-                                borderRadius: 8,
-                                padding: 10,
-                                background: "#f0fdf4",
-                                fontSize: 14,
-                            }}
-                        >
+                        <div className="account-saved-contacts">
                             <b>{a.profile.savedContacts}</b>
-                            {savedPhone && (
-                                <div>
-                                    {a.profile.phoneLabel}: {savedPhone}
-                                </div>
-                            )}
-                            {savedTelegram && (
-                                <div>
-                                    {a.profile.telegramLabel}: {savedTelegram}
-                                </div>
-                            )}
+                            {savedPhone && <div>{a.profile.phoneLabel}: {savedPhone}</div>}
+                            {savedTelegram && <div>{a.profile.telegramLabel}: {savedTelegram}</div>}
                         </div>
                     )}
 
-                    <input
-                        className="input"
-                        type="tel"
-                        placeholder={a.profile.phonePlaceholder}
+                    <div className="account-contacts__fields">
+                        <label className="account-field" htmlFor="account-phone">
+                            <span>{a.profile.phoneLabel}</span>
+                            <input
+                                className="input"
+                                id="account-phone"
+                                type="tel"
+                                autoComplete="tel"
+                                placeholder={a.profile.phonePlaceholder}
+                                value={phone}
+                                onChange={e => {
+                                    setPhone(e.target.value)
+                                    setContactsSaved(false)
+                                    setContactsError(null)
+                                }}
+                            />
+                        </label>
 
-                        value={phone}
-                        onChange={e => setPhone(e.target.value)}
-                    />
-
-                    <input
-                        className="input"
-                        type="text"
-                        placeholder={a.profile.telegramPlaceholder}
-                        value={telegram}
-                        onChange={e => setTelegram(e.target.value)}
-                    />
-                </div>
-                <button
-                    className="btn-primary"
-                    onClick={handleSaveContacts}
-                >
-                    {a.profile.saveContacts}
-                </button>
-
-                {contactsSaved && (
-                    <div style={{fontSize: 13, color: "#15803d"}}>
-                        {a.profile.saved}
+                        <label className="account-field" htmlFor="account-telegram">
+                            <span>{a.profile.telegramLabel}</span>
+                            <input
+                                className="input"
+                                id="account-telegram"
+                                type="text"
+                                autoComplete="off"
+                                placeholder={a.profile.telegramPlaceholder}
+                                value={telegram}
+                                onChange={e => {
+                                    setTelegram(e.target.value)
+                                    setContactsSaved(false)
+                                    setContactsError(null)
+                                }}
+                            />
+                        </label>
                     </div>
-                )}
-                <button
-                    className="btn-secondary"
-                    onClick={async () => {
-                        if (!user) return
-
-                        const confirmDelete = window.confirm(
-                            a.confirms.deleteContacts
-                        )
-                        if (!confirmDelete) return
-
-                        try {
-                            await updateDoc(doc(db, "users", user.id), {
-                                phone: null,
-                                telegram: null,
-                            })
-
-                            const nextUser: AppUser = {
-                                ...user,
-                                phone: null,
-                                telegram: null,
-                            }
-
-                            setLocalUser(nextUser)
-                            setUser(nextUser)
-                            setPhone("")
-                            setTelegram("")
-                            setSavedPhone("")
-                            setSavedTelegram("")
-                            setContactsSaved(false)
-                            alert(a.alerts.contactsDeleted)
-                        } catch (e) {
-                            console.error(e)
-                            alert(a.confirms.deleteContacts)
-                        }
-                    }}
-                >
-                    {a.profile.deleteContacts}
-                </button>
-
-                <button
-                    className="btn-secondary"
-                    onClick={() => {
-                        clearLocalUser()
-                        setUser(null)
-                        setProfileNickname("")
-                        setProfileMessage(null)
-                        setProfileError(null)
-                        setSavedPhone("")
-                        setSavedTelegram("")
-                        setPhone("")
-                        setTelegram("")
-                        setMyAds([])
-                        setMyAuctions([])
-                    }}
-                >
-                    {a.profile.logout}
-                </button>
+                    {contactsError && <div className="account-message account-message--error" role="alert">{contactsError}</div>}
+                    {contactsSaved && <div className="account-message account-message--success" role="status" aria-live="polite">{a.profile.saved}</div>}
+                    <div className="account-contact-actions">
+                        <button type="button" className="btn-primary" disabled={contactsSaving || contactsLoading || !contactsLoaded} onClick={handleSaveContacts}>
+                            {contactsSaving ? a.profile.saving : a.profile.saveContacts}
+                        </button>
+                        <button type="button" className="btn-danger" onClick={handleDeleteContacts}>
+                            {a.profile.deleteContacts}
+                        </button>
+                    </div>
+                </section>
             </div>
 
-            <div className="card stack12">
-                <h3 className="h3">{a.myAds.title}</h3>
-
-                {activeAds.length === 0 ? (
-                    <div style={{color: "#6b7280", fontSize: 14}}>
-                        {myAds.length === 0 ? a.myAds.empty : a.myAds.emptyActive}
-                    </div>
-
-                ) : (
-                    <div className="ads-grid">
-                    {activeAds.map(ad => (
-                            <div key={ad.id} className="stack8">
-                                <Link to={buildAdPath(ad.title, ad.city, ad.id)} style={{textDecoration: "none", color: "inherit", display: "block",}}>
-                                    <AdCard
-                                        ad={ad}
-                                        userNickname={user.nickname}
-                                        isMine={true}
-
-                                        labels={t.adCard}
-                                        showActions={true}
-                                        onDelete={() => handleDeleteAd(ad.id)}
-                                    />
-
-
-                                </Link>
-
-                                {renderAdPromotionStatus(ad)}
-
+            <details className="card account-section" id="account-ads" onToggle={(event) => {
+                if (event.currentTarget.open) void loadMyAds()
+            }}>
+                <summary className="account-section__summary">
+                    <span>{a.myAds.title}</span>
+                    {myAdsLoaded && <span className="account-section__count">{myAds.length}</span>}
+                </summary>
+                <div className="account-section__content" aria-busy={myAdsLoading}>
+                    {myAdsLoading && <div className="account-section__state" role="status">{a.myAds.loading}</div>}
+                    {myAdsError && (
+                        <div className="account-section__state" role="alert">
+                            <span>{a.myAds.loadError}</span>
+                            <button type="button" className="btn-secondary account-retry" onClick={() => void loadMyAds()}>{a.myAds.retry}</button>
+                        </div>
+                    )}
+                    {!myAdsLoaded && !myAdsLoading && !myAdsError && (
+                        <div className="account-section__state" role="status">{a.myAds.loading}</div>
+                    )}
+                    {myAdsLoaded && !myAdsError && <>
+                        {activeAds.length === 0 ? (
+                            <div className="account-empty-state">
+                                {myAds.length === 0 ? a.myAds.empty : a.myAds.emptyActive}
                             </div>
-                        ))}
-
-
-                    </div>
-                )}
-
-                {renderArchiveSection(
-                    a.moderation.sections.hidden,
-                    hiddenAds.length,
-                    hiddenAds.map(ad => renderCompactOwnerItem(ad, "hidden", buildAdPath(ad.title, ad.city, ad.id)))
-                )}
-                {renderArchiveSection(
-                    a.moderation.sections.deleted,
-                    deletedAds.length,
-                    deletedAds.map(ad => renderCompactOwnerItem(ad, "deleted", buildAdPath(ad.title, ad.city, ad.id)))
-                )}
-                {renderArchiveSection(
-                    a.moderation.sections.removed,
-                    removedAds.length,
-                    removedAds.map(ad => renderCompactOwnerItem(ad, "removed", buildAdPath(ad.title, ad.city, ad.id)))
-                )}
-                {renderArchiveSection(
-                    a.moderation.sections.archivedAds,
-                    expiredAds.length,
-                    expiredAds.map(ad => renderCompactOwnerItem(ad, "expired", buildAdPath(ad.title, ad.city, ad.id)))
-                )}
-            </div>
-
-            {/* MY AUCTIONS */}
-            <div className="card stack12">
-                <h3 className="h3">{a.myAuctions.title}</h3>
-
-                {activeAuctions.length === 0 ? (
-                    <div style={{color: "#6b7280", fontSize: 14}}>
-                        {myAuctions.length === 0 ? a.myAuctions.empty : a.myAuctions.emptyActive}
-                    </div>
-
-                ) : (
-                    <div className="stack12">
-                    {activeAuctions.map((auction: Auction) => {
-
-                            const isEnded = auction.endsAt <= now
-
-                            return (
-                                <div key={auction.id} className="stack8">
-                                    <AuctionCard
-                                        t={t}
-
-                                        title={auction.title}
-                                        city={auction.city}
-                                        currentBid={auction.startPrice}
-                                        timeLeft={
-                                            isEnded
-                                                ? a.myAuctions.ended
-                                                : `${Math.ceil((auction.endsAt - now) / 60000)} ${a.myAuctions.minutesShort}`
-                                        }
-
-                                        image={auction.images?.[0]}
-                                        ownerName={auction.ownerNickname?.trim() || auction.ownerName?.trim() || user.nickname}
-                                        isEnded={isEnded}
-                                    />
-                                    {isEnded && (
-                                        <div
-                                            style={{
-                                                fontSize: 12,
-                                                color: "#6b7280",
-                                                marginTop: 4,
-                                            }}
-                                        >
-                                            {a.myAuctions.endedInfo}
-                                        </div>
-                                    )}
-
-                                    <div style={{display: "flex", gap: 8}}>
-                                        <button
-                                            className="btn-secondary"
-                                            onClick={() => navigate(buildAuctionPath(auction.title, auction.city, auction.id))}
-                                        >
-                                            {a.myAuctions.goTo}
-                                        </button>
-
-                                        <button
-                                            onClick={() => handleDeleteAuction(auction.id)}
-                                            style={{
-                                                background: "#fee2e2",
-                                                color: "#991b1b",
-                                                border: "none",
-                                                padding: 8,
-                                                borderRadius: 10,
-                                                fontSize: 13,
-                                                cursor: "pointer",
-                                            }}
-                                        >
-                                            {a.myAuctions.deleteBtn}
-
-                                        </button>
-
+                        ) : (
+                            <div className="ads-grid account-ads-grid">
+                                {activeAds.map(ad => (
+                                    <div key={ad.id} className="stack8">
+                                        <Link to={buildAdPath(ad.title, ad.city, ad.id)} className="account-ad-link">
+                                            <AdCard
+                                                ad={ad}
+                                                userNickname={user.nickname}
+                                                isMine={true}
+                                                labels={t.adCard}
+                                                showActions={true}
+                                                onDelete={() => handleDeleteAd(ad.id)}
+                                            />
+                                        </Link>
+                                        {renderAdPromotionStatus(ad)}
                                     </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
+                                ))}
+                            </div>
+                        )}
 
-                {renderArchiveSection(
-                    a.moderation.sections.hidden,
-                    hiddenAuctions.length,
-                    hiddenAuctions.map(auction => renderCompactOwnerItem(auction, "hidden", buildAuctionPath(auction.title, auction.city, auction.id)))
-                )}
-                {renderArchiveSection(
-                    a.moderation.sections.deleted,
-                    deletedAuctions.length,
-                    deletedAuctions.map(auction => renderCompactOwnerItem(auction, "deleted", buildAuctionPath(auction.title, auction.city, auction.id)))
-                )}
-                {renderArchiveSection(
-                    a.moderation.sections.removed,
-                    removedAuctions.length,
-                    removedAuctions.map(auction => renderCompactOwnerItem(auction, "removed", buildAuctionPath(auction.title, auction.city, auction.id)))
-                )}
-                {renderArchiveSection(
-                    a.moderation.sections.archivedAuctions,
-                    archivedAuctions.length,
-                    archivedAuctions.map(auction => {
-                        const status = getAuctionOwnerStatus(auction)
-                        return renderCompactOwnerItem(auction, status, buildAuctionPath(auction.title, auction.city, auction.id))
-                    })
-                )}
-            </div>
+                        {renderArchiveSection(
+                            a.moderation.sections.hidden,
+                            hiddenAds.length,
+                            hiddenAds.map(ad => renderCompactOwnerItem(ad, "hidden", buildAdPath(ad.title, ad.city, ad.id)))
+                        )}
+                        {renderArchiveSection(
+                            a.moderation.sections.deleted,
+                            deletedAds.length,
+                            deletedAds.map(ad => renderCompactOwnerItem(ad, "deleted", buildAdPath(ad.title, ad.city, ad.id)))
+                        )}
+                        {renderArchiveSection(
+                            a.moderation.sections.removed,
+                            removedAds.length,
+                            removedAds.map(ad => renderCompactOwnerItem(ad, "removed", buildAdPath(ad.title, ad.city, ad.id)))
+                        )}
+                        {renderArchiveSection(
+                            a.moderation.sections.archivedAds,
+                            expiredAds.length,
+                            expiredAds.map(ad => renderCompactOwnerItem(ad, "expired", buildAdPath(ad.title, ad.city, ad.id)))
+                        )}
+                    </>}
+                </div>
+            </details>
+
+            <details className="card account-section" id="account-auctions" onToggle={(event) => {
+                if (event.currentTarget.open) void loadMyAuctions()
+            }}>
+                <summary className="account-section__summary">
+                    <span>{a.myAuctions.title}</span>
+                    {myAuctionsLoaded && <span className="account-section__count">{myAuctions.length}</span>}
+                </summary>
+                <div className="account-section__content" aria-busy={myAuctionsLoading}>
+                    {myAuctionsLoading && <div className="account-section__state" role="status">{a.myAuctions.loading}</div>}
+                    {myAuctionsError && (
+                        <div className="account-section__state" role="alert">
+                            <span>{a.myAuctions.loadError}</span>
+                            <button type="button" className="btn-secondary account-retry" onClick={() => void loadMyAuctions()}>{a.myAuctions.retry}</button>
+                        </div>
+                    )}
+                    {!myAuctionsLoaded && !myAuctionsLoading && !myAuctionsError && (
+                        <div className="account-section__state" role="status">{a.myAuctions.loading}</div>
+                    )}
+                    {myAuctionsLoaded && !myAuctionsError && <>
+                        {activeAuctions.length === 0 ? (
+                            <div className="account-empty-state">
+                                {myAuctions.length === 0 ? a.myAuctions.empty : a.myAuctions.emptyActive}
+                            </div>
+                        ) : (
+                            <div className="account-auction-list">
+                                {activeAuctions.map((auction: Auction) => {
+                                    const isEnded = auction.endsAt <= now
+                                    return (
+                                        <div key={auction.id} className="account-auction-row">
+                                            <AuctionCard
+                                                t={t}
+                                                title={auction.title}
+                                                city={auction.city}
+                                                currentBid={auction.startPrice}
+                                                timeLeft={isEnded
+                                                    ? a.myAuctions.ended
+                                                    : `${Math.ceil((auction.endsAt - now) / 60000)} ${a.myAuctions.minutesShort}`}
+                                                image={auction.images?.[0]}
+                                                ownerName={auction.ownerNickname?.trim() || auction.ownerName?.trim() || user.nickname}
+                                                isEnded={isEnded}
+                                            />
+                                            {isEnded && <div className="account-auction-row__ended">{a.myAuctions.endedInfo}</div>}
+                                            <div className="account-auction-row__actions">
+                                                <button type="button" className="btn-secondary account-row-button" onClick={() => navigate(buildAuctionPath(auction.title, auction.city, auction.id))}>
+                                                    {a.myAuctions.goTo}
+                                                </button>
+                                                <button type="button" className="btn-danger account-row-button" onClick={() => handleDeleteAuction(auction.id)}>
+                                                    {a.myAuctions.deleteBtn}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        {renderArchiveSection(
+                            a.moderation.sections.hidden,
+                            hiddenAuctions.length,
+                            hiddenAuctions.map(auction => renderCompactOwnerItem(auction, "hidden", buildAuctionPath(auction.title, auction.city, auction.id)))
+                        )}
+                        {renderArchiveSection(
+                            a.moderation.sections.deleted,
+                            deletedAuctions.length,
+                            deletedAuctions.map(auction => renderCompactOwnerItem(auction, "deleted", buildAuctionPath(auction.title, auction.city, auction.id)))
+                        )}
+                        {renderArchiveSection(
+                            a.moderation.sections.removed,
+                            removedAuctions.length,
+                            removedAuctions.map(auction => renderCompactOwnerItem(auction, "removed", buildAuctionPath(auction.title, auction.city, auction.id)))
+                        )}
+                        {renderArchiveSection(
+                            a.moderation.sections.archivedAuctions,
+                            archivedAuctions.length,
+                            archivedAuctions.map(auction => {
+                                const status = getAuctionOwnerStatus(auction)
+                                return renderCompactOwnerItem(auction, status, buildAuctionPath(auction.title, auction.city, auction.id))
+                            })
+                        )}
+                    </>}
+                </div>
+            </details>
         </div>
     )
 }

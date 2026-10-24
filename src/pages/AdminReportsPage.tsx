@@ -8,7 +8,8 @@ import { buildAdPath, buildAuctionPath } from "../utils/slug"
 import type { translations } from "../app/i18n"
 import type { Report, ReportStatus, ReportTargetType } from "../types/report"
 import type { UserReview } from "../types/userReview"
-import AdminPagination, { getAdminPaginationLabels, paginateItems } from "../components/AdminPagination"
+import AdminPagination from "../components/AdminPagination"
+import { getAdminPaginationLabels, paginateItems } from "../utils/adminPagination"
 
 type AppTranslations = (typeof translations)[keyof typeof translations]
 type Props = {

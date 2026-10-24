@@ -1,17 +1,20 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "../app/firebase";
+import type { CatalogCategoryId, CatalogSubcategoryId } from "../data/catalogCategories";
 
 export type CreateAdPayload = {
     title: string;
     description: string;
     category: "work" | "sell" | "buy" | "service" | "rent";
+    catalogCategory?: CatalogCategoryId;
+    catalogSubcategory?: CatalogSubcategoryId;
     voivodeship: string;
     city: string;
     price: string;
+    priceType?: "paid" | "free" | "exchange";
+    exchangeDetails?: string;
     images?: string[];
     sellerContact?: string;
-    userName?: string | null;
-    userNickname?: string | null;
     location?: {
         lat: number;
         lng: number;
