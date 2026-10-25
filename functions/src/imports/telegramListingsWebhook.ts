@@ -5,17 +5,19 @@ import * as admin from "firebase-admin";
 import type { Request, Response } from "express";
 import {
     loadTelegramListingsConfig,
-    getTelegramListingSkipReason,
     getTelegramUpdateMessage,
     getTelegramUpdateChatId,
     getTelegramUpdateId,
     isTelegramEditedUpdate,
     lookupTelegramChatSource,
+    evaluateTelegramAdMessage,
     parseTelegramAdMessage,
 } from "./telegramListingsAdapter";
 import { isAuthorizedTelegramWebhookSecret } from "./telegramWebhookSecurity";
-import { FirestoreTelegramUpdateLedger } from "./telegramUpdateLedger";
+import { FirestoreTelegramUpdateLedger, type TelegramUpdateId } from "./telegramUpdateLedger";
 import { FirestoreTelegramUpdateRateLimiter } from "./telegramUpdateRateLimiter";
+import { buildTelegramUpdateFromCollectorPayload, hasExplicitTelegramCollectorSenderAllowlist } from "./telegramCollectorAdapter";
+import { isAuthorizedTelegramCollectorRequest } from "./telegramCollectorSecurity";
 import {
     deactivateTelegramListingAsAdmin,
 } from "./telegramListingLifecycle";
@@ -25,13 +27,14 @@ import {
     registerTelegramWebhook,
     requireTelegramAdmin,
 } from "./telegramWebhookAdmin";
-import { deactivateTelegramImportRecord, ingestTelegramAd, inspectTelegramImport, storeTelegramPhotos } from "./telegramAds";
+import { deactivateTelegramImportRecord, deleteTelegramPhotos, ingestTelegramAd, inspectTelegramImport, storeTelegramPhotoBytes, storeTelegramPhotos, type StoredTelegramImages } from "./telegramAds";
 
 if (!admin.apps.length) admin.initializeApp();
 
 const db = admin.firestore();
 const TELEGRAM_BOT_TOKEN = defineSecret("TELEGRAM_BOT_TOKEN");
 const TELEGRAM_WEBHOOK_SECRET = defineSecret("TELEGRAM_WEBHOOK_SECRET");
+const TELEGRAM_COLLECTOR_HMAC_SECRET = defineSecret("TELEGRAM_COLLECTOR_HMAC_SECRET");
 const updateLedger = new FirestoreTelegramUpdateLedger(db);
 const updateRateLimiter = new FirestoreTelegramUpdateRateLimiter(db);
 
@@ -43,30 +46,17 @@ function reply(res: Response, status: number, body: string): void {
     res.status(status).type("text/plain").send(body);
 }
 
-async function handleTelegramWebhook(req: Request, res: Response): Promise<void> {
-    if (req.method !== "POST") {
-        reply(res, 405, "method not allowed");
-        return;
-    }
+type TelegramPhotoLoader = (parsed: Awaited<ReturnType<typeof parseTelegramAdMessage>>) => Promise<StoredTelegramImages>;
 
-    let webhookSecret: string;
-    try {
-        webhookSecret = TELEGRAM_WEBHOOK_SECRET.value();
-    } catch {
-        reply(res, 503, "webhook unavailable");
-        return;
-    }
-    if (!isAuthorizedTelegramWebhookSecret(webhookSecret, req.get("X-Telegram-Bot-Api-Secret-Token"))) {
-        reply(res, 401, "unauthorized");
-        return;
-    }
-    if (!req.is("application/json") || !isJsonObject(req.body) || Buffer.byteLength(JSON.stringify(req.body)) > 256 * 1024) {
-        // The sender is authenticated; acknowledge malformed or unsupported payloads to avoid retry storms.
-        console.info("Telegram update ignored", { reason: "invalid_update_payload" });
-        reply(res, 200, "ignored");
-        return;
-    }
-
+/** Shared server-side validation, deduplication, media, review and publication path for both transports. */
+async function processAuthenticatedTelegramUpdate(
+    update: Record<string, unknown>,
+    updateId: TelegramUpdateId,
+    res: Response,
+    loadPhotos: TelegramPhotoLoader,
+    photoUnavailable = false,
+    requireExplicitSenderAllowlist = false,
+): Promise<void> {
     let config;
     try {
         config = loadTelegramListingsConfig();
@@ -81,16 +71,9 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
         return;
     }
 
-    const updateId = getTelegramUpdateId(req.body);
-    const chatId = getTelegramUpdateChatId(req.body);
-    if (updateId === undefined) {
-        console.info("Telegram update ignored", { reason: "invalid_update_id" });
-        reply(res, 200, "ignored");
-        return;
-    }
-    const message = getTelegramUpdateMessage(req.body);
+    const chatId = getTelegramUpdateChatId(update);
+    const message = getTelegramUpdateMessage(update);
     if (!message) {
-        // Unrelated Telegram update kinds are deliberately ignored.
         console.info("Telegram update ignored", { reason: "unsupported_update" });
         reply(res, 200, "ignored");
         return;
@@ -102,6 +85,14 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
         return;
     }
     const chatSource = chatSourceLookup.source;
+    if (requireExplicitSenderAllowlist && !hasExplicitTelegramCollectorSenderAllowlist(chatSource)) {
+        console.info("Telegram collector candidate ignored", {
+            stage: "source_author_policy",
+            reason: "sender_allowlist_not_configured",
+        });
+        reply(res, 200, "ignored");
+        return;
+    }
 
     const claimToken = randomUUID();
     let claim;
@@ -131,12 +122,9 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
             reply(res, 503, "retry");
             return;
         }
-        let parsed;
-        try {
-            parsed = parseTelegramAdMessage(message, chatSource);
-        } catch (error) {
-            const reason = getTelegramListingSkipReason(error);
-            console.info("Telegram listing skipped", { stage: "source_and_message_validation", reason });
+        const evaluation = evaluateTelegramAdMessage(message, chatSource);
+        if (evaluation.decision === "reject") {
+            console.info("Telegram listing skipped", { stage: "source_and_message_validation", reason: evaluation.reason });
             if (!await updateLedger.finish(updateId, claimToken, Date.now())) {
                 reply(res, 503, "retry");
                 return;
@@ -144,8 +132,20 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
             reply(res, 200, "skipped");
             return;
         }
+        let parsed = evaluation.parsed;
 
-        const previous = await inspectTelegramImport(db, parsed, isTelegramEditedUpdate(req.body));
+        if (photoUnavailable) {
+            parsed = {
+                ...parsed,
+                photoFileIds: [],
+                decision: "needs_review",
+                autoPublishEligible: false,
+                reviewReasons: Array.from(new Set([...parsed.reviewReasons, "photo_not_supported"])),
+            };
+        }
+
+        const edited = isTelegramEditedUpdate(update);
+        const previous = await inspectTelegramImport(db, parsed, edited);
         if (previous !== "continue") {
             console.info("Telegram listing ignored", { stage: "message_deduplication", reason: previous });
             if (!await updateLedger.finish(updateId, claimToken, Date.now())) {
@@ -156,25 +156,17 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
             return;
         }
 
-        let storedImages = { urls: [] as string[], paths: [] as string[] };
+        let storedImages: StoredTelegramImages = { urls: [], paths: [] };
         if (parsed.photoFileIds.length) {
-            let botToken: string;
             try {
-                botToken = TELEGRAM_BOT_TOKEN.value();
-            } catch {
-                await updateLedger.release(updateId, claimToken);
-                console.error("Telegram media import unavailable", { reason: "bot_token_unavailable" });
-                reply(res, 503, "retry");
-                return;
-            }
-            try {
-                storedImages = await storeTelegramPhotos(parsed, botToken);
+                storedImages = await loadPhotos(parsed);
             } catch (error) {
                 const code = error instanceof Error ? error.message : "";
                 if (code === "telegram-image-too-large" || code === "telegram-image-type-unsupported") {
                     parsed = {
                         ...parsed,
                         photoFileIds: [],
+                        decision: "needs_review",
                         autoPublishEligible: false,
                         reviewReasons: Array.from(new Set([...parsed.reviewReasons, "photo_not_supported"])),
                     };
@@ -189,26 +181,38 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
 
         let result;
         try {
-            result = await ingestTelegramAd(db, parsed, storedImages, isTelegramEditedUpdate(req.body));
+            result = await ingestTelegramAd(db, parsed, storedImages, edited);
         } catch {
             await updateLedger.release(updateId, claimToken);
             console.error("Telegram import run incomplete", { reason: "import_storage_failed" });
             reply(res, 503, "retry");
             return;
         }
+        if (result === "daily_limit" && storedImages.paths.length) {
+            await deleteTelegramPhotos(storedImages.paths).catch(() => {
+                console.error("Telegram media cleanup deferred", { reason: "daily_limit_cleanup_failed" });
+            });
+        }
         console.info("Telegram update handled", {
             created: result === "created" ? 1 : 0,
             updated: result === "updated_review" || result === "edited_needs_review" ? 1 : 0,
-            reviewed: result === "review" || result === "daily_limit" ? 1 : 0,
+            reviewed: result === "review" ? 1 : 0,
+            limited: result === "daily_limit" ? 1 : 0,
             skipped: result === "duplicate" || result === "sticky_terminal" ? 1 : 0,
             result,
         });
-        if (!await updateLedger.finish(updateId, claimToken, Date.now())) {
-            // If the lease expired while importing, returning a retry is safe: source listing IDs are deterministic.
+        if (result === "daily_limit") {
+            // Keep the authenticated update retryable; the local collector also retains it in its outbox.
+            await updateLedger.release(updateId, claimToken);
+            res.set("Retry-After", "3600");
             reply(res, 503, "retry");
             return;
         }
-        reply(res, 200, "ok");
+        if (!await updateLedger.finish(updateId, claimToken, Date.now())) {
+            reply(res, 503, "retry");
+            return;
+        }
+        reply(res, 200, result);
     } catch {
         try {
             await updateLedger.release(updateId, claimToken);
@@ -218,6 +222,96 @@ async function handleTelegramWebhook(req: Request, res: Response): Promise<void>
         console.error("Telegram update import failed; the update can be retried.", { reason: "import_failed" });
         reply(res, 503, "retry");
     }
+}
+
+async function handleTelegramWebhook(req: Request, res: Response): Promise<void> {
+    if (req.method !== "POST") {
+        reply(res, 405, "method not allowed");
+        return;
+    }
+
+    let webhookSecret: string;
+    try {
+        webhookSecret = TELEGRAM_WEBHOOK_SECRET.value();
+    } catch {
+        reply(res, 503, "webhook unavailable");
+        return;
+    }
+    if (!isAuthorizedTelegramWebhookSecret(webhookSecret, req.get("X-Telegram-Bot-Api-Secret-Token"))) {
+        reply(res, 401, "unauthorized");
+        return;
+    }
+    if (!req.is("application/json") || !isJsonObject(req.body) || Buffer.byteLength(JSON.stringify(req.body)) > 256 * 1024) {
+        // The sender is authenticated; acknowledge malformed or unsupported payloads to avoid retry storms.
+        console.info("Telegram update ignored", { reason: "invalid_update_payload" });
+        reply(res, 200, "ignored");
+        return;
+    }
+    const updateId = getTelegramUpdateId(req.body);
+    if (updateId === undefined) {
+        console.info("Telegram update ignored", { reason: "invalid_update_id" });
+        reply(res, 200, "ignored");
+        return;
+    }
+    await processAuthenticatedTelegramUpdate(req.body, updateId, res, async (parsed) => {
+        let botToken: string;
+        try {
+            botToken = TELEGRAM_BOT_TOKEN.value();
+        } catch {
+            throw new Error("bot_token_unavailable");
+        }
+        return storeTelegramPhotos(parsed, botToken);
+    });
+}
+
+async function handleTelegramCollectorIngest(req: Request, res: Response): Promise<void> {
+    if (req.method !== "POST") {
+        reply(res, 405, "method not allowed");
+        return;
+    }
+
+    const bodyRequest = req as Request & { rawBody?: Buffer };
+    const rawBody = bodyRequest.rawBody;
+    if (!req.is("application/json") || !Buffer.isBuffer(rawBody) || rawBody.length === 0 || rawBody.length > 12 * 1024 * 1024) {
+        reply(res, 400, "invalid request");
+        return;
+    }
+
+    let collectorSecret: string;
+    try {
+        collectorSecret = TELEGRAM_COLLECTOR_HMAC_SECRET.value();
+    } catch {
+        reply(res, 503, "collector unavailable");
+        return;
+    }
+    if (!isAuthorizedTelegramCollectorRequest(
+        collectorSecret,
+        req.get("X-Telegram-Collector-Timestamp"),
+        req.get("X-Telegram-Collector-Signature"),
+        rawBody,
+    )) {
+        reply(res, 401, "unauthorized");
+        return;
+    }
+
+    let normalized;
+    try {
+        normalized = buildTelegramUpdateFromCollectorPayload(req.body, rawBody);
+    } catch {
+        // The sender is authenticated; acknowledge invalid schema to prevent retry storms.
+        console.info("Telegram collector candidate ignored", { stage: "payload_validation", reason: "invalid_payload" });
+        reply(res, 200, "skipped");
+        return;
+    }
+
+    await processAuthenticatedTelegramUpdate(
+        normalized.update,
+        normalized.updateId,
+        res,
+        async (parsed) => storeTelegramPhotoBytes(parsed, normalized.photoBytes),
+        normalized.photoUnavailable,
+        true,
+    );
 }
 
 /** Telegram sends updates here. Only the dedicated Telegram webhook secret authenticates requests. */
@@ -230,6 +324,19 @@ export const telegramListingsWebhook = onRequest(
         secrets: [TELEGRAM_WEBHOOK_SECRET, TELEGRAM_BOT_TOKEN],
     },
     handleTelegramWebhook,
+);
+
+/** Authenticated server-to-server ingress for the owner-controlled Telethon collector. */
+export const telegramCollectorIngest = onRequest(
+    {
+        region: "us-central1",
+        invoker: "public",
+        timeoutSeconds: 60,
+        maxInstances: 3,
+        concurrency: 5,
+        secrets: [TELEGRAM_COLLECTOR_HMAC_SECRET],
+    },
+    handleTelegramCollectorIngest,
 );
 
 /** Registers the webhook using a server-side secret; never returns or logs the bot token. */

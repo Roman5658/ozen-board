@@ -5,6 +5,7 @@ export type AdPriceType = "paid" | "free" | "exchange";
 export type AdPriceLabels = {
     free: string;
     exchange: string;
+    priceOnRequest: string;
 };
 
 export function isAdPriceType(value: unknown): value is AdPriceType {
@@ -27,10 +28,15 @@ export function getAdPriceLabel(
         case "exchange":
             return labels.exchange;
         case "paid": {
-            if (typeof price !== "string" && typeof price !== "number") return "";
+            if (typeof price !== "string" && typeof price !== "number") {
+                return labels.priceOnRequest;
+            }
             if (typeof price === "number" && !Number.isFinite(price)) return "";
             const raw = String(price).trim();
-            if (!raw || /(^|[^a-z])(nan|[-+]?infinity)(?=$|[^a-z])/i.test(raw)) return "";
+            if (!raw) return labels.priceOnRequest;
+            if (/(^|[^a-z])(nan|[-+]?infinity)(?=$|[^a-z])/i.test(raw)) {
+                return "";
+            }
             if (/(?:^|[^0-9])[-−]\s*\d+/i.test(raw)) return "";
             if (/[0-9][eE][+-]?[0-9]+/.test(raw)) return "";
             return formatPricePLN(raw);

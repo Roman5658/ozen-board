@@ -1,9 +1,10 @@
 export type TelegramUpdateClaimStatus = "claimed" | "processed" | "busy";
+export type TelegramUpdateId = number | string;
 
 export interface TelegramUpdateLedger {
-    claim(updateId: number, now: number, claimToken: string): Promise<TelegramUpdateClaimStatus>;
-    finish(updateId: number, claimToken: string, now: number): Promise<boolean>;
-    release(updateId: number, claimToken: string): Promise<void>;
+    claim(updateId: TelegramUpdateId, now: number, claimToken: string): Promise<TelegramUpdateClaimStatus>;
+    finish(updateId: TelegramUpdateId, claimToken: string, now: number): Promise<boolean>;
+    release(updateId: TelegramUpdateId, claimToken: string): Promise<void>;
 }
 
 const UPDATE_LEASE_MS = 90_000;
@@ -13,8 +14,8 @@ const UPDATE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 export class FirestoreTelegramUpdateLedger implements TelegramUpdateLedger {
     constructor(private readonly db: FirebaseFirestore.Firestore) {}
 
-    async claim(updateId: number, now: number, claimToken: string): Promise<TelegramUpdateClaimStatus> {
-        const ref = this.db.collection("telegramWebhookUpdates").doc(String(updateId));
+    async claim(updateId: TelegramUpdateId, now: number, claimToken: string): Promise<TelegramUpdateClaimStatus> {
+        const ref = this.db.collection("telegramWebhookUpdates").doc(toUpdateDocumentId(updateId));
         return this.db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(ref);
             const leaseUntil = snapshot.get("leaseUntil");
@@ -33,8 +34,8 @@ export class FirestoreTelegramUpdateLedger implements TelegramUpdateLedger {
         });
     }
 
-    async finish(updateId: number, claimToken: string, now: number): Promise<boolean> {
-        const ref = this.db.collection("telegramWebhookUpdates").doc(String(updateId));
+    async finish(updateId: TelegramUpdateId, claimToken: string, now: number): Promise<boolean> {
+        const ref = this.db.collection("telegramWebhookUpdates").doc(toUpdateDocumentId(updateId));
         return this.db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(ref);
             if (snapshot.get("status") !== "processing" || snapshot.get("claimToken") !== claimToken) return false;
@@ -47,8 +48,8 @@ export class FirestoreTelegramUpdateLedger implements TelegramUpdateLedger {
         });
     }
 
-    async release(updateId: number, claimToken: string): Promise<void> {
-        const ref = this.db.collection("telegramWebhookUpdates").doc(String(updateId));
+    async release(updateId: TelegramUpdateId, claimToken: string): Promise<void> {
+        const ref = this.db.collection("telegramWebhookUpdates").doc(toUpdateDocumentId(updateId));
         await this.db.runTransaction(async (transaction) => {
             const snapshot = await transaction.get(ref);
             if (snapshot.get("status") === "processing" && snapshot.get("claimToken") === claimToken) {
@@ -56,4 +57,10 @@ export class FirestoreTelegramUpdateLedger implements TelegramUpdateLedger {
             }
         });
     }
+}
+
+function toUpdateDocumentId(updateId: TelegramUpdateId): string {
+    if (typeof updateId === "number" && Number.isSafeInteger(updateId) && updateId >= 0) return String(updateId);
+    if (typeof updateId === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(updateId)) return updateId;
+    throw new Error("invalid-telegram-update-ledger-id");
 }

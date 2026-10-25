@@ -10,7 +10,7 @@
     "test:ad-price": "tsx --test tests/adPrice.test.ts",
     "test": "tsx --tsconfig tsconfig.app.json --test tests/adPrice.test.ts tests/accountSecurity.test.ts tests/catalogFilters.test.ts tests/filterAndPromotionUi.test.tsx tests/firebaseRuntime.test.ts tests/partnerJsonFeedAdapter.test.ts tests/telegramListingsAdapter.test.ts tests/telegramListingsAdmin.test.ts tests/telegramAdsImport.test.ts tests/telegramAdsEmulator.test.ts tests/externalListingImport.test.ts tests/externalCatalog.test.ts tests/safeJsonFeed.test.ts tests/externalListingsVisibility.test.ts tests/externalCatalogEmulator.test.ts tests/telegramWebhookEmulator.test.ts tests/telegramListingLifecycleEmulator.test.ts",
     "test:firestore": "firebase emulators:exec --only firestore --project demo-ozen-board-stage-61 \"npm run test:firestore:emulator\"",
-    "test:firestore:emulator": "tsx --tsconfig tsconfig.app.json --test tests/externalCatalogEmulator.test.ts tests/telegramWebhookEmulator.test.ts tests/telegramListingLifecycleEmulator.test.ts tests/telegramAdsEmulator.test.ts",
+    "test:firestore:emulator": "tsx --tsconfig tsconfig.app.json --test --test-concurrency=1 tests/externalCatalogEmulator.test.ts tests/telegramWebhookEmulator.test.ts tests/telegramListingLifecycleEmulator.test.ts tests/telegramAdsEmulator.test.ts",
     "preview": "vite preview",
     "sitemap:generate": "tsx scripts/generateSitemap.ts",
     "backfill:ad-seller-names": "tsx scripts/backfillAdSellerNames.ts",

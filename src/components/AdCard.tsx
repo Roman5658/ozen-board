@@ -75,6 +75,7 @@ function AdCard(props: Props) {
     const priceLabel = getAdPriceLabel(props.priceType ?? ad?.priceType, price, {
         free: props.labels?.free ?? 'Безкоштовно',
         exchange: props.labels?.exchange ?? 'Обмін',
+        priceOnRequest: 'Цена у владельца',
     })
     const city = props.city ?? ad?.city
     const description = props.description ?? ad?.description

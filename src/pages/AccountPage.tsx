@@ -10,7 +10,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { updateDoc } from "firebase/firestore"
 import type { translations } from '../app/i18n'
 
-import { getLocalUser, setLocalUser, clearLocalUser, isAdmin } from "../data/localUser"
+import { getLocalUser, setLocalUser, clearLocalUser } from "../data/localUser"
 import type { Auction } from "../types/auction"
 import AdCard from "../components/AdCard"
 import AuctionCard from "../components/AuctionCard"
@@ -228,11 +228,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
     // data
     const [user, setUser] = useState<AppUser | null>(null)
-    const [profileNickname, setProfileNickname] = useState("")
-    const [profileMessage, setProfileMessage] = useState<string | null>(null)
-    const [profileError, setProfileError] = useState<string | null>(null)
-    const [profileSaving, setProfileSaving] = useState(false)
-
     const [myAds, setMyAds] = useState<Ad[]>([])
     const [myAdsLoaded, setMyAdsLoaded] = useState(false)
     const [myAdsLoading, setMyAdsLoading] = useState(false)
@@ -243,15 +238,9 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     const [myAuctionsError, setMyAuctionsError] = useState(false)
 
     // contacts (public)
-    const [phone, setPhone] = useState("")
-    const [telegram, setTelegram] = useState("")
     const [savedPhone, setSavedPhone] = useState("")
     const [savedTelegram, setSavedTelegram] = useState("")
-    const [contactsSaved, setContactsSaved] = useState(false)
-    const [contactsSaving, setContactsSaving] = useState(false)
-    const [contactsError, setContactsError] = useState<string | null>(null)
     const [contactsLoading, setContactsLoading] = useState(false)
-    const [contactsLoaded, setContactsLoaded] = useState(false)
     const [contactsLoadError, setContactsLoadError] = useState(false)
 
 
@@ -260,16 +249,12 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     async function loadUserContacts(currentUser: AppUser) {
         setContactsLoading(true)
         setContactsLoadError(false)
-        setContactsLoaded(false)
         try {
             const snap = await getDoc(doc(db, "users", currentUser.id))
             if (getLocalUser()?.id !== currentUser.id) return
             if (!snap.exists()) {
                 setSavedPhone("")
                 setSavedTelegram("")
-                setPhone("")
-                setTelegram("")
-                setContactsLoaded(true)
                 return
             }
 
@@ -292,11 +277,8 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
             setSavedPhone(nextPhone)
             setSavedTelegram(nextTelegram)
-            setPhone(nextPhone)
-            setTelegram(nextTelegram)
             setLocalUser(nextUser)
             setUser(nextUser)
-            setContactsLoaded(true)
         } catch (error) {
             console.error("[account] failed to load contacts", error)
             setContactsLoadError(true)
@@ -320,7 +302,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
 
         const currentUser: AppUser = u
         setUser(currentUser)
-        setProfileNickname("")
         void loadUserContacts(currentUser).finally(() => setIsLoading(false))
     }, [])
 
@@ -434,136 +415,11 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     }
 
 
-    async function handleSaveProfile() {
-        if (!user || !isAdmin()) return
-
-        const nextNickname = profileNickname.trim()
-        setProfileMessage(null)
-        setProfileError(null)
-
-        if (!nextNickname) {
-            setProfileError(a.profile.nicknameRequired)
-            return
-        }
-        if (!isValidNickname(nextNickname)) {
-            setProfileError(isReservedAdminNickname(nextNickname)
-                ? a.auth.errors.nicknameReserved
-                : nextNickname.length > 80
-                    ? a.auth.errors.nicknameTooLong
-                    : a.auth.errors.nicknameLatinOnly)
-            return
-        }
-
-        try {
-            setProfileSaving(true)
-            await updateDoc(doc(db, "users", user.id), {
-                nickname: nextNickname,
-            })
-
-            const nextUser: AppUser = {
-                ...user,
-                nickname: nextNickname,
-            }
-
-            setLocalUser(nextUser)
-            setUser(nextUser)
-            setProfileNickname("")
-            setProfileMessage(a.profile.profileSaved)
-        } catch (e) {
-            console.error(e)
-            setProfileError(a.profile.saveProfileError)
-        } finally {
-            setProfileSaving(false)
-        }
-    }
-
-
-    async function handleSaveContacts() {
-        if (!user) return
-
-        setContactsSaving(true)
-        setContactsError(null)
-        setContactsSaved(false)
-        try {
-            const nextPhone = phone.trim()
-            const nextTelegram = telegram.trim()
-
-            await updateDoc(doc(db, "users", user.id), {
-                phone: nextPhone || null,
-                telegram: nextTelegram || null,
-            })
-
-            const nextUser: AppUser = {
-                ...user,
-                phone: nextPhone || null,
-                telegram: nextTelegram || null,
-            }
-
-            setLocalUser(nextUser)
-            setUser(nextUser)
-            setSavedPhone(nextPhone)
-            setSavedTelegram(nextTelegram)
-            setContactsLoaded(true)
-            setContactsSaved(true)
-
-            setTimeout(() => {
-                setContactsSaved(false)
-            }, 3000)
-        } catch (e) {
-            console.error(e)
-            setContactsError(a.alerts.saveContactsError)
-        } finally {
-            setContactsSaving(false)
-        }
-    }
-
-    async function handleDeleteContacts() {
-        if (!user) return
-        if (!window.confirm(a.confirms.deleteContacts)) return
-
-        setContactsError(null)
-        try {
-            await updateDoc(doc(db, "users", user.id), {
-                phone: null,
-                telegram: null,
-            })
-
-            const nextUser: AppUser = {
-                ...user,
-                phone: null,
-                telegram: null,
-            }
-
-            setLocalUser(nextUser)
-            setUser(nextUser)
-            setPhone("")
-            setTelegram("")
-            setSavedPhone("")
-            setSavedTelegram("")
-            setContactsLoaded(true)
-            setContactsLoadError(false)
-            setContactsError(null)
-            setContactsSaved(false)
-            alert(a.alerts.contactsDeleted)
-        } catch (error) {
-            console.error(error)
-            setContactsError(a.alerts.deleteContactsError)
-        }
-    }
-
     function handleLogout() {
         clearLocalUser()
         setUser(null)
-        setProfileNickname("")
-        setProfileMessage(null)
-        setProfileError(null)
         setSavedPhone("")
         setSavedTelegram("")
-        setPhone("")
-        setTelegram("")
-        setContactsSaved(false)
-        setContactsError(null)
-        setContactsLoaded(false)
         setContactsLoadError(false)
         setMyAds([])
         setMyAdsLoaded(false)
@@ -798,9 +654,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                                 const savedTelegramValue = typeof profile?.telegram === "string" ? profile.telegram : ""
                                 setSavedPhone(savedPhoneValue)
                                 setSavedTelegram(savedTelegramValue)
-                                setPhone(savedPhoneValue)
-                                setTelegram(savedTelegramValue)
-                                setContactsLoaded(true)
                                 setContactsLoadError(false)
 
                                 if (!profile || profile.uid !== authRes.user.uid) {
@@ -810,7 +663,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                                 // сохраняем сессию
                                 setLocalUser(mergedUser)
                                 setUser(mergedUser)
-                                setProfileNickname("")
                                 setPassword("")
                                 return
                             }
@@ -844,8 +696,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                             // localStorage
                             setLocalUser(newUser)
                             setUser(newUser)
-                            setProfileNickname("")
-                            setContactsLoaded(true)
 
                             setNickname("")
                             setEmail("")
@@ -894,7 +744,6 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
     const deletedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "deleted")
     const removedAuctions = myAuctions.filter(auction => getAuctionOwnerStatus(auction) === "removed")
     const archivedAuctions = myAuctions.filter(auction => ["ended", "expired"].includes(getAuctionOwnerStatus(auction)))
-    const canEditProfile = isAdmin()
     const chatBadgeText = chatUnreadCount > 99 ? "99+" : String(chatUnreadCount)
     const isBlockedAccount = user.status === "blocked"
 
@@ -924,46 +773,10 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                         {isBlockedAccount ? a.profile.blockedTitle : a.moderation.statusActive}
                     </span>
                 </div>
-                {canEditProfile ? (
-                    <div className="account-profile-edit">
-                        <h3 className="h3">{a.profile.editProfile}</h3>
-                        <label className="account-field" htmlFor="account-profile-nickname">
-                            {a.profile.nicknameLabel}
-                        </label>
-                        <input
-                            className="input"
-                            id="account-profile-nickname"
-                            type="text"
-                            placeholder={user.nickname}
-                            value={profileNickname}
-                            maxLength={80}
-                            onChange={e => {
-                                setProfileNickname(e.target.value)
-                                setProfileMessage(null)
-                                setProfileError(null)
-                            }}
-                        />
-                        {profileError && (
-                            <div className="account-message account-message--error" role="alert">
-                                {profileError}
-                            </div>
-                        )}
-                        {profileMessage && (
-                            <div className="account-message account-message--success" role="status">
-                                {profileMessage}
-                            </div>
-                        )}
-                        <button
-                            className="btn-primary"
-                            type="button"
-                            disabled={profileSaving}
-                            onClick={handleSaveProfile}
-                        >
-                            {profileSaving ? a.profile.saving : a.profile.save}
-                        </button>
-                    </div>
-                ) : null}
                 <div className="account-profile__actions">
+                    <Link to="/account/edit-profile" className="btn-secondary account-action-link">
+                        {a.profile.editProfile}
+                    </Link>
                     <Link to="/account/chats" className="btn-secondary account-action-link">
                         <span>{a.profile.myChats}</span>
                         {chatUnreadCount > 0 && <span className="account-chat-badge">{chatBadgeText}</span>}
@@ -977,7 +790,7 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                 </div>
             </section>
 
-            <section className="account-card account-contacts" aria-labelledby="account-contacts-heading" aria-busy={contactsSaving}>
+            <section className="account-card account-contacts" aria-labelledby="account-contacts-heading" aria-busy={contactsLoading}>
                     <h3 className="account-card__title" id="account-contacts-heading">{a.profile.contactsTitle}</h3>
 
                     <div className="account-contact-warning" role="note">
@@ -996,59 +809,13 @@ function AccountPage({ t, chatUnreadCount = 0 }: Props) {
                     )}
                     {contactsLoading && <div className="account-message" role="status">{a.loading}</div>}
 
-                    {(savedPhone || savedTelegram) && (
+                    {!contactsLoading && !contactsLoadError && (
                         <div className="account-saved-contacts">
                             <b>{a.profile.savedContacts}</b>
-                            {savedPhone && <div>{a.profile.phoneLabel}: {savedPhone}</div>}
-                            {savedTelegram && <div>{a.profile.telegramLabel}: {savedTelegram}</div>}
+                            <div>{a.profile.phoneLabel}: {savedPhone || "—"}</div>
+                            <div>{a.profile.telegramLabel}: {savedTelegram || "—"}</div>
                         </div>
                     )}
-
-                    <div className="account-contacts__fields">
-                        <label className="account-field" htmlFor="account-phone">
-                            <span>{a.profile.phoneLabel}</span>
-                            <input
-                                className="input"
-                                id="account-phone"
-                                type="tel"
-                                autoComplete="tel"
-                                placeholder={a.profile.phonePlaceholder}
-                                value={phone}
-                                onChange={e => {
-                                    setPhone(e.target.value)
-                                    setContactsSaved(false)
-                                    setContactsError(null)
-                                }}
-                            />
-                        </label>
-
-                        <label className="account-field" htmlFor="account-telegram">
-                            <span>{a.profile.telegramLabel}</span>
-                            <input
-                                className="input"
-                                id="account-telegram"
-                                type="text"
-                                autoComplete="off"
-                                placeholder={a.profile.telegramPlaceholder}
-                                value={telegram}
-                                onChange={e => {
-                                    setTelegram(e.target.value)
-                                    setContactsSaved(false)
-                                    setContactsError(null)
-                                }}
-                            />
-                        </label>
-                    </div>
-                    {contactsError && <div className="account-message account-message--error" role="alert">{contactsError}</div>}
-                    {contactsSaved && <div className="account-message account-message--success" role="status" aria-live="polite">{a.profile.saved}</div>}
-                    <div className="account-contact-actions">
-                        <button type="button" className="btn-primary" disabled={contactsSaving || contactsLoading || !contactsLoaded} onClick={handleSaveContacts}>
-                            {contactsSaving ? a.profile.saving : a.profile.saveContacts}
-                        </button>
-                        <button type="button" className="btn-danger" onClick={handleDeleteContacts}>
-                            {a.profile.deleteContacts}
-                        </button>
-                    </div>
                 </section>
             </div>
 

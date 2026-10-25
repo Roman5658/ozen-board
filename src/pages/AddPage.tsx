@@ -276,6 +276,7 @@ function AddPage({ t }: Props) {
         e.preventDefault()
         setError(null)
 
+
         if (
             !title.trim() ||
             !description.trim() ||
@@ -284,6 +285,7 @@ function AddPage({ t }: Props) {
             !city ||
             (priceType === "paid" && !price.trim())
         ) {
+
             setError(a.errors.required)
 
             return
@@ -479,6 +481,7 @@ function AddPage({ t }: Props) {
         }
     }
 
+
     const isFormValid =
         title.trim() &&
         description.trim() &&
@@ -486,6 +489,7 @@ function AddPage({ t }: Props) {
         voivodeship &&
         city &&
         (priceType !== "paid" || price.trim())
+
 
 
     return (

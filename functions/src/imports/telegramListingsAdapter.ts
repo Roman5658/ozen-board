@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+﻿import { createHash } from "node:crypto";
 import {
     validateExternalListingSource,
     type ExternalListingCandidate,
@@ -56,6 +56,8 @@ export type TelegramListingSkipReason =
     | "invalid_offer_type"
     | "conflicting_offer_price"
     | "message_too_long"
+    | "spam_rejected"
+    | "not_an_ad"
     | "invalid_source_configuration"
     | "validation_failed";
 
@@ -94,6 +96,10 @@ export function getTelegramListingSkipReason(error: unknown): TelegramListingSki
             return "conflicting_offer_price";
         case "telegram-message-too-long":
             return "message_too_long";
+        case "telegram-spam-rejected":
+            return "spam_rejected";
+        case "telegram-not-a-listing":
+            return "not_an_ad";
         case "invalid-telegram-source-config":
         case "invalid-telegram-chat-config":
         case "source-rights-not-reviewed":
@@ -401,8 +407,14 @@ export type ParsedTelegramAd = {
     sellerContact?: string;
     photoFileIds: string[];
     reviewReasons: string[];
+    decision: "auto_publish" | "needs_review";
     autoPublishEligible: boolean;
+    permittedFields: ExternalListingField[];
 };
+
+export type TelegramAdEvaluation =
+    | { decision: "auto_publish" | "needs_review"; parsed: ParsedTelegramAd }
+    | { decision: "reject"; reason: TelegramListingSkipReason };
 
 const TITLE_LINE = /^(?:заголовок|назва|название|tytuł|title)\s*:\s*/i;
 const CATEGORY_LINE = /^(?:категорія|категория|kategoria|category)\s*:\s*/i;
@@ -410,10 +422,20 @@ const PRICE_LINE = /^(?:ціна|цена|cena|price)\s*:\s*/i;
 const OFFER_LINE = /^(?:тип пропозиції|тип предложения|typ oferty|offer type|offer)\s*:\s*/i;
 const CITY_LINE = /^(?:місто|город|miasto|city)\s*:\s*/i;
 const VOIVODESHIP_LINE = /^(?:воєводство|воеводство|województwo|voivodeship)\s*:\s*/i;
-const CONTACT_LINE = /^(?:контакт|контакти|телефон|номер телефону|kontakt|telefon|contact|phone|telegram|e-?mail|mail)\s*:\s*/i;
-const EXCHANGE_LINE = /^(?:обмін на|wymiana na|exchange for)\s*:\s*/i;
-const KNOWN_META_LINE = /^(?:заголовок|назва|название|tytuł|title|категорія|категория|kategoria|category|ціна|цена|cena|price|тип пропозиції|тип предложения|typ oferty|offer type|offer|місто|город|miasto|city|воєводство|воеводство|województwo|voivodeship|контакт|контакти|телефон|номер телефону|kontakt|telefon|contact|phone|telegram|e-?mail|mail|обмін на|wymiana na|exchange for)\s*:/i;
-
+const CONTACT_LINE = /^(?:контакт|телефон|номер телефону|номер телефона|kontakt|telefon|contact|phone|telegram|e-?mail|mail)\s*:\s*/i;
+const HIGH_CONFIDENCE_SPAM_PATTERNS = [
+    /чистые\s+гу/iu,
+    /гу\s+под\s+гк/iu,
+    /готовые\s+банки/iu,
+    /автоматическ\w*\s+выдач\w*\s+симк\w*/iu,
+    /гос\s+под\s+(?:юмани|авито)/iu,
+    /лк\s+озон\s+банк/iu,
+    /цифровой\s+айди/iu,
+    /verified\s+cookie/iu,
+    /без\s+фрода/iu,
+];
+const EXCHANGE_LINE = /^(?:обмін на|обмен на|wymiana na|exchange for)\s*:\s*/i;
+const KNOWN_META_LINE = /^(?:заголовок|назва|название|tytuł|title|категорія|категория|kategoria|category|ціна|цена|cena|price|тип пропозиції|тип предложения|typ oferty|offer type|offer|місто|город|miasto|city|воєводство|воеводство|województwo|voivodeship|контакт|телефон|номер телефону|номер телефона|kontakt|telefon|contact|phone|telegram|e-?mail|mail|обмін на|обмен на|wymiana na|exchange for)\s*:/i;
 function afterLabel(line: string, pattern: RegExp): string {
     return line.replace(pattern, "").trim();
 }
@@ -451,10 +473,21 @@ function validExplicitContact(value: string): boolean {
 export function parseTelegramAdMessage(value: unknown, chatSource: TelegramChatSource): ParsedTelegramAd {
     const validated = validateTelegramMessage(value, chatSource, true);
     const { message, chatId, messageId, publishedAt, sourceUrl, normalizedText, senderUnverified } = validated;
+    if (HIGH_CONFIDENCE_SPAM_PATTERNS.some((pattern) => pattern.test(normalizedText.normalize("NFKC")))) {
+        throw new Error("telegram-spam-rejected");
+    }
+    const hasPhoto = Array.isArray(message.photo) && message.photo.length > 0;
+    if ((!normalizedText && !hasPhoto) || /^\/[A-Za-z0-9_]+(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u.test(normalizedText)) {
+        throw new Error("telegram-not-a-listing");
+    }
     const lines = normalizedText.split("\n").map((line) => line.trim()).filter(Boolean);
     const reasons = new Set<string>();
     if (senderUnverified) reasons.add("sender_unverified");
     if (!normalizedText) reasons.add("missing_text");
+    if (typeof message.media_group_id === "string" && message.media_group_id) {
+        // Album messages arrive as distinct Telegram message IDs; do not auto-publish them separately.
+        reasons.add("media_group_requires_review");
+    }
 
     const titleLine = lines.find((line) => TITLE_LINE.test(line));
     const contentLines = lines.filter((line) => !KNOWN_META_LINE.test(line));
@@ -471,18 +504,69 @@ export function parseTelegramAdMessage(value: unknown, chatSource: TelegramChatS
     }
 
     const categoryLine = lines.find((line) => CATEGORY_LINE.test(line));
-    const sourceCategory = categoryLine ? afterLabel(categoryLine, CATEGORY_LINE).toLowerCase() : "";
+    const sourceCategory = categoryLine
+        ? afterLabel(categoryLine, CATEGORY_LINE).toLowerCase()
+        : "";
+
     let category: ExternalListingCategory | undefined;
     let catalogCategory: string | undefined;
     let catalogSubcategory: string | undefined;
+
     if (!chatSource.source.rights.fields.includes("category")) {
         reasons.add("category_not_authorized");
-    } else if (!sourceCategory) {
-        reasons.add("category_missing");
     } else {
-        const mapping = chatSource.source.categoryMappings[sourceCategory];
-        if (!mapping || !mapping.category) reasons.add("category_unmapped");
-        else {
+        let mapping = sourceCategory
+            ? chatSource.source.categoryMappings[sourceCategory]
+            : undefined;
+
+
+        // Infer only when no explicit category was supplied.
+        if (!mapping && !sourceCategory) {
+            const searchableText = `${title} ${description}`.toLowerCase();
+
+            const keywordMappings: Array<{
+                pattern: RegExp;
+                category: ExternalListingCategory;
+            }> = [
+
+                {
+                    pattern: /(?:^|[^\p{L}\p{N}])(?:продам|продаю|продаж\p{L}*|sprzedam|sprzedaję|na sprzedaż)(?=$|[^\p{L}\p{N}])/iu,
+                    category: "sell",
+                },
+
+                {
+                    pattern: /(?:^|[^\p{L}\p{N}])(?:praca|робота|работа|ваканс\p{L}*|zatrudnię)(?=$|[^\p{L}\p{N}])/iu,
+                    category: "work",
+                },
+
+                {
+                    pattern: /(?:^|[^\p{L}\p{N}])(?:wynajm\p{L}* samochod\p{L}*|wynajem samochod\p{L}*|аренд\p{L}* (?:авто|автомобіл\p{L}*|машин\p{L}*)|оренд\p{L}* (?:авто|автомобіл\p{L}*|машин\p{L}*))(?:$|[^\p{L}\p{N}])/iu,
+                    category: "rent",
+                },
+
+                {
+                    pattern: /(?:^|[^\p{L}\p{N}])(?:wynajm\p{L}*|оренд\p{L}*|аренд\p{L}*|mieszkanie do wynajęcia)(?=$|[^\p{L}\p{N}])/iu,
+                    category: "rent",
+                },
+                {
+                    pattern: /(?:^|[^\p{L}\p{N}])(?:usług\p{L}*|послуг\p{L}*|услуг\p{L}*|ремонт\p{L}*)(?=$|[^\p{L}\p{N}])/iu,
+                    category: "service",
+                },
+            ];
+
+            const matches = keywordMappings.filter((item) =>
+                item.pattern.test(searchableText)
+            );
+
+            if (matches.length === 1) {
+                mapping = { category: matches[0].category };
+            }
+        }
+
+
+        if (!mapping?.category) {
+            reasons.add(sourceCategory ? "category_unmapped" : "category_missing");
+        } else {
             category = mapping.category;
             catalogCategory = mapping.catalogCategory;
             catalogSubcategory = mapping.catalogSubcategory;
@@ -501,24 +585,31 @@ export function parseTelegramAdMessage(value: unknown, chatSource: TelegramChatS
     } else if (priceLine) {
         const parsedPrice = parseExplicitPriceValue(afterLabel(priceLine, PRICE_LINE));
         if (!parsedPrice) reasons.add("price_invalid_or_currency_unknown");
-        else if (priceType && priceType !== parsedPrice.priceType) reasons.add("offer_price_conflict");
-        else {
+        else if (parsedPrice.priceType === "paid") {
+            // A numeric price does not establish the offer type; only an explicit offer label does.
+            if (priceType && priceType !== "paid") reasons.add("offer_price_conflict");
+            else {
+                price = parsedPrice.price;
+                if (!priceType && category !== "work") reasons.add("offer_type_unknown");
+            }
+        } else if (priceType && priceType !== parsedPrice.priceType) {
+            reasons.add("offer_price_conflict");
+        } else {
+            // A literal free/exchange value in the price field is itself an explicit offer type.
             priceType = parsedPrice.priceType;
-            price = parsedPrice.price;
         }
     }
-    if (!priceType) reasons.add("offer_type_unknown");
-    if (priceType === "paid" && !price) reasons.add("paid_price_missing");
-    if (priceType !== "paid") price = undefined;
+
+    if (!priceType && category !== "work") reasons.add("offer_type_unknown");
+    if (priceType === "free" || priceType === "exchange") price = undefined;
+
 
     const cityLine = lines.find((line) => CITY_LINE.test(line));
     const voivodeshipLine = lines.find((line) => VOIVODESHIP_LINE.test(line));
     const city = cityLine ? afterLabel(cityLine, CITY_LINE).slice(0, 120) : undefined;
     const voivodeship = voivodeshipLine ? afterLabel(voivodeshipLine, VOIVODESHIP_LINE).slice(0, 120) : undefined;
-    if (!chatSource.source.rights.fields.includes("location")) reasons.add("location_not_authorized");
-    else {
-        if (!city) reasons.add("city_missing");
-        if (!voivodeship) reasons.add("voivodeship_missing");
+    if (!chatSource.source.rights.fields.includes("location")) {
+        reasons.add("location_not_authorized");
     }
 
     const contactLine = lines.find((line) => CONTACT_LINE.test(line));
@@ -543,13 +634,29 @@ export function parseTelegramAdMessage(value: unknown, chatSource: TelegramChatS
         reasons.add("required_fields_not_authorized");
     }
 
-    const unknownMeta = lines.some((line) => /^[^:]{2,40}:\s*\S/.test(line) && !KNOWN_META_LINE.test(line));
-    if (unknownMeta) reasons.add("unrecognized_metadata");
     if (!chatSource.autoPublish) reasons.add("auto_publish_disabled");
 
-    const normalizedContent = `${title}\0${description}\0${sourceCategory}\0${priceType ?? ""}\0${price ?? ""}\0${photoFileIds.join("\0")}`
-        .normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
-    const contentHash = createHash("sha256").update(normalizedContent).digest("hex");
+    // Include every retained candidate field so edits to location, contact, exchange
+    // details, or rights cannot reuse an old Storage path or look like the same revision.
+    const candidateFingerprint = JSON.stringify({
+        sourceUrl,
+        publishedAt,
+        title,
+        description,
+        sourceCategory,
+        category: category ?? "",
+        catalogCategory: catalogCategory ?? "",
+        catalogSubcategory: catalogSubcategory ?? "",
+        priceType: priceType ?? "",
+        price: price ?? "",
+        exchangeDetails: exchangeDetails ?? "",
+        city: city ?? "",
+        voivodeship: voivodeship ?? "",
+        sellerContact: sellerContact ?? "",
+        photoFileIds,
+        permittedFields: [...chatSource.source.rights.fields].sort(),
+    });
+    const contentHash = createHash("sha256").update(candidateFingerprint).digest("hex");
     const autoPublishEligible = chatSource.autoPublish && reasons.size === 0;
 
     return {
@@ -573,8 +680,20 @@ export function parseTelegramAdMessage(value: unknown, chatSource: TelegramChatS
         ...(sellerContact ? { sellerContact } : {}),
         photoFileIds: chatSource.source.rights.fields.includes("images") ? photoFileIds : [],
         reviewReasons: Array.from(reasons),
+        decision: autoPublishEligible ? "auto_publish" : "needs_review",
         autoPublishEligible,
+        permittedFields: [...chatSource.source.rights.fields],
     };
+}
+
+/** Server-side decision: parser failures are rejected, and only a complete zero-reason result can auto-publish. */
+export function evaluateTelegramAdMessage(value: unknown, chatSource: TelegramChatSource): TelegramAdEvaluation {
+    try {
+        const parsed = parseTelegramAdMessage(value, chatSource);
+        return { decision: parsed.decision, parsed };
+    } catch (error) {
+        return { decision: "reject", reason: getTelegramListingSkipReason(error) };
+    }
 }
 
 function createTelegramContentId(chatId: string, title: string, description: string, metadataLines: string[]): string {

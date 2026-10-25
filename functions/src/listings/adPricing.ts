@@ -29,29 +29,55 @@ function isInvalidPriceText(value: string): boolean {
 }
 
 /** Server-side normalization for createAd; non-paid types discard any submitted price. */
+
 export function normalizeAdPricing(
     priceType: unknown,
     price: unknown,
     exchangeDetails: unknown,
+    options: { allowEmptyPaidPrice?: boolean } = {},
 ): AdPricingFields {
     if (priceType === undefined || priceType === "paid") {
-        if (typeof price !== "string" || !price.trim()) throw new InvalidAdPricingError();
+        if (price === undefined || price === null || (typeof price === "string" && !price.trim())) {
+            if (!options.allowEmptyPaidPrice) throw new InvalidAdPricingError();
+            return { priceType: "paid", price: "" };
+        }
+
+        if (typeof price !== "string") {
+            throw new InvalidAdPricingError();
+        }
+
         const normalizedPrice = price.trim();
+
         if (normalizedPrice.length > 80 || isInvalidPriceText(normalizedPrice)) {
             throw new InvalidAdPricingError();
         }
+
         return { priceType: "paid", price: normalizedPrice };
     }
 
-    if (priceType === "free") return { priceType, price: "" };
-    if (priceType !== "exchange") throw new InvalidAdPricingError();
+    if (priceType === "free") {
+        return { priceType, price: "" };
+    }
 
-    if (exchangeDetails !== undefined && exchangeDetails !== null && typeof exchangeDetails !== "string") {
+    if (priceType !== "exchange") {
         throw new InvalidAdPricingError();
     }
 
-    const normalizedDetails = typeof exchangeDetails === "string" ? exchangeDetails.trim() : "";
-    if (normalizedDetails.length > 200) throw new InvalidAdPricingError();
+    if (
+        exchangeDetails !== undefined &&
+        exchangeDetails !== null &&
+        typeof exchangeDetails !== "string"
+    ) {
+        throw new InvalidAdPricingError();
+    }
+
+    const normalizedDetails =
+        typeof exchangeDetails === "string" ? exchangeDetails.trim() : "";
+
+    if (normalizedDetails.length > 200) {
+        throw new InvalidAdPricingError();
+    }
+
     return {
         priceType,
         price: "",

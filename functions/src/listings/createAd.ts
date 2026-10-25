@@ -133,7 +133,8 @@ function buildAdData(
     input: CreateAdInput,
     identity: UserIdentity,
     trustedNickname: string | null,
-    now: number
+    now: number,
+    allowEmptyPaidPrice = false,
 ) {
     const title = requireText(input.title, "title", 200);
     const description = requireText(input.description, "description", 5000);
@@ -143,7 +144,9 @@ function buildAdData(
     const city = requireText(input.city, "city", 120);
     let pricing;
     try {
-        pricing = normalizeAdPricing(input.priceType, input.price, input.exchangeDetails);
+        pricing = normalizeAdPricing(input.priceType, input.price, input.exchangeDetails, {
+            allowEmptyPaidPrice,
+        });
     } catch (error) {
         if (error instanceof InvalidAdPricingError) {
             throw new HttpsError("invalid-argument", "Invalid price.");
@@ -185,7 +188,7 @@ export function buildTrustedTelegramAdData(input: CreateAdInput, now: number) {
         userId: "telegram_import",
         allIds: [],
     };
-    const ad = buildAdData(input, identity, "Telegram", now);
+    const ad = buildAdData(input, identity, "Telegram", now, true);
     return {
         ...ad,
         sourceType: "telegram" as const,

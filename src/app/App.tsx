@@ -36,6 +36,7 @@ const NearbyPage = lazy(() => import('../pages/NearbyPage'))
 const AddPage = lazy(() => import('../pages/AddPage'))
 const AuctionPage = lazy(() => import('../pages/AuctionPage'))
 const AccountPage = lazy(() => import('../pages/AccountPage'))
+const EditProfilePage = lazy(() => import('../pages/EditProfilePage'))
 const AccountChatsPage = lazy(() => import('../pages/AccountChatsPage'))
 const AccountPaymentsPage = lazy(() => import('../pages/AccountPaymentsPage'))
 const AdDetailsPage = lazy(() => import('../pages/AdDetailsPage'))
@@ -469,6 +470,7 @@ function App() {
 
                 <Route path="/add" element={<AddPage t={t} />} />
                 <Route path="/account" element={<AccountPage t={t} chatUnreadCount={chatUnreadCount} />} />
+                <Route path="/account/edit-profile" element={<EditProfilePage t={t} />} />
                 <Route path="/account/chats" element={<AccountChatsPage t={t} />} />
                 <Route path="/account/payments" element={<AccountPaymentsPage t={t} />} />
                 <Route path="/my-ads" element={<MyAdsPage />} />

@@ -199,6 +199,7 @@ function AdDetailsPage({ t }: Props) {
         ? getAdPriceLabel(publicAd.priceType, publicAd.price, {
             free: t.adCard.free,
             exchange: t.adCard.exchange,
+            priceOnRequest: 'Цена у владельца',
         })
         : ''
     const schemaPriceText = String(publicAd?.price ?? '')
@@ -283,8 +284,8 @@ function AdDetailsPage({ t }: Props) {
     const detailPriceLabel = getAdPriceLabel(ad.priceType, ad.price, {
         free: t.adCard.free,
         exchange: t.adCard.exchange,
+        priceOnRequest: 'Цена у владельца',
     })
-
 
 
     return (

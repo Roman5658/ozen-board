@@ -511,6 +511,7 @@ export const translations = {
             user: 'Користувач',
             free: 'Безкоштовно',
             exchange: 'Обмін',
+            priceOnRequest: 'Ціна у власника',
 
             top3: 'TOP 3',
             top6: 'TOP 6',
@@ -752,6 +753,8 @@ export const translations = {
             profile: {
                 karma: 'Карма',
                 editProfile: 'Редагувати профіль',
+                backToAccount: '← Назад до акаунта',
+                authRequired: 'Увійдіть в акаунт, щоб редагувати профіль.',
                 nicknameLabel: 'Нікнейм',
                 save: 'Зберегти',
                 saving: 'Зберігаємо…',
@@ -1760,6 +1763,7 @@ export const translations = {
             user: 'Użytkownik',
             free: 'Za darmo',
             exchange: 'Wymiana',
+            priceOnRequest: 'Cena u właściciela',
 
             top3: 'TOP 3',
             top6: 'TOP 6',
@@ -2001,6 +2005,8 @@ export const translations = {
             profile: {
                 karma: 'Karma',
                 editProfile: 'Edytuj profil',
+                backToAccount: '← Wróć do konta',
+                authRequired: 'Zaloguj się, aby edytować profil.',
                 nicknameLabel: 'Nick',
                 save: 'Zapisz',
                 saving: 'Zapisywanie…',

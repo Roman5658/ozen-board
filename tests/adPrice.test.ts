@@ -4,8 +4,14 @@ import { getAdPriceLabel, resolveAdPriceType } from "../src/utils/adPrice.ts";
 import { AdPricingValidationError, normalizeAdPricing as normalizeFormPricing } from "../src/utils/adPricing.ts";
 import { InvalidAdPricingError, normalizeAdPricing as normalizeServerPricing } from "../functions/src/listings/adPricing.ts";
 import { getTrustedAdSellerName } from "../functions/src/listings/adIdentity.ts";
+import { buildTrustedTelegramAdData } from "../functions/src/listings/createAd.ts";
 
-const labels = { paid: "Płatne", free: "Za darmo", exchange: "Wymiana" };
+const labels = {
+    paid: "Płatne",
+    free: "Za darmo",
+    exchange: "Wymiana",
+    priceOnRequest: "Cena u właściciela",
+};
 
 test("old listings without a price type remain paid", () => {
     assert.equal(resolveAdPriceType(undefined), "paid");
@@ -24,19 +30,54 @@ test("paid listings preserve existing formatting and suppress invalid values", (
     assert.equal(getAdPriceLabel("paid", "-Infinity", labels), "");
     assert.equal(getAdPriceLabel("paid", "1e999", labels), "");
     assert.equal(getAdPriceLabel("paid", Number.NaN, labels), "");
+    assert.equal(getAdPriceLabel("paid", "", labels), "Cena u właściciela");
+    assert.equal(getAdPriceLabel("paid", undefined, labels), "Cena u właściciela");
+    assert.equal(getAdPriceLabel("paid", "", { ...labels, priceOnRequest: "Ціна у власника" }), "Ціна у власника");
 });
 
-test("paid ad creation requires and normalizes a valid price; legacy requests default to paid", () => {
+
+test("ordinary paid ad creation requires a price by default; legacy requests still default to paid", () => {
     assert.deepEqual(normalizeServerPricing(undefined, " 125 ", undefined), {
         priceType: "paid",
         price: "125",
     });
+
     assert.deepEqual(normalizeFormPricing("paid", " 25 zł/год ", ""), {
         priceType: "paid",
         price: "25 zł/год",
     });
-    assert.throws(() => normalizeServerPricing("paid", " ", undefined), InvalidAdPricingError);
+
+    for (const missing of [undefined, null, "", "   "]) {
+        assert.throws(() => normalizeServerPricing("paid", missing, undefined), InvalidAdPricingError);
+        assert.throws(() => normalizeServerPricing(undefined, missing, undefined), InvalidAdPricingError);
+        assert.throws(() => normalizeFormPricing("paid", missing, undefined), AdPricingValidationError);
+    }
 });
+
+test("trusted Telegram ad construction explicitly allows a paid ad with no price", () => {
+    assert.deepEqual(normalizeServerPricing("paid", "", undefined, { allowEmptyPaidPrice: true }), {
+        priceType: "paid",
+        price: "",
+    });
+    assert.deepEqual(normalizeServerPricing("paid", null, undefined, { allowEmptyPaidPrice: true }), {
+        priceType: "paid",
+        price: "",
+    });
+    const ad = buildTrustedTelegramAdData({
+        title: "Synthetic Telegram listing",
+        description: "Synthetic description for trusted import normalization.",
+        category: "sell",
+        voivodeship: "Mazowieckie",
+        city: "Warszawa",
+        priceType: "paid",
+        price: "",
+    }, Date.now());
+    assert.equal(ad.priceType, "paid");
+    assert.equal(ad.price, "");
+    assert.equal(ad.sourceType, "telegram");
+});
+
+
 
 test("free ad creation and editing discard an old price", () => {
     const expected = { priceType: "free", price: "" };
@@ -58,13 +99,43 @@ test("exchange ad creation includes optional details and always clears price", (
     });
 });
 
+
+
 test("create and edit reject malformed, negative, non-finite, and wrongly typed prices", () => {
-    for (const invalid of [undefined, null, 25, Number.NaN, Number.POSITIVE_INFINITY, "NaN", "Infinity", "-Infinity", "-5", "−5 zł", "1e999", "25e3", "x".repeat(81)]) {
-        assert.throws(() => normalizeServerPricing("paid", invalid, undefined), InvalidAdPricingError);
-        assert.throws(() => normalizeFormPricing("paid", invalid, undefined), AdPricingValidationError);
+    for (const invalid of [
+        25,
+        Number.NaN,
+        Number.POSITIVE_INFINITY,
+        "NaN",
+        "Infinity",
+        "-Infinity",
+        "-5",
+        "−5 zł",
+        "1e999",
+        "25e3",
+        "x".repeat(81),
+    ]) {
+        assert.throws(
+            () => normalizeServerPricing("paid", invalid, undefined),
+            InvalidAdPricingError,
+        );
+        assert.throws(
+            () => normalizeServerPricing("paid", invalid, undefined, { allowEmptyPaidPrice: true }),
+            InvalidAdPricingError,
+        );
+        assert.throws(
+            () => normalizeFormPricing("paid", invalid, undefined),
+            AdPricingValidationError,
+        );
     }
-    assert.throws(() => normalizeServerPricing("discount", "25", undefined), InvalidAdPricingError);
+
+    assert.throws(
+        () => normalizeServerPricing("discount", "25", undefined),
+        InvalidAdPricingError,
+    );
 });
+
+
 
 test("all three edit price types use the same normalization as creation", () => {
     assert.deepEqual(normalizeFormPricing("paid", "25", undefined), {

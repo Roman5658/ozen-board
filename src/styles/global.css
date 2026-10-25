@@ -2700,6 +2700,32 @@ h1, h2, h3, h4, h5, h6 {
     padding: 10px 15px;
 }
 
+.account-profile-editor {
+    display: grid;
+    gap: 14px;
+    width: min(100%, 680px);
+    min-width: 0;
+}
+
+.account-profile-editor__back {
+    width: fit-content;
+    color: #334155;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.account-profile-editor__back:hover {
+    text-decoration: underline;
+}
+
+.account-profile-editor__identity {
+    display: grid;
+    gap: 4px;
+    color: #64748b;
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
 .btn-danger {
     display: inline-flex;
     align-items: center;

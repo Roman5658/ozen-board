@@ -18,6 +18,7 @@ test("Telegram update ledger is transactional, retryable, and client-inaccessibl
     let environment: RulesTestEnvironment | undefined;
     let app: ReturnType<typeof initializeAdminApp> | undefined;
     const updateId = Math.floor(Date.now() / 10);
+    const collectorUpdateId = `collector_${"a".repeat(64)}`;
 
     try {
         environment = await initializeTestEnvironment({
@@ -34,12 +35,17 @@ test("Telegram update ledger is transactional, retryable, and client-inaccessibl
         assert.equal(await ledger.finish(updateId, "first-attempt", Date.now()), true);
         assert.equal(await ledger.claim(updateId, Date.now(), "telegram-retry"), "processed");
 
+        assert.equal(await ledger.claim(collectorUpdateId, Date.now(), "collector-attempt"), "claimed");
+        assert.equal(await ledger.finish(collectorUpdateId, "collector-attempt", Date.now()), true);
+        assert.equal(await ledger.claim(collectorUpdateId, Date.now(), "collector-retry"), "processed");
+
         const marker = await db.collection("telegramWebhookUpdates").doc(String(updateId)).get();
         assert.equal(marker.get("status"), "processed");
         assert.equal(typeof marker.get("expireAt")?.toMillis, "function");
 
         const client = environment.unauthenticatedContext().firestore();
         await assertFails(getDoc(doc(client, "telegramWebhookUpdates", String(updateId))));
+        await assertFails(getDoc(doc(client, "telegramWebhookUpdates", collectorUpdateId)));
         await assertFails(setDoc(doc(client, "telegramWebhookUpdates", "client-forged"), { status: "processed" }));
         await db.collection("telegramWebhookUpdates").doc(String(updateId)).delete();
     } finally {

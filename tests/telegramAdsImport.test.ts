@@ -6,7 +6,7 @@ import {
     loadTelegramListingsConfig,
     parseTelegramAdMessage,
 } from "../functions/src/imports/telegramListingsAdapter";
-import { storeTelegramPhotos } from "../functions/src/imports/telegramAds";
+import { getUnreferencedTelegramImagePaths, storeTelegramPhotoBytes, storeTelegramPhotos } from "../functions/src/imports/telegramAds";
 import { listTelegramModerationItems, moderateTelegramImport } from "../functions/src/imports/telegramAds";
 import type { Firestore } from "firebase-admin/firestore";
 
@@ -77,6 +77,61 @@ test("a complete synthetic listing maps to the regular-ad fields and remains eli
     assert.equal(parsed.sourceUrl, "https://t.me/xoven_test_source/17");
 });
 
+test("explicit paid Telegram offers may omit the amount, but a numeric price does not guess the offer type", () => {
+    const paidWithoutAmount = parseTelegramAdMessage(message(completeText.replace("Ціна: 100 zł\n", "")), source);
+    assert.equal(paidWithoutAmount.priceType, "paid");
+    assert.equal(paidWithoutAmount.price, undefined);
+    assert.equal(paidWithoutAmount.autoPublishEligible, true);
+
+    const amountWithoutType = parseTelegramAdMessage(message(completeText.replace("Тип пропозиції: paid\n", "")), source);
+    assert.equal(amountWithoutType.priceType, undefined);
+    assert.equal(amountWithoutType.price, "100 zł");
+    assert.ok(amountWithoutType.reviewReasons.includes("offer_type_unknown"));
+    assert.equal(amountWithoutType.autoPublishEligible, false);
+});
+
+test("Telegram revision fingerprints include all retained metadata and permission scope", () => {
+    const original = parseTelegramAdMessage(message(completeText, { photo: [{ file_id: "same-photo" }] }), source);
+    const changedLocation = parseTelegramAdMessage(
+        message(completeText.replace("Місто: Варшава", "Місто: Краків"), { photo: [{ file_id: "same-photo" }] }),
+        source,
+    );
+    const changedContact = parseTelegramAdMessage(
+        message(completeText.replace("+48123456789", "+48987654321"), { photo: [{ file_id: "same-photo" }] }),
+        source,
+    );
+    const restrictedRights = {
+        ...source,
+        source: {
+            ...source.source,
+            rights: {
+                ...source.source.rights,
+                fields: source.source.rights.fields.filter((field) => field !== "contact"),
+            },
+        },
+    };
+    const changedRights = parseTelegramAdMessage(message(completeText, { photo: [{ file_id: "same-photo" }] }), restrictedRights);
+
+    assert.notEqual(changedLocation.contentHash, original.contentHash);
+    assert.notEqual(changedContact.contentHash, original.contentHash);
+    assert.notEqual(changedRights.contentHash, original.contentHash);
+});
+
+test("Telegram moderation cleanup retains published image paths and deletes only safe unreferenced paths", () => {
+    const originalPath = `telegram-imports/${"a".repeat(64)}/${"b".repeat(64)}/0.jpg`;
+    const revisionPath = `telegram-imports/${"a".repeat(64)}/${"c".repeat(64)}/0.png`;
+    const unsafePath = "telegram-imports/../../outside.jpg";
+
+    assert.deepEqual(
+        getUnreferencedTelegramImagePaths(
+            { imagePaths: [originalPath, revisionPath, unsafePath] },
+            { imagePaths: [originalPath] },
+        ),
+        [revisionPath],
+    );
+    assert.deepEqual(getUnreferencedTelegramImagePaths({ imagePaths: [originalPath] }), [originalPath]);
+});
+
 test("caption and channel_post are supported, including channel posts without from.id", () => {
     const channelSource = { ...source, chatType: "channel" as const };
     const update = {
@@ -113,6 +168,15 @@ test("missing text, short content, unknown category, price, and offer type stay 
     assert.equal(unknown.autoPublishEligible, false);
 });
 
+test("missing required voivodeship is identified before trusted ad construction", () => {
+    const withoutVoivodeship = parseTelegramAdMessage(
+        message(completeText.replace("Воєводство: Мазовецьке\n", "")),
+        source,
+    );
+    assert.ok(withoutVoivodeship.reviewReasons.includes("voivodeship_missing"));
+    assert.equal(withoutVoivodeship.autoPublishEligible, false);
+});
+
 test("free and exchange listings are recognized without inventing a price", () => {
     const base = [
         "Объявление о полезной вещи",
@@ -134,6 +198,12 @@ test("edited update kinds retain the stable message object", () => {
     assert.equal(isTelegramEditedUpdate(update), true);
     assert.equal(getTelegramUpdateMessage(update)?.message_id, 17);
     assert.equal(isTelegramEditedUpdate({ message: message(completeText) }), false);
+});
+
+test("Telegram media-group posts are kept for review rather than published as separate ads", () => {
+    const grouped = parseTelegramAdMessage(message(completeText, { media_group_id: "synthetic-album" }), source);
+    assert.ok(grouped.reviewReasons.includes("media_group_requires_review"));
+    assert.equal(grouped.autoPublishEligible, false);
 });
 
 test("Telegram moderation reads and writes reject unauthenticated or unverified non-admin users", async () => {
@@ -172,4 +242,29 @@ test("Telegram photos are size limited, signature checked, and uploaded through 
         fetchImplementation: unsupportedFetcher,
         storage,
     }), /telegram-image-type-unsupported/);
+});
+
+test("collector photo bytes use the same server-side image validation and Storage boundary", async () => {
+    const parsed = parseTelegramAdMessage(message(completeText, { photo: [{ file_id: "collector:synthetic" }] }), source);
+    const saved: Array<{ path: string; contentType: string; bytes: Buffer }> = [];
+    const deleted: string[][] = [];
+    const storage = {
+        async save(path: string, bytes: Buffer, contentType: string) {
+            saved.push({ path, contentType, bytes });
+            return `https://storage.example.test/${encodeURIComponent(path)}`;
+        },
+        async delete(paths: string[]) { deleted.push(paths); },
+    };
+    const image = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+    const stored = await storeTelegramPhotoBytes(parsed, [image], { storage });
+    assert.equal(stored.urls.length, 1);
+    assert.equal(stored.paths.length, 1);
+    assert.equal(saved[0].contentType, "image/jpeg");
+    assert.deepEqual(saved[0].bytes, image);
+    assert.match(saved[0].path, /^telegram-imports\/[a-f0-9]{64}\/[a-f0-9]{64}\/0\.jpg$/);
+
+    await assert.rejects(storeTelegramPhotoBytes(parsed, [Buffer.from("not an image")], { storage }), {
+        message: "telegram-image-type-unsupported",
+    });
+    assert.deepEqual(deleted, [[]]);
 });

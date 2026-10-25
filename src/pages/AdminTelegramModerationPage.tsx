@@ -23,6 +23,7 @@ const REASON_LABELS: Record<string, { uk: string; pl: string }> = {
     description_too_long: { uk: "Опис задовгий", pl: "Opis jest za długi" },
     external_link_requires_review: { uk: "У тексті є зовнішнє посилання", pl: "Tekst zawiera zewnętrzny link" },
     spam_signal_requires_review: { uk: "Є ознаки рекламного або ризикового повідомлення", pl: "Wiadomość może być reklamowa lub ryzykowna" },
+    media_group_requires_review: { uk: "Фотоальбом перевіряється окремими повідомленнями", pl: "Album zdjęć wymaga osobnej weryfikacji" },
     category_not_authorized: { uk: "Категорію не дозволено переносити", pl: "Brak zgody na przeniesienie kategorii" },
     category_missing: { uk: "Не вказана категорія", pl: "Nie podano kategorii" },
     category_unmapped: { uk: "Категорію не зіставлено з каталогом", pl: "Kategoria nie jest przypisana do katalogu" },

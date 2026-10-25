@@ -817,6 +817,7 @@ export {
     deleteTelegramListingsWebhook,
     getTelegramListingsWebhookStatus,
     deactivateTelegramListing,
+    telegramCollectorIngest,
 } from "./imports/telegramListingsWebhook";
 export {
     listTelegramListingsForModeration,

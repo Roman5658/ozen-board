@@ -1,14 +1,15 @@
 {
   "name": "functions",
   "scripts": {
-    "lint": "echo \"lint skipped\"",
+    "lint": "node ../node_modules/eslint/bin/eslint.js src --config ../eslint.config.js",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test": "npm run build && node --test tests/*.test.cjs"
   },
   "engines": {
     "node": "20"
